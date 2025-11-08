@@ -65,6 +65,8 @@ export default function CommunityPage() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
+      setError('');
+      
       const params = new URLSearchParams();
       if (selectedTag) params.append('tag', selectedTag);
       
@@ -83,6 +85,10 @@ export default function CommunityPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClearFilters = () => {
+    setSelectedTag('');
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -495,10 +501,26 @@ export default function CommunityPage() {
           <div className="space-y-6">
             {/* Trending Tags */}
             <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 sticky top-24">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <span>🔥</span>
-                Trending Tags
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <span>🔥</span>
+                  Trending Tags
+                </h3>
+                {selectedTag && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="text-xs text-green-400 hover:text-green-300"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {selectedTag && (
+                <div className="mb-3 px-3 py-2 bg-green-600/20 border border-green-600/30 rounded-lg text-sm">
+                  <span className="text-green-400">Showing posts tagged:</span>
+                  <span className="text-white font-semibold ml-2">#{selectedTag}</span>
+                </div>
+              )}
               <div className="space-y-2">
                 <button
                   onClick={() => setSelectedTag('')}

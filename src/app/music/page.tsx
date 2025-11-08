@@ -36,10 +36,14 @@ export default function MusicPage() {
   const fetchMusic = async () => {
     try {
       setLoading(true);
-      const url = selectedGenre 
-        ? `${API_URL}/api/music?genre=${selectedGenre}`
-        : `${API_URL}/api/music`;
+      setError('');
       
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (selectedGenre) params.append('genre', selectedGenre);
+      if (searchQuery.trim()) params.append('search', searchQuery);
+      
+      const url = `${API_URL}/api/music${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url);
       const data = await response.json();
 
@@ -58,26 +62,12 @@ export default function MusicPage() {
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      fetchMusic();
-      return;
-    }
+    fetchMusic();
+  };
 
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/music?search=${searchQuery}`);
-      const data = await response.json();
-
-      if (data.success) {
-        // Backend returns data.data.music (nested structure)
-        setMusic(data.data.music || []);
-      }
-    } catch (err) {
-      setError('Error searching music');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSelectedGenre('');
   };
 
   const handlePlayTrack = (track: Music) => {
@@ -124,10 +114,38 @@ export default function MusicPage() {
             >
               Search
             </button>
+            {(searchQuery || selectedGenre) && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
+                title="Clear all filters"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
+          {/* Active Filters Display */}
+          {(searchQuery || selectedGenre) && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400">Active filters:</span>
+              {searchQuery && (
+                <span className="px-3 py-1 bg-purple-600/20 text-purple-400 rounded-full flex items-center gap-2">
+                  Search: "{searchQuery}"
+                  <button onClick={() => setSearchQuery('')} className="hover:text-white">×</button>
+                </span>
+              )}
+              {selectedGenre && (
+                <span className="px-3 py-1 bg-purple-600/20 text-purple-400 rounded-full flex items-center gap-2">
+                  Genre: {selectedGenre}
+                  <button onClick={() => setSelectedGenre('')} className="hover:text-white">×</button>
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Genre Filter */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setSelectedGenre('')}
               className={`px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
@@ -177,11 +195,25 @@ export default function MusicPage() {
                 <div className="text-6xl mb-4">🎵</div>
                 <p className="text-gray-400 text-lg">No music found</p>
                 <p className="text-gray-500 text-sm mt-2">
-                  Try a different search or genre
+                  {searchQuery || selectedGenre 
+                    ? 'Try different search terms or filters'
+                    : 'No music available at the moment'}
                 </p>
+                {(searchQuery || selectedGenre) && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              <>
+                <div className="mb-4 text-gray-400">
+                  Showing {filteredMusic.length} {filteredMusic.length === 1 ? 'track' : 'tracks'}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                 {filteredMusic.map((track) => (
                   <div
                     key={track._id}
@@ -248,7 +280,8 @@ export default function MusicPage() {
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </>
         )}

@@ -41,14 +41,16 @@ export default function EventsPage() {
 
   useEffect(() => {
     fetchEvents();
-  }, [selectedCategory]);
+  }, [selectedCategory, dateFilter]);
 
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
+      setError('');
       
+      const params = new URLSearchParams();
       if (selectedCategory) params.append('category', selectedCategory);
+      if (searchQuery.trim()) params.append('search', searchQuery);
       params.append('upcoming', 'true'); // Only show upcoming events
       
       const url = `${API_URL}/api/events?${params.toString()}`;
@@ -69,25 +71,14 @@ export default function EventsPage() {
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      fetchEvents();
-      return;
-    }
+    fetchEvents();
+  };
 
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/events?search=${searchQuery}&upcoming=true`);
-      const data = await response.json();
-
-      if (data.success) {
-        setEvents(data.data.events || []);
-      }
-    } catch (err) {
-      setError('Error searching events');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('');
+    setSelectedLocation('');
+    setDateFilter('all');
   };
 
   const formatDate = (dateString: string) => {
@@ -170,10 +161,50 @@ export default function EventsPage() {
             >
               Search
             </button>
+            {(searchQuery || selectedCategory || selectedLocation || dateFilter !== 'all') && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
+                title="Clear all filters"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
+          {/* Active Filters Display */}
+          {(searchQuery || selectedCategory || selectedLocation || dateFilter !== 'all') && (
+            <div className="flex items-center gap-2 flex-wrap text-sm">
+              <span className="text-gray-400">Active filters:</span>
+              {searchQuery && (
+                <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full flex items-center gap-2">
+                  Search: "{searchQuery}"
+                  <button onClick={() => { setSearchQuery(''); fetchEvents(); }} className="hover:text-white">×</button>
+                </span>
+              )}
+              {selectedCategory && (
+                <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full flex items-center gap-2">
+                  Category: {selectedCategory}
+                  <button onClick={() => setSelectedCategory('')} className="hover:text-white">×</button>
+                </span>
+              )}
+              {selectedLocation && (
+                <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full flex items-center gap-2">
+                  Location: {selectedLocation}
+                  <button onClick={() => setSelectedLocation('')} className="hover:text-white">×</button>
+                </span>
+              )}
+              {dateFilter !== 'all' && (
+                <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full flex items-center gap-2">
+                  Date: {dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? 'This Week' : 'This Month'}
+                  <button onClick={() => setDateFilter('all')} className="hover:text-white">×</button>
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Category Filter */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setSelectedCategory('')}
               className={`px-4 py-2 rounded-full whitespace-nowrap transition-colors ${

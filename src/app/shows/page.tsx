@@ -48,9 +48,11 @@ export default function ShowsPage() {
   const fetchShows = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
+      setError('');
       
+      const params = new URLSearchParams();
       if (selectedCategory) params.append('category', selectedCategory);
+      if (searchQuery.trim()) params.append('search', searchQuery);
       
       const url = `${API_URL}/api/shows?${params.toString()}`;
       const response = await fetch(url);
@@ -70,25 +72,12 @@ export default function ShowsPage() {
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      fetchShows();
-      return;
-    }
+    fetchShows();
+  };
 
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/shows?search=${searchQuery}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setShows(data.data.shows || []);
-      }
-    } catch (err) {
-      setError('Error searching shows');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('');
   };
 
   const handleShowClick = async (show: Show) => {
@@ -188,10 +177,38 @@ export default function ShowsPage() {
             >
               Search
             </button>
+            {(searchQuery || selectedCategory) && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
+                title="Clear all filters"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
+          {/* Active Filters Display */}
+          {(searchQuery || selectedCategory) && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400">Active filters:</span>
+              {searchQuery && (
+                <span className="px-3 py-1 bg-red-600/20 text-red-400 rounded-full flex items-center gap-2">
+                  Search: "{searchQuery}"
+                  <button onClick={() => { setSearchQuery(''); fetchShows(); }} className="hover:text-white">×</button>
+                </span>
+              )}
+              {selectedCategory && (
+                <span className="px-3 py-1 bg-red-600/20 text-red-400 rounded-full flex items-center gap-2">
+                  Category: {selectedCategory}
+                  <button onClick={() => setSelectedCategory('')} className="hover:text-white">×</button>
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Category Filter */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setSelectedCategory('')}
               className={`px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
