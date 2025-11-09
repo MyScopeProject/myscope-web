@@ -17,6 +17,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -129,8 +130,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('token');
   };
 
+  const updateUser = async (userData: Partial<User>) => {
+    try {
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      // Validate that we have data to update
+      if (!userData.name && !userData.email) {
+        return { success: false, error: 'No data provided to update' };
+      }
+
+      const response = await fetch(`${API_URL}/api/user/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.data?.user) {
+        setUser(data.data.user);
+        return { success: true };
+      } else {
+        return { success: false, error: data.message || 'Update failed' };
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, checkAuth, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
