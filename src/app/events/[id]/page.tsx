@@ -31,7 +31,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 export default function EventDetailsPage() {
   const router = useRouter();
   const params = useParams();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -68,17 +68,29 @@ export default function EventDetailsPage() {
       return;
     }
 
+    if (!token) {
+      console.error('No token found in AuthContext');
+      alert('Please login to register for events');
+      router.push('/auth/login');
+      return;
+    }
+
+    console.log('Registering with token:', token.substring(0, 20) + '...');
+    console.log('User:', user);
+
     try {
       setRegistering(true);
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/events/${params.id}/register`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (data.success) {
         setEvent(data.data.event);
@@ -97,13 +109,19 @@ export default function EventDetailsPage() {
   const handleUnregister = async () => {
     if (!user) return;
 
+    if (!token) {
+      alert('Please login to unregister from events');
+      router.push('/auth/login');
+      return;
+    }
+
     try {
       setRegistering(true);
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/events/${params.id}/unregister`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
