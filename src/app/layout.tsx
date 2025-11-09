@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
+import { FavoritesProvider } from "@/context/FavoritesContext";
 import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
 import MiniPlayer from "@/components/MiniPlayer";
@@ -33,12 +34,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <MusicPlayerProvider>
-            <Navbar />
-            {children}
-            <Footer />
-            <MiniPlayer />
-          </MusicPlayerProvider>
+          <FavoritesProvider>
+            <MusicPlayerProvider>
+              <Navbar />
+              {children}
+              <Footer />
+              <MiniPlayer />
+            </MusicPlayerProvider>
+          </FavoritesProvider>
         </AuthProvider>
       </body>
     </html>

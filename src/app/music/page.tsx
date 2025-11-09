@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useMusicPlayer } from '@/context/MusicPlayerContext';
+import { useFavorites } from '@/context/FavoritesContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface Music {
   _id: string;
@@ -24,8 +26,11 @@ export default function MusicPage() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
+  const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null);
   
   const { playTrack, currentTrack, isPlaying } = useMusicPlayer();
+  const { isFavorite, addFavorite, removeFavorite } = useFavorites();
+  const { user } = useAuth();
 
   const genres = ['Pop', 'Rock', 'Hip Hop', 'Jazz', 'Electronic', 'Classical', 'R&B'];
 
@@ -79,6 +84,26 @@ export default function MusicPage() {
       coverImage: track.coverImage,
       audioUrl: track.audioUrl,
     });
+  };
+
+  const handleToggleFavorite = async (e: React.MouseEvent, trackId: string) => {
+    e.stopPropagation(); // Prevent playing track when clicking favorite
+    
+    if (!user) {
+      alert('Please login to add favorites');
+      return;
+    }
+
+    setTogglingFavorite(trackId);
+    try {
+      if (isFavorite(trackId)) {
+        await removeFavorite(trackId);
+      } else {
+        await addFavorite(trackId);
+      }
+    } finally {
+      setTogglingFavorite(null);
+    }
   };
 
   const filteredMusic = Array.isArray(music) ? music : [];
@@ -214,7 +239,11 @@ export default function MusicPage() {
                   Showing {filteredMusic.length} {filteredMusic.length === 1 ? 'track' : 'tracks'}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                {filteredMusic.map((track) => (
+                {filteredMusic.map((track) => {
+                  const favorited = isFavorite(track._id);
+                  const isToggling = togglingFavorite === track._id;
+
+                  return (
                   <div
                     key={track._id}
                     className="group cursor-pointer"
@@ -232,6 +261,36 @@ export default function MusicPage() {
                         <div className="w-full h-full flex items-center justify-center text-6xl">
                           🎵
                         </div>
+                      )}
+
+                      {/* Favorite Button */}
+                      {user && (
+                        <button
+                          onClick={(e) => handleToggleFavorite(e, track._id)}
+                          disabled={isToggling}
+                          className="absolute top-2 left-2 p-2 rounded-full bg-gray-900/80 hover:bg-gray-900 transition-colors disabled:opacity-50 z-10"
+                          aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+                        >
+                          {isToggling ? (
+                            <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <svg
+                              className={`w-5 h-5 transition-colors ${
+                                favorited ? 'fill-red-500 text-red-500' : 'fill-none text-gray-400 hover:text-red-500'
+                              }`}
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+                              />
+                            </svg>
+                          )}
+                        </button>
                       )}
                       
                       {/* Play Button Overlay */}
@@ -279,7 +338,8 @@ export default function MusicPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 </div>
               </>
             )}
