@@ -37,7 +37,7 @@ export default function EventsPage() {
   const [selectedLocation, setSelectedLocation] = useState('');
   const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
 
-  const categories = ['Music', 'Sports', 'Comedy', 'Theater', 'Conference', 'Festival', 'Other'];
+  const categories = ['Music', 'Sports', 'Theater', 'Comedy', 'Conference', 'Festival', 'Other'];
 
   useEffect(() => {
     fetchEvents();

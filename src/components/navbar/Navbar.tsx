@@ -20,6 +20,7 @@ export default function Navbar() {
     { href: '/', label: 'Home' },
     { href: '/music', label: 'Music' },
     { href: '/events', label: 'Events' },
+    { href: '/movies', label: 'Movies' },
     { href: '/shows', label: 'Shows' },
     { href: '/community', label: 'Community' },
   ];
