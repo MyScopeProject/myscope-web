@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Music, Ticket, MessageCircle, Film, Play, TrendingUp, Sparkles } from 'lucide-react';
+import { Ticket, MessageCircle, Film, Play, TrendingUp, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui';
 
 export default function Home() {
@@ -112,7 +112,7 @@ export default function Home() {
               className="text-lg md:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-inter"
               style={{ color: '#9B95B5' }}
             >
-              Your world of music, events, and entertainment — powered by community and driven by innovation. Stream, discover, and connect with creators worldwide.
+              Your world of events and entertainment — powered by community and driven by innovation. Discover, connect, and share with creators worldwide.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -120,7 +120,7 @@ export default function Home() {
               variants={fadeInUp}
               className="flex flex-col sm:flex-row gap-4 justify-center items-center"
             >
-              <Link href="/music">
+              <Link href="/events">
                 <Button variant="primary" size="lg">
                   <Play size={20} className="mr-2" />
                   Explore Now
@@ -187,20 +187,13 @@ export default function Home() {
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {[
               {
-                icon: Music,
-                title: 'Music Streaming',
-                description: 'Access millions of tracks from emerging and established artists',
-                href: '/music',
-                color: '#A78BFA',
-              },
-              {
                 icon: Ticket,
                 title: 'Event Booking',
-                description: 'Discover and attend live concerts, festivals, and exclusive shows',
+                description: 'Discover and attend live concerts, festivals, and exclusive events',
                 href: '/events',
                 color: '#B794F6',
               },
@@ -213,9 +206,9 @@ export default function Home() {
               },
               {
                 icon: Film,
-                title: 'Shows & Originals',
-                description: 'Watch exclusive content, documentaries, and behind-the-scenes',
-                href: '/shows',
+                title: 'Movies',
+                description: 'Book tickets and watch the latest movies in theaters',
+                href: '/movies',
                 color: '#6366F1',
               },
             ].map((feature) => (
@@ -319,7 +312,7 @@ export default function Home() {
                 }}
               >
                 <div className="w-full h-full flex items-center justify-center text-5xl group-hover:scale-110 transition-transform">
-                  {['🎵', '🎬', '🎤', '🎸', '🎧', '🎪'][i]}
+                  {['�', '🎪', '🎭', '🎯', '🎲', '🎨'][i]}
                 </div>
               </motion.div>
             ))}
@@ -331,7 +324,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center"
           >
-            <Link href="/music">
+            <Link href="/events">
               <Button variant="secondary" size="lg">
                 See What's Trending
               </Button>
@@ -369,7 +362,7 @@ export default function Home() {
             </span>
           </h2>
           <p className="text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-inter" style={{ color: '#9B95B5' }}>
-            Join thousands of music lovers, creators, and fans in the most vibrant entertainment community. Stream exclusive content, discover new artists, and connect with your community.
+            Join thousands of entertainment enthusiasts, creators, and fans in the most vibrant community. Discover exclusive content, book events, and connect with your community.
           </p>
           <Link href="/auth/register">
             <Button variant="primary" size="lg" style={{ fontSize: '16px', padding: '16px 48px' }}>

@@ -71,8 +71,8 @@ export default function MoviesPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center py-12">
             <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
-              borderColor: 'rgba(255, 122, 198, 0.3)',
-              borderTopColor: '#FF7AC6',
+              borderColor: 'rgba(183, 148, 246, 0.3)',
+              borderTopColor: '#B794F6',
             }} />
             <p className="font-inter" style={{ color: '#9B95B5' }}>Loading movies...</p>
           </div>
@@ -103,13 +103,13 @@ export default function MoviesPage() {
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-5xl md:text-7xl font-outfit font-bold mb-4 flex items-center gap-4" style={{
-            background: 'linear-gradient(110deg, #FF7AC6, #6366F1)',
+            background: 'linear-gradient(110deg, #B794F6, #6366F1)',
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             letterSpacing: '-0.04em',
           }}>
-            <Film size={56} style={{ color: '#FF7AC6' }} />
+            <Film size={56} style={{ color: '#B794F6' }} />
             Now Showing
           </h1>
           <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>
@@ -171,7 +171,7 @@ export default function MoviesPage() {
                     {/* Rating Badge */}
                     {movie.rating && (
                       <div className="absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-semibold font-inter" style={{
-                        backgroundColor: '#FF7AC6',
+                        backgroundColor: '#B794F6',
                         color: '#07060A',
                       }}>
                         {movie.rating}
@@ -201,7 +201,7 @@ export default function MoviesPage() {
                     <h3 className="text-lg font-bold mb-2 font-outfit line-clamp-2 transition-colors" style={{
                       color: '#F5F3FA',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#FF7AC6')}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#B794F6')}
                     onMouseLeave={(e) => (e.currentTarget.style.color = '#F5F3FA')}
                     >
                       {movie.title}
@@ -233,7 +233,7 @@ export default function MoviesPage() {
                         Showing at {movie.theatres.length} {movie.theatres.length === 1 ? 'theater' : 'theaters'}
                       </p>
                       {movie.theatres.length > 0 && (
-                        <p className="text-xs mt-1" style={{ color: '#FF7AC6' }}>
+                        <p className="text-xs mt-1" style={{ color: '#B794F6' }}>
                           From Rs {Math.min(...movie.theatres.map(t => t.price))}
                         </p>
                       )}

@@ -153,7 +153,7 @@ export default function ShowsPage() {
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-5xl md:text-7xl font-outfit font-bold mb-4" style={{
-            background: 'linear-gradient(110deg, #F0A6F8, #FF7AC6)',
+            background: 'linear-gradient(110deg, #D8C7FE, #B794F6)',
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -195,15 +195,15 @@ export default function ShowsPage() {
               onClick={handleSearch}
               className="px-6 py-3 rounded-full font-semibold font-inter transition-all flex items-center gap-2"
               style={{
-                backgroundColor: '#F0A6F8',
+                backgroundColor: '#D8C7FE',
                 color: '#07060A',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#F5B8FB';
-                e.currentTarget.style.boxShadow = '0 12px 40px rgba(240, 166, 248, 0.4)';
+                e.currentTarget.style.backgroundColor = '#E8D9FE';
+                e.currentTarget.style.boxShadow = '0 12px 40px rgba(216, 199, 254, 0.4)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#F0A6F8';
+                e.currentTarget.style.backgroundColor = '#D8C7FE';
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
@@ -240,9 +240,9 @@ export default function ShowsPage() {
               <span style={{ color: '#9B95B5' }}>Active filters:</span>
               {searchQuery && (
                 <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
-                  backgroundColor: 'rgba(240, 166, 248, 0.15)',
-                  border: '1px solid rgba(240, 166, 248, 0.28)',
-                  color: '#F0A6F8',
+                  backgroundColor: 'rgba(216, 199, 254, 0.15)',
+                  border: '1px solid rgba(216, 199, 254, 0.28)',
+                  color: '#D8C7FE',
                 }}>
                   Search: "{searchQuery}"
                   <button onClick={() => { setSearchQuery(''); fetchShows(); }} className="hover:opacity-70">×</button>
@@ -250,9 +250,9 @@ export default function ShowsPage() {
               )}
               {selectedCategory && (
                 <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
-                  backgroundColor: 'rgba(240, 166, 248, 0.15)',
-                  border: '1px solid rgba(240, 166, 248, 0.28)',
-                  color: '#F0A6F8',
+                  backgroundColor: 'rgba(216, 199, 254, 0.15)',
+                  border: '1px solid rgba(216, 199, 254, 0.28)',
+                  color: '#D8C7FE',
                 }}>
                   Category: {selectedCategory}
                   <button onClick={() => setSelectedCategory('')} className="hover:opacity-70">×</button>
@@ -267,9 +267,9 @@ export default function ShowsPage() {
               onClick={() => setSelectedCategory('')}
               className="px-4 py-2 rounded-full whitespace-nowrap transition-all font-inter text-sm"
               style={{
-                backgroundColor: selectedCategory === '' ? '#F0A6F8' : '#1E1A2B',
+                backgroundColor: selectedCategory === '' ? '#D8C7FE' : '#1E1A2B',
                 color: selectedCategory === '' ? '#07060A' : '#9B95B5',
-                border: `1px solid ${selectedCategory === '' ? '#F0A6F8' : 'rgba(196, 181, 253, 0.1)'}`,
+                border: `1px solid ${selectedCategory === '' ? '#D8C7FE' : 'rgba(196, 181, 253, 0.1)'}`,
               }}
               onMouseEnter={(e) => {
                 if (selectedCategory !== '') {
@@ -292,9 +292,9 @@ export default function ShowsPage() {
                 onClick={() => setSelectedCategory(category)}
                 className="px-4 py-2 rounded-full whitespace-nowrap transition-all font-inter text-sm"
                 style={{
-                  backgroundColor: selectedCategory === category ? '#F0A6F8' : '#1E1A2B',
+                  backgroundColor: selectedCategory === category ? '#D8C7FE' : '#1E1A2B',
                   color: selectedCategory === category ? '#07060A' : '#9B95B5',
-                  border: `1px solid ${selectedCategory === category ? '#F0A6F8' : 'rgba(196, 181, 253, 0.1)'}`,
+                  border: `1px solid ${selectedCategory === category ? '#D8C7FE' : 'rgba(196, 181, 253, 0.1)'}`,
                 }}
                 onMouseEnter={(e) => {
                   if (selectedCategory !== category) {
@@ -319,8 +319,8 @@ export default function ShowsPage() {
         {loading && (
           <div className="text-center py-12">
             <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
-              borderColor: 'rgba(240, 166, 248, 0.3)',
-              borderTopColor: '#F0A6F8',
+              borderColor: 'rgba(216, 199, 254, 0.3)',
+              borderTopColor: '#D8C7FE',
             }} />
             <p className="font-inter" style={{ color: '#9B95B5' }}>Loading shows...</p>
           </div>
@@ -392,7 +392,7 @@ export default function ShowsPage() {
                           backgroundColor: 'rgba(0, 0, 0, 0.6)',
                         }}>
                           <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{
-                            backgroundColor: '#F0A6F8',
+                            backgroundColor: '#D8C7FE',
                             color: '#07060A',
                           }}>
                             <Play size={24} fill="currentColor" />
@@ -423,7 +423,7 @@ export default function ShowsPage() {
                         <h3 className="font-semibold truncate mb-1 font-inter transition-colors" style={{
                           color: '#F5F3FA',
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#F0A6F8')}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#D8C7FE')}
                         onMouseLeave={(e) => (e.currentTarget.style.color = '#F5F3FA')}
                         >
                           {show.title}
@@ -448,9 +448,9 @@ export default function ShowsPage() {
                               onClick={(e) => handleLikeShow(show._id, e)}
                               className="flex items-center gap-1 transition-colors"
                               style={{
-                                color: isLiked ? '#F0A6F8' : '#9B95B5',
+                                color: isLiked ? '#D8C7FE' : '#9B95B5',
                               }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = '#F0A6F8')}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#D8C7FE')}
                               onMouseLeave={(e) => {
                                 if (!isLiked) {
                                   e.currentTarget.style.color = '#9B95B5';
@@ -545,7 +545,7 @@ export default function ShowsPage() {
                     onClick={(e) => handleLikeShow(selectedShow._id, e)}
                     className="px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 font-inter"
                     style={{
-                      backgroundColor: user && selectedShow.likes.includes(user.id) ? '#F0A6F8' : '#1E1A2B',
+                      backgroundColor: user && selectedShow.likes.includes(user.id) ? '#D8C7FE' : '#1E1A2B',
                       color: user && selectedShow.likes.includes(user.id) ? '#07060A' : '#F5F3FA',
                     }}
                     onMouseEnter={(e) => {
