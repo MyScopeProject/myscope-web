@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Search, X, MapPin, Clock, Ticket } from 'lucide-react';
 
 interface Event {
   _id: string;
@@ -131,14 +132,20 @@ export default function EventsPage() {
   };
 
   return (
-    <div className="pt-16 min-h-screen pb-24">
+    <div className="pt-16 min-h-screen pb-24" style={{ backgroundColor: '#07060A' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-linear-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+        <div className="mb-12">
+          <h1 className="text-5xl md:text-7xl font-outfit font-bold mb-4" style={{
+            background: 'linear-gradient(110deg, #FF7AC6, #C4B5FD)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-0.04em',
+          }}>
             Events
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>
             Discover concerts, festivals, and live experiences near you
           </p>
         </div>
@@ -153,65 +160,133 @@ export default function EventsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="flex-1 px-4 py-3 rounded-full outline-none text-sm font-inter transition-all"
+              style={{
+                backgroundColor: '#1E1A2B',
+                border: '1px solid rgba(196, 181, 253, 0.12)',
+                color: '#F5F3FA',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <button
               onClick={handleSearch}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors"
+              className="px-6 py-3 rounded-full font-semibold font-inter transition-all flex items-center gap-2"
+              style={{
+                backgroundColor: '#FF7AC6',
+                color: '#07060A',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#FF8FD4';
+                e.currentTarget.style.boxShadow = '0 12px 40px rgba(255, 122, 198, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#FF7AC6';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
+              <Search size={18} />
               Search
             </button>
             {(searchQuery || selectedCategory || selectedLocation || dateFilter !== 'all') && (
               <button
                 onClick={handleClearFilters}
-                className="px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
+                className="px-4 py-3 rounded-full font-semibold font-inter transition-all border"
+                style={{
+                  backgroundColor: '#1E1A2B',
+                  borderColor: 'rgba(196, 181, 253, 0.1)',
+                  color: '#F5F3FA',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2A2636';
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1E1A2B';
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                }}
                 title="Clear all filters"
               >
-                Clear
+                <X size={18} />
               </button>
             )}
           </div>
 
           {/* Active Filters Display */}
           {(searchQuery || selectedCategory || selectedLocation || dateFilter !== 'all') && (
-            <div className="flex items-center gap-2 flex-wrap text-sm">
-              <span className="text-gray-400">Active filters:</span>
+            <div className="flex items-center gap-2 flex-wrap text-sm font-inter">
+              <span style={{ color: '#9B95B5' }}>Active filters:</span>
               {searchQuery && (
-                <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
+                  backgroundColor: 'rgba(255, 122, 198, 0.15)',
+                  border: '1px solid rgba(255, 122, 198, 0.28)',
+                  color: '#FF7AC6',
+                }}>
                   Search: "{searchQuery}"
-                  <button onClick={() => { setSearchQuery(''); fetchEvents(); }} className="hover:text-white">×</button>
+                  <button onClick={() => { setSearchQuery(''); fetchEvents(); }} className="hover:opacity-70">×</button>
                 </span>
               )}
               {selectedCategory && (
-                <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
+                  backgroundColor: 'rgba(255, 122, 198, 0.15)',
+                  border: '1px solid rgba(255, 122, 198, 0.28)',
+                  color: '#FF7AC6',
+                }}>
                   Category: {selectedCategory}
-                  <button onClick={() => setSelectedCategory('')} className="hover:text-white">×</button>
+                  <button onClick={() => setSelectedCategory('')} className="hover:opacity-70">×</button>
                 </span>
               )}
               {selectedLocation && (
-                <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
+                  backgroundColor: 'rgba(255, 122, 198, 0.15)',
+                  border: '1px solid rgba(255, 122, 198, 0.28)',
+                  color: '#FF7AC6',
+                }}>
                   Location: {selectedLocation}
-                  <button onClick={() => setSelectedLocation('')} className="hover:text-white">×</button>
+                  <button onClick={() => setSelectedLocation('')} className="hover:opacity-70">×</button>
                 </span>
               )}
               {dateFilter !== 'all' && (
-                <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
+                  backgroundColor: 'rgba(255, 122, 198, 0.15)',
+                  border: '1px solid rgba(255, 122, 198, 0.28)',
+                  color: '#FF7AC6',
+                }}>
                   Date: {dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? 'This Week' : 'This Month'}
-                  <button onClick={() => setDateFilter('all')} className="hover:text-white">×</button>
+                  <button onClick={() => setDateFilter('all')} className="hover:opacity-70">×</button>
                 </span>
               )}
             </div>
           )}
 
           {/* Category Filter */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2">
             <button
               onClick={() => setSelectedCategory('')}
-              className={`px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
-                selectedCategory === ''
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
+              className="px-4 py-2 rounded-full whitespace-nowrap transition-all font-inter text-sm"
+              style={{
+                backgroundColor: selectedCategory === '' ? '#FF7AC6' : '#1E1A2B',
+                color: selectedCategory === '' ? '#07060A' : '#9B95B5',
+                border: `1px solid ${selectedCategory === '' ? '#FF7AC6' : 'rgba(196, 181, 253, 0.1)'}`,
+              }}
+              onMouseEnter={(e) => {
+                if (selectedCategory !== '') {
+                  e.currentTarget.style.backgroundColor = '#2A2636';
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedCategory !== '') {
+                  e.currentTarget.style.backgroundColor = '#1E1A2B';
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                }
+              }}
             >
               All Categories
             </button>
@@ -219,11 +294,24 @@ export default function EventsPage() {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
-                  selectedCategory === category
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
+                className="px-4 py-2 rounded-full whitespace-nowrap transition-all font-inter text-sm"
+                style={{
+                  backgroundColor: selectedCategory === category ? '#FF7AC6' : '#1E1A2B',
+                  color: selectedCategory === category ? '#07060A' : '#9B95B5',
+                  border: `1px solid ${selectedCategory === category ? '#FF7AC6' : 'rgba(196, 181, 253, 0.1)'}`,
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedCategory !== category) {
+                    e.currentTarget.style.backgroundColor = '#2A2636';
+                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedCategory !== category) {
+                    e.currentTarget.style.backgroundColor = '#1E1A2B';
+                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                  }
+                }}
               >
                 {category}
               </button>
@@ -237,7 +325,13 @@ export default function EventsPage() {
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-2.5 rounded-lg font-inter text-sm outline-none"
+                style={{
+                  backgroundColor: '#1E1A2B',
+                  borderColor: 'rgba(196, 181, 253, 0.12)',
+                  border: '1px solid rgba(196, 181, 253, 0.12)',
+                  color: '#F5F3FA',
+                }}
               >
                 <option value="all">All Dates</option>
                 <option value="today">Today</option>
@@ -253,7 +347,13 @@ export default function EventsPage() {
                 placeholder="Filter by location..."
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-2.5 rounded-lg font-inter text-sm outline-none"
+                style={{
+                  backgroundColor: '#1E1A2B',
+                  borderColor: 'rgba(196, 181, 253, 0.12)',
+                  border: '1px solid rgba(196, 181, 253, 0.12)',
+                  color: '#F5F3FA',
+                }}
               />
             </div>
           </div>
@@ -262,14 +362,21 @@ export default function EventsPage() {
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-400">Loading events...</p>
+            <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
+              borderColor: 'rgba(255, 122, 198, 0.3)',
+              borderTopColor: '#FF7AC6',
+            }} />
+            <p className="font-inter" style={{ color: '#9B95B5' }}>Loading events...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500 rounded-lg text-red-400 mb-8">
+          <div className="p-4 rounded-lg mb-8 font-inter border" style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderColor: 'rgba(239, 68, 68, 0.28)',
+            color: '#ef4444',
+          }}>
             {error}
           </div>
         )}
@@ -280,14 +387,14 @@ export default function EventsPage() {
             {filteredEvents.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🎫</div>
-                <p className="text-gray-400 text-lg">No events found</p>
-                <p className="text-gray-500 text-sm mt-2">
+                <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>No events found</p>
+                <p className="text-sm font-inter mt-2" style={{ color: 'rgba(155, 149, 181, 0.7)' }}>
                   Try adjusting your filters or search query
                 </p>
               </div>
             ) : (
               <>
-                <div className="mb-4 text-gray-400">
+                <div className="mb-4 font-inter text-sm" style={{ color: '#9B95B5' }}>
                   Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -301,24 +408,43 @@ export default function EventsPage() {
                       <div
                         key={event._id}
                         onClick={() => handleEventClick(event._id)}
-                        className="group cursor-pointer bg-gray-800 rounded-xl overflow-hidden border border-gray-700 hover:border-blue-500 transition-all hover:transform hover:scale-[1.02]"
+                        className="group cursor-pointer rounded-2xl overflow-hidden border transition-all"
+                        style={{
+                          backgroundColor: '#15121D',
+                          borderColor: 'rgba(196, 181, 253, 0.1)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                          e.currentTarget.style.boxShadow = '0 24px 50px rgba(167, 139, 250, 0.15)';
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                          e.currentTarget.style.boxShadow = 'none';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
                       >
                         {/* Event Image */}
-                        <div className="relative aspect-video bg-gray-900 overflow-hidden">
+                        <div className="relative aspect-video overflow-hidden" style={{ backgroundColor: '#1E1A2B' }}>
                           {event.image ? (
                             <img
                               src={event.image}
                               alt={event.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-6xl">
+                            <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br" style={{
+                              backgroundImage: 'linear-gradient(135deg, #1E1A2B, #2A2636)',
+                            }}>
                               🎫
                             </div>
                           )}
                           
                           {/* Date Badge */}
-                          <div className="absolute top-4 left-4 bg-blue-600 text-white rounded-lg p-2 text-center min-w-[60px]">
+                          <div className="absolute top-4 left-4 rounded-lg p-2 text-center min-w-[60px] font-inter" style={{
+                            backgroundColor: '#FF7AC6',
+                            color: '#07060A',
+                          }}>
                             <div className="text-xs font-semibold uppercase">{dateInfo.month}</div>
                             <div className="text-2xl font-bold">{dateInfo.day}</div>
                           </div>
@@ -326,17 +452,21 @@ export default function EventsPage() {
                           {/* Status Badges */}
                           <div className="absolute top-4 right-4 flex flex-col gap-2">
                             {event.featured && (
-                              <span className="px-3 py-1 bg-yellow-500 text-black text-xs font-semibold rounded-full">
+                              <span className="px-3 py-1 bg-yellow-500 text-black text-xs font-semibold rounded-full font-inter">
                                 Featured
                               </span>
                             )}
                             {isSoldOut && (
-                              <span className="px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded-full">
+                              <span className="px-3 py-1 text-white text-xs font-semibold rounded-full font-inter" style={{
+                                backgroundColor: '#ef4444',
+                              }}>
                                 Sold Out
                               </span>
                             )}
                             {isAlmostSoldOut && !isSoldOut && (
-                              <span className="px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded-full">
+                              <span className="px-3 py-1 text-white text-xs font-semibold rounded-full font-inter" style={{
+                                backgroundColor: '#F59E0B',
+                              }}>
                                 Almost Sold Out
                               </span>
                             )}
@@ -346,54 +476,57 @@ export default function EventsPage() {
                         {/* Event Details */}
                         <div className="p-5">
                           {/* Category */}
-                          <div className="mb-2">
-                            <span className="px-2.5 py-1 bg-gray-700 text-gray-300 text-xs rounded-full">
+                          <div className="mb-3">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-inter" style={{
+                              backgroundColor: 'rgba(196, 181, 253, 0.1)',
+                              color: '#C4B5FD',
+                            }}>
                               {event.category}
                             </span>
                           </div>
 
                           {/* Title */}
-                          <h3 className="text-xl font-bold mb-2 group-hover:text-blue-400 transition-colors line-clamp-2">
+                          <h3 className="text-lg font-bold mb-2 font-outfit transition-colors line-clamp-2" style={{
+                            color: '#F5F3FA',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = '#FF7AC6')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = '#F5F3FA')}
+                          >
                             {event.title}
                           </h3>
 
                           {/* Description */}
-                          <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                          <p className="text-sm mb-4 line-clamp-2 font-inter" style={{ color: '#9B95B5' }}>
                             {event.description}
                           </p>
 
                           {/* Location */}
-                          <div className="flex items-start gap-2 mb-2 text-sm text-gray-300">
-                            <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                          <div className="flex items-start gap-2 mb-2 text-sm font-inter" style={{ color: '#C4B5FD' }}>
+                            <MapPin size={18} className="shrink-0 mt-0.5" />
                             <span className="line-clamp-1">{event.location}</span>
                           </div>
 
                           {/* Time */}
-                          <div className="flex items-center gap-2 mb-4 text-sm text-gray-300">
-                            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                          <div className="flex items-center gap-2 mb-4 text-sm font-inter" style={{ color: '#C4B5FD' }}>
+                            <Clock size={18} className="shrink-0" />
                             <span>{dateInfo.time}</span>
                           </div>
 
                           {/* Price and Tickets */}
-                          <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                          <div className="flex items-center justify-between pt-4 font-inter" style={{
+                            borderTop: '1px solid rgba(196, 181, 253, 0.1)',
+                          }}>
                             <div>
-                              <div className="text-sm text-gray-400">Price</div>
-                              <div className="text-xl font-bold text-blue-400">
+                              <div className="text-xs" style={{ color: '#9B95B5' }}>Price</div>
+                              <div className="text-xl font-bold" style={{ color: '#FF7AC6' }}>
                                 {event.price === 0 ? 'Free' : `$${event.price}`}
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-sm text-gray-400">Tickets Left</div>
-                              <div className={`text-lg font-semibold ${
-                                isSoldOut ? 'text-red-400' : 
-                                isAlmostSoldOut ? 'text-orange-400' : 
-                                'text-green-400'
-                              }`}>
+                              <div className="text-xs" style={{ color: '#9B95B5' }}>Tickets Left</div>
+                              <div className="text-lg font-semibold" style={{
+                                color: isSoldOut ? '#ef4444' : isAlmostSoldOut ? '#F59E0B' : '#10B981'
+                              }}>
                                 {isSoldOut ? 'Sold Out' : ticketsRemaining}
                               </div>
                             </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { Search, X, Play, Eye, Heart, Star } from 'lucide-react';
 
 interface Show {
   _id: string;
@@ -147,14 +148,20 @@ export default function ShowsPage() {
   const filteredShows = Array.isArray(shows) ? shows : [];
 
   return (
-    <div className="pt-16 min-h-screen pb-24 bg-gray-900">
+    <div className="pt-16 min-h-screen pb-24" style={{ backgroundColor: '#07060A' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-linear-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">
+        <div className="mb-12">
+          <h1 className="text-5xl md:text-7xl font-outfit font-bold mb-4" style={{
+            background: 'linear-gradient(110deg, #F0A6F8, #FF7AC6)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-0.04em',
+          }}>
             Shows
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>
             Watch exclusive content, live performances, and trending shows
           </p>
         </div>
@@ -169,53 +176,113 @@ export default function ShowsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
+              className="flex-1 px-4 py-3 rounded-full outline-none text-sm font-inter transition-all"
+              style={{
+                backgroundColor: '#1E1A2B',
+                border: '1px solid rgba(196, 181, 253, 0.12)',
+                color: '#F5F3FA',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <button
               onClick={handleSearch}
-              className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-colors"
+              className="px-6 py-3 rounded-full font-semibold font-inter transition-all flex items-center gap-2"
+              style={{
+                backgroundColor: '#F0A6F8',
+                color: '#07060A',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#F5B8FB';
+                e.currentTarget.style.boxShadow = '0 12px 40px rgba(240, 166, 248, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#F0A6F8';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
+              <Search size={18} />
               Search
             </button>
             {(searchQuery || selectedCategory) && (
               <button
                 onClick={handleClearFilters}
-                className="px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
+                className="px-4 py-3 rounded-full font-semibold font-inter transition-all border"
+                style={{
+                  backgroundColor: '#1E1A2B',
+                  borderColor: 'rgba(196, 181, 253, 0.1)',
+                  color: '#F5F3FA',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2A2636';
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1E1A2B';
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                }}
                 title="Clear all filters"
               >
-                Clear
+                <X size={18} />
               </button>
             )}
           </div>
 
           {/* Active Filters Display */}
           {(searchQuery || selectedCategory) && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">Active filters:</span>
+            <div className="flex items-center gap-2 text-sm font-inter flex-wrap">
+              <span style={{ color: '#9B95B5' }}>Active filters:</span>
               {searchQuery && (
-                <span className="px-3 py-1 bg-red-600/20 text-red-400 rounded-full flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
+                  backgroundColor: 'rgba(240, 166, 248, 0.15)',
+                  border: '1px solid rgba(240, 166, 248, 0.28)',
+                  color: '#F0A6F8',
+                }}>
                   Search: "{searchQuery}"
-                  <button onClick={() => { setSearchQuery(''); fetchShows(); }} className="hover:text-white">×</button>
+                  <button onClick={() => { setSearchQuery(''); fetchShows(); }} className="hover:opacity-70">×</button>
                 </span>
               )}
               {selectedCategory && (
-                <span className="px-3 py-1 bg-red-600/20 text-red-400 rounded-full flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
+                  backgroundColor: 'rgba(240, 166, 248, 0.15)',
+                  border: '1px solid rgba(240, 166, 248, 0.28)',
+                  color: '#F0A6F8',
+                }}>
                   Category: {selectedCategory}
-                  <button onClick={() => setSelectedCategory('')} className="hover:text-white">×</button>
+                  <button onClick={() => setSelectedCategory('')} className="hover:opacity-70">×</button>
                 </span>
               )}
             </div>
           )}
 
           {/* Category Filter */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2">
             <button
               onClick={() => setSelectedCategory('')}
-              className={`px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
-                selectedCategory === ''
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
+              className="px-4 py-2 rounded-full whitespace-nowrap transition-all font-inter text-sm"
+              style={{
+                backgroundColor: selectedCategory === '' ? '#F0A6F8' : '#1E1A2B',
+                color: selectedCategory === '' ? '#07060A' : '#9B95B5',
+                border: `1px solid ${selectedCategory === '' ? '#F0A6F8' : 'rgba(196, 181, 253, 0.1)'}`,
+              }}
+              onMouseEnter={(e) => {
+                if (selectedCategory !== '') {
+                  e.currentTarget.style.backgroundColor = '#2A2636';
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedCategory !== '') {
+                  e.currentTarget.style.backgroundColor = '#1E1A2B';
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                }
+              }}
             >
               All Categories
             </button>
@@ -223,11 +290,24 @@ export default function ShowsPage() {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
-                  selectedCategory === category
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
+                className="px-4 py-2 rounded-full whitespace-nowrap transition-all font-inter text-sm"
+                style={{
+                  backgroundColor: selectedCategory === category ? '#F0A6F8' : '#1E1A2B',
+                  color: selectedCategory === category ? '#07060A' : '#9B95B5',
+                  border: `1px solid ${selectedCategory === category ? '#F0A6F8' : 'rgba(196, 181, 253, 0.1)'}`,
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedCategory !== category) {
+                    e.currentTarget.style.backgroundColor = '#2A2636';
+                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedCategory !== category) {
+                    e.currentTarget.style.backgroundColor = '#1E1A2B';
+                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                  }
+                }}
               >
                 {category}
               </button>
@@ -238,14 +318,21 @@ export default function ShowsPage() {
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-400">Loading shows...</p>
+            <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
+              borderColor: 'rgba(240, 166, 248, 0.3)',
+              borderTopColor: '#F0A6F8',
+            }} />
+            <p className="font-inter" style={{ color: '#9B95B5' }}>Loading shows...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500 rounded-lg text-red-400 mb-8">
+          <div className="p-4 rounded-lg mb-8 font-inter border" style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderColor: 'rgba(239, 68, 68, 0.28)',
+            color: '#ef4444',
+          }}>
             {error}
           </div>
         )}
@@ -256,8 +343,8 @@ export default function ShowsPage() {
             {filteredShows.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🎬</div>
-                <p className="text-gray-400 text-lg">No shows found</p>
-                <p className="text-gray-500 text-sm mt-2">
+                <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>No shows found</p>
+                <p className="text-sm font-inter mt-2" style={{ color: 'rgba(155, 149, 181, 0.7)' }}>
                   Try a different search or category
                 </p>
               </div>
@@ -273,7 +360,19 @@ export default function ShowsPage() {
                       className="group cursor-pointer"
                     >
                       {/* Thumbnail */}
-                      <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden mb-3 hover:scale-105 transition-transform">
+                      <div className="relative aspect-video rounded-lg overflow-hidden mb-3 border transition-all" style={{
+                        backgroundColor: '#15121D',
+                        borderColor: 'rgba(196, 181, 253, 0.1)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.borderColor = 'rgba(240, 166, 248, 0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                      }}
+                      >
                         {show.thumbnail ? (
                           <img
                             src={show.thumbnail}
@@ -281,28 +380,39 @@ export default function ShowsPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-6xl">
+                          <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br" style={{
+                            backgroundImage: 'linear-gradient(135deg, #1E1A2B, #2A2636)',
+                          }}>
                             🎬
                           </div>
                         )}
                         
                         {/* Overlay on Hover */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center">
-                            <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                            </svg>
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                        }}>
+                          <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{
+                            backgroundColor: '#F0A6F8',
+                            color: '#07060A',
+                          }}>
+                            <Play size={24} fill="currentColor" />
                           </div>
                         </div>
 
                         {/* Duration Badge */}
-                        <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 text-white text-xs rounded">
+                        <div className="absolute bottom-2 right-2 px-2 py-1 rounded text-xs font-inter" style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          color: '#F5F3FA',
+                        }}>
                           {formatDuration(show.duration)}
                         </div>
 
                         {/* Featured Badge */}
                         {show.featured && (
-                          <div className="absolute top-2 left-2 px-2 py-1 bg-yellow-500 text-black text-xs font-semibold rounded">
+                          <div className="absolute top-2 left-2 px-2 py-1 rounded text-xs font-semibold font-inter" style={{
+                            backgroundColor: '#fbbf24',
+                            color: '#000',
+                          }}>
                             Featured
                           </div>
                         )}
@@ -310,44 +420,51 @@ export default function ShowsPage() {
 
                       {/* Show Info */}
                       <div>
-                        <h3 className="font-semibold truncate group-hover:text-red-400 transition-colors mb-1">
+                        <h3 className="font-semibold truncate mb-1 font-inter transition-colors" style={{
+                          color: '#F5F3FA',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#F0A6F8')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = '#F5F3FA')}
+                        >
                           {show.title}
                         </h3>
                         
-                        <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-                          <span className="px-2 py-0.5 bg-gray-800 rounded-full">
+                        <div className="flex items-center gap-2 text-xs mb-2 font-inter" style={{ color: '#C4B5FD' }}>
+                          <span className="px-2 py-0.5 rounded-full" style={{
+                            backgroundColor: 'rgba(196, 181, 253, 0.1)',
+                          }}>
                             {show.category}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center justify-between text-xs font-inter" style={{ color: '#9B95B5' }}>
                           <div className="flex items-center gap-3">
-                            <span className="flex items-center gap-1">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
+                            <span className="flex items-center gap-1" style={{ color: '#C4B5FD' }}>
+                              <Eye size={14} />
                               {formatViews(show.views)}
                             </span>
                             
                             <button
                               onClick={(e) => handleLikeShow(show._id, e)}
-                              className={`flex items-center gap-1 hover:text-red-400 transition-colors ${
-                                isLiked ? 'text-red-400' : ''
-                              }`}
+                              className="flex items-center gap-1 transition-colors"
+                              style={{
+                                color: isLiked ? '#F0A6F8' : '#9B95B5',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#F0A6F8')}
+                              onMouseLeave={(e) => {
+                                if (!isLiked) {
+                                  e.currentTarget.style.color = '#9B95B5';
+                                }
+                              }}
                             >
-                              <svg className="w-4 h-4" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                              </svg>
+                              <Heart size={14} fill={isLiked ? 'currentColor' : 'none'} />
                               {show.likes.length}
                             </button>
                           </div>
 
                           {show.rating > 0 && (
-                            <div className="flex items-center gap-1">
-                              <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
+                            <div className="flex items-center gap-1" style={{ color: '#fbbf24' }}>
+                              <Star size={14} fill="currentColor" />
                               <span>{show.rating.toFixed(1)}</span>
                             </div>
                           )}
@@ -364,7 +481,7 @@ export default function ShowsPage() {
 
       {/* Video Player Modal */}
       {showVideoPlayer && selectedShow && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}>
           <div className="max-w-6xl w-full">
             {/* Close Button */}
             <button
@@ -372,15 +489,23 @@ export default function ShowsPage() {
                 setShowVideoPlayer(false);
                 setSelectedShow(null);
               }}
-              className="absolute top-4 right-4 w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center transition-colors"
+              className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+              style={{
+                backgroundColor: '#1E1A2B',
+                color: '#F5F3FA',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2A2636';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#1E1A2B';
+              }}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X size={24} />
             </button>
 
             {/* Video Player */}
-            <div className="bg-gray-900 rounded-xl overflow-hidden">
+            <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#15121D' }}>
               <div className="aspect-video bg-black">
                 <video
                   src={selectedShow.videoUrl}
@@ -397,22 +522,19 @@ export default function ShowsPage() {
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold mb-2">{selectedShow.title}</h2>
-                    <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
-                      <span className="px-3 py-1 bg-gray-800 rounded-full">{selectedShow.category}</span>
-                      <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
+                    <h2 className="text-2xl font-bold mb-2 font-outfit" style={{ color: '#F5F3FA' }}>{selectedShow.title}</h2>
+                    <div className="flex items-center gap-4 text-sm flex-wrap" style={{ color: '#9B95B5' }}>
+                      <span className="px-3 py-1 rounded-full font-inter" style={{
+                        backgroundColor: 'rgba(196, 181, 253, 0.1)',
+                      }}>{selectedShow.category}</span>
+                      <span className="flex items-center gap-1 font-inter">
+                        <Eye size={16} />
                         {formatViews(selectedShow.views)} views
                       </span>
-                      <span>{formatDuration(selectedShow.duration)}</span>
+                      <span className="font-inter">{formatDuration(selectedShow.duration)}</span>
                       {selectedShow.rating > 0 && (
-                        <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
+                        <span className="flex items-center gap-1 font-inter" style={{ color: '#fbbf24' }}>
+                          <Star size={16} fill="currentColor" />
                           {selectedShow.rating.toFixed(1)}
                         </span>
                       )}
@@ -421,32 +543,46 @@ export default function ShowsPage() {
                   
                   <button
                     onClick={(e) => handleLikeShow(selectedShow._id, e)}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                      user && selectedShow.likes.includes(user.id)
-                        ? 'bg-red-600 hover:bg-red-700'
-                        : 'bg-gray-800 hover:bg-gray-700'
-                    }`}
+                    className="px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 font-inter"
+                    style={{
+                      backgroundColor: user && selectedShow.likes.includes(user.id) ? '#F0A6F8' : '#1E1A2B',
+                      color: user && selectedShow.likes.includes(user.id) ? '#07060A' : '#F5F3FA',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!(user && selectedShow.likes.includes(user.id))) {
+                        e.currentTarget.style.backgroundColor = '#2A2636';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!(user && selectedShow.likes.includes(user.id))) {
+                        e.currentTarget.style.backgroundColor = '#1E1A2B';
+                      }
+                    }}
                   >
-                    <svg className="w-5 h-5" fill={user && selectedShow.likes.includes(user.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
+                    <Heart size={20} fill={(user && selectedShow.likes.includes(user.id)) ? 'currentColor' : 'none'} />
                     {selectedShow.likes.length}
                   </button>
                 </div>
 
-                <p className="text-gray-300 mb-4 whitespace-pre-wrap">{selectedShow.description}</p>
+                <p className="mb-4 whitespace-pre-wrap font-inter" style={{ color: '#C4B5FD' }}>{selectedShow.description}</p>
 
                 {selectedShow.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {selectedShow.tags.map((tag, index) => (
-                      <span key={index} className="px-3 py-1 bg-gray-800 text-gray-300 text-sm rounded-full">
+                      <span key={index} className="px-3 py-1 rounded-full text-sm font-inter" style={{
+                        backgroundColor: 'rgba(196, 181, 253, 0.1)',
+                        color: '#C4B5FD',
+                      }}>
                         #{tag}
                       </span>
                     ))}
                   </div>
                 )}
 
-                <div className="text-sm text-gray-400 border-t border-gray-800 pt-4">
+                <div className="text-sm font-inter pt-4" style={{
+                  borderTop: '1px solid rgba(196, 181, 253, 0.1)',
+                  color: '#9B95B5',
+                }}>
                   <span>Uploaded by {selectedShow.uploadedBy.name}</span>
                 </div>
               </div>

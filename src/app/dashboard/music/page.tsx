@@ -81,7 +81,7 @@ export default function MusicDashboardPage() {
         </div>
         <Link 
           href="/music"
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-full transition-colors flex items-center gap-2"
         >
           <span>🎵</span>
           <span>Browse All Music</span>
@@ -103,7 +103,7 @@ export default function MusicDashboardPage() {
           </p>
           <Link
             href="/music"
-            className="inline-block mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+            className="inline-block mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-full transition-colors"
           >
             Browse Music
           </Link>

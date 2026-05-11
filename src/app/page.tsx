@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Music, Ticket, MessageCircle, Film, Play, TrendingUp, Sparkles, Instagram, Youtube } from 'lucide-react';
+import { Music, Ticket, MessageCircle, Film, Play, TrendingUp, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui';
 
 export default function Home() {
   // Animation variants
   const fadeInUp = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
+    hidden: { opacity: 0, y: 24 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
   };
 
   const staggerContainer = {
@@ -17,123 +17,118 @@ export default function Home() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2,
+        staggerChildren: 0.12,
+        delayChildren: 0,
       },
     },
   };
 
-  const floatAnimation = {
-    y: [-10, 10],
-    transition: {
-      duration: 2,
-      repeat: Infinity,
-      repeatType: "reverse" as const,
-      ease: "easeInOut",
-    },
-  };
-
   return (
-    <div className="min-h-screen">
+    <div style={{ backgroundColor: '#07060A', color: '#F5F3FA' }}>
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 -z-10">
-          {/* Gradient Orbs */}
-          <motion.div
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.3, 0.5, 0.3],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/30 rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{
-              scale: [1.2, 1, 1.2],
-              opacity: [0.3, 0.5, 0.3],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1,
-            }}
-            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/30 rounded-full blur-3xl"
-          />
-          
-          {/* Floating Music Notes */}
-          {[...Array(6)].map((_, i) => (
-            <motion.div
-              key={i}
-              animate={{
-                y: [0, -100, 0],
-                opacity: [0, 1, 0],
-                rotate: [0, 360],
-              }}
-              transition={{
-                duration: 6 + i,
-                repeat: Infinity,
-                delay: i * 0.8,
-              }}
-              className="absolute text-emerald-500/20"
-              style={{
-                left: `${15 + i * 15}%`,
-                top: `${20 + (i % 3) * 20}%`,
-                fontSize: '2rem',
-              }}
-            >
-              ♪
-            </motion.div>
-          ))}
-        </div>
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20" style={{ backgroundColor: '#07060A' }}>
+        {/* Animated Background Gradients */}
+        <div className="absolute inset-0 -z-10" style={{
+          background: 'radial-gradient(ellipse at 20% 50%, rgba(167, 139, 250, 0.15) 0%, transparent 50%)',
+        }} />
+        <div className="absolute inset-0 -z-10" style={{
+          background: 'radial-gradient(ellipse at 80% 80%, rgba(255, 122, 198, 0.1) 0%, transparent 50%)',
+        }} />
 
-        <div className="max-w-7xl mx-auto px-6 py-20 text-center relative z-10">
+        {/* Animated Gradient Orbs */}
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.1, 0.2, 0.1],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl -z-10"
+          style={{
+            background: 'radial-gradient(circle, rgba(167, 139, 250, 0.3), transparent)',
+          }}
+        />
+        <motion.div
+          animate={{
+            scale: [1.2, 1, 1.2],
+            opacity: [0.1, 0.2, 0.1],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 1,
+          }}
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl -z-10"
+          style={{
+            background: 'radial-gradient(circle, rgba(255, 122, 198, 0.2), transparent)',
+          }}
+        />
+
+        <div className="max-w-5xl mx-auto px-6 py-20 text-center relative z-10">
           <motion.div
             initial="hidden"
             animate="visible"
             variants={staggerContainer}
           >
-            <motion.div variants={fadeInUp} className="mb-6">
-              <span className="inline-block px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 text-sm font-semibold mb-8">
+            {/* Badge */}
+            <motion.div variants={fadeInUp} className="mb-8">
+              <span
+                className="inline-block px-4 py-2.5 rounded-full text-sm font-medium font-inter mb-8"
+                style={{
+                  backgroundColor: 'rgba(196, 181, 253, 0.08)',
+                  border: '1px solid rgba(196, 181, 253, 0.28)',
+                  color: '#C4B5FD',
+                }}
+              >
                 <Sparkles className="inline w-4 h-4 mr-2" />
-                Welcome to the Future of Entertainment
+                Welcome to Your Entertainment Hub
               </span>
             </motion.div>
 
+            {/* Hero Title */}
             <motion.h1
               variants={fadeInUp}
-              className="text-6xl md:text-8xl font-['Poppins',sans-serif] font-bold mb-6"
+              className="text-5xl md:text-7xl lg:text-8xl font-outfit font-bold mb-8 leading-tight"
+              style={{ letterSpacing: '-0.04em' }}
             >
-              <span className="block mb-4 text-gray-100">Discover. Connect.</span>
-              <span className="bg-linear-to-r from-emerald-400 to-indigo-400 bg-clip-text text-transparent">
-                Experience.
+              <span className="block mb-3" style={{ color: '#F5F3FA' }}>Discover.</span>
+              <span className="block" style={{
+                background: 'linear-gradient(110deg, #A78BFA, #C4B5FD, #6366F1)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>
+                Connect. Experience.
               </span>
             </motion.h1>
 
+            {/* Hero Description */}
             <motion.p
               variants={fadeInUp}
-              className="text-xl md:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed"
+              className="text-lg md:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-inter"
+              style={{ color: '#9B95B5' }}
             >
-              Your world of music, events, and creators — powered by community.
+              Your world of music, events, and entertainment — powered by community and driven by innovation. Stream, discover, and connect with creators worldwide.
             </motion.p>
 
+            {/* CTA Buttons */}
             <motion.div
               variants={fadeInUp}
               className="flex flex-col sm:flex-row gap-4 justify-center items-center"
             >
               <Link href="/music">
                 <Button variant="primary" size="lg">
-                  <Play className="w-5 h-5 mr-2" />
+                  <Play size={20} className="mr-2" />
                   Explore Now
                 </Button>
               </Link>
               <Link href="/community">
                 <Button variant="outline" size="lg">
-                  Join the Community
+                  Join Community
                 </Button>
               </Link>
             </motion.div>
@@ -146,36 +141,43 @@ export default function Home() {
           transition={{ duration: 2, repeat: Infinity }}
           className="absolute bottom-8 left-1/2 -translate-x-1/2"
         >
-          <div className="w-6 h-10 border-2 border-emerald-500/30 rounded-full p-1">
+          <div className="w-6 h-10 border-2 rounded-full p-1" style={{ borderColor: 'rgba(167, 139, 250, 0.3)' }}>
             <motion.div
               animate={{ y: [0, 12, 0] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-1.5 h-1.5 bg-emerald-500 rounded-full mx-auto"
+              className="w-1.5 h-1.5 bg-accent-primary rounded-full mx-auto"
+              style={{ backgroundColor: '#A78BFA' }}
             />
           </div>
         </motion.div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-6 relative">
+      <section className="py-24 px-6 relative" style={{ backgroundColor: '#07060A' }}>
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
             variants={staggerContainer}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
             <motion.h2
               variants={fadeInUp}
-              className="text-4xl md:text-5xl font-['Poppins',sans-serif] font-bold mb-4"
+              className="text-4xl md:text-6xl font-outfit font-bold mb-6"
+              style={{ letterSpacing: '-0.04em' }}
             >
               Everything You Need,{' '}
-              <span className="bg-linear-to-r from-emerald-400 to-indigo-400 bg-clip-text text-transparent">
+              <span style={{
+                background: 'linear-gradient(110deg, #A78BFA, #C4B5FD)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>
                 One Platform
               </span>
             </motion.h2>
-            <motion.p variants={fadeInUp} className="text-gray-400 text-lg">
+            <motion.p variants={fadeInUp} className="text-lg font-inter" style={{ color: '#9B95B5' }}>
               Seamlessly integrated features for the ultimate entertainment experience
             </motion.p>
           </motion.div>
@@ -193,40 +195,64 @@ export default function Home() {
                 title: 'Music Streaming',
                 description: 'Access millions of tracks from emerging and established artists',
                 href: '/music',
-                gradient: 'from-purple-500 to-pink-500',
+                color: '#A78BFA',
               },
               {
                 icon: Ticket,
                 title: 'Event Booking',
                 description: 'Discover and attend live concerts, festivals, and exclusive shows',
                 href: '/events',
-                gradient: 'from-blue-500 to-cyan-500',
+                color: '#FF7AC6',
               },
               {
                 icon: MessageCircle,
                 title: 'Community Hub',
                 description: 'Connect with fans, share moments, and build your network',
                 href: '/community',
-                gradient: 'from-emerald-500 to-teal-500',
+                color: '#C4B5FD',
               },
               {
                 icon: Film,
                 title: 'Shows & Originals',
                 description: 'Watch exclusive content, documentaries, and behind-the-scenes',
                 href: '/shows',
-                gradient: 'from-red-500 to-orange-500',
+                color: '#6366F1',
               },
-            ].map((feature, index) => (
+            ].map((feature) => (
               <motion.div key={feature.title} variants={fadeInUp}>
                 <Link href={feature.href}>
-                  <div className="group h-full p-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl hover:border-emerald-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
-                    <div className={`inline-flex p-3 bg-linear-to-br ${feature.gradient} rounded-xl mb-4 group-hover:scale-110 transition-transform`}>
-                      <feature.icon className="w-6 h-6 text-white" />
+                  <div
+                    className="group h-full p-8 rounded-lg border transition-all duration-300 cursor-pointer"
+                    style={{
+                      backgroundColor: '#15121D',
+                      border: '1px solid rgba(196, 181, 253, 0.1)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1E1A2B';
+                      e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                      e.currentTarget.style.boxShadow = '0 24px 50px rgba(167, 139, 250, 0.15)';
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#15121D';
+                      e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div
+                      className="inline-flex p-4 rounded-lg mb-6 group-hover:scale-110 transition-transform"
+                      style={{
+                        backgroundColor: `rgba(167, 139, 250, 0.1)`,
+                        color: feature.color,
+                      }}
+                    >
+                      <feature.icon size={28} />
                     </div>
-                    <h3 className="text-xl font-semibold mb-2 group-hover:text-emerald-400 transition-colors">
+                    <h3 className="text-xl font-outfit font-semibold mb-3 transition-colors" style={{ color: '#F5F3FA' }}>
                       {feature.title}
                     </h3>
-                    <p className="text-gray-400 text-sm leading-relaxed">
+                    <p className="text-sm leading-relaxed font-inter" style={{ color: '#9B95B5' }}>
                       {feature.description}
                     </p>
                   </div>
@@ -238,25 +264,31 @@ export default function Home() {
       </section>
 
       {/* Trending Section */}
-      <section className="py-20 px-6 bg-gray-800/30">
+      <section className="py-24 px-6" style={{ backgroundColor: '#0F0D14' }}>
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="text-center mb-12"
+            className="text-center mb-16"
           >
-            <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 text-emerald-400 mb-4">
-              <TrendingUp className="w-5 h-5" />
-              <span className="font-semibold">What's Hot Right Now</span>
+            <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 mb-6 font-inter font-medium text-sm" style={{ color: '#A78BFA' }}>
+              <TrendingUp size={18} />
+              <span>What's Hot Right Now</span>
             </motion.div>
             <motion.h2
               variants={fadeInUp}
-              className="text-4xl md:text-5xl font-['Poppins',sans-serif] font-bold mb-4"
+              className="text-4xl md:text-6xl font-outfit font-bold mb-4"
+              style={{ letterSpacing: '-0.04em' }}
             >
               Trending Across{' '}
-              <span className="bg-linear-to-r from-emerald-400 to-indigo-400 bg-clip-text text-transparent">
+              <span style={{
+                background: 'linear-gradient(110deg, #A78BFA, #FF7AC6)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>
                 MyScope
               </span>
             </motion.h2>
@@ -267,16 +299,26 @@ export default function Home() {
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8"
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12"
           >
             {[...Array(6)].map((_, i) => (
               <motion.div
                 key={i}
                 variants={fadeInUp}
                 whileHover={{ scale: 1.05 }}
-                className="aspect-square bg-linear-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 hover:border-emerald-500/50 transition-all cursor-pointer overflow-hidden group"
+                className="aspect-square rounded-2xl border transition-all cursor-pointer overflow-hidden group hover:shadow-lg"
+                style={{
+                  backgroundColor: '#15121D',
+                  border: '1px solid rgba(196, 181, 253, 0.1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                }}
               >
-                <div className="w-full h-full flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">
+                <div className="w-full h-full flex items-center justify-center text-5xl group-hover:scale-110 transition-transform">
                   {['🎵', '🎬', '🎤', '🎸', '🎧', '🎪'][i]}
                 </div>
               </motion.div>
@@ -291,18 +333,19 @@ export default function Home() {
           >
             <Link href="/music">
               <Button variant="secondary" size="lg">
-                See What's Hot
+                See What's Trending
               </Button>
             </Link>
           </motion.div>
         </div>
       </section>
 
-      {/* CTA Banner */}
-      <section className="py-20 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-linear-to-r from-emerald-600/20 to-indigo-600/20" />
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-        
+      {/* CTA Banner Section */}
+      <section className="py-32 px-6 relative overflow-hidden" style={{ backgroundColor: '#07060A' }}>
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.1) 0%, transparent 70%)',
+        }} />
+
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -310,18 +353,26 @@ export default function Home() {
           variants={fadeInUp}
           className="max-w-4xl mx-auto text-center relative z-10"
         >
-          <Sparkles className="w-12 h-12 mx-auto mb-6 text-emerald-400" />
-          <h2 className="text-5xl md:text-6xl font-['Poppins',sans-serif] font-bold mb-6">
+          <Sparkles className="w-16 h-16 mx-auto mb-8" style={{ color: '#A78BFA' }} />
+          <h2 className="text-5xl md:text-7xl font-outfit font-bold mb-8" style={{
+            letterSpacing: '-0.04em',
+            color: '#F5F3FA',
+          }}>
             Ready to Amplify{' '}
-            <span className="bg-linear-to-r from-emerald-400 to-indigo-400 bg-clip-text text-transparent">
+            <span style={{
+              background: 'linear-gradient(110deg, #A78BFA, #C4B5FD, #FF7AC6)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}>
               Your World?
             </span>
           </h2>
-          <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
-            Join thousands of music lovers, creators, and fans in the most vibrant entertainment community.
+          <p className="text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-inter" style={{ color: '#9B95B5' }}>
+            Join thousands of music lovers, creators, and fans in the most vibrant entertainment community. Stream exclusive content, discover new artists, and connect with your community.
           </p>
           <Link href="/auth/register">
-            <Button variant="primary" size="lg" className="text-xl px-12 py-5">
+            <Button variant="primary" size="lg" style={{ fontSize: '16px', padding: '16px 48px' }}>
               Join MyScope Now
             </Button>
           </Link>

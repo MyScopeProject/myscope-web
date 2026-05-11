@@ -153,7 +153,7 @@ export default function BookingDetailPage() {
           </div>
           <button
             onClick={() => router.push('/bookings')}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-full transition-all"
           >
             ← Back to Bookings
           </button>
@@ -255,7 +255,7 @@ export default function BookingDetailPage() {
                 {booking.seats.map((seat, idx) => (
                   <div
                     key={idx}
-                    className="px-4 py-2 bg-red-600 rounded-lg font-semibold"
+                    className="px-4 py-2 bg-red-600 rounded-full font-semibold"
                   >
                     {seat.seatNumber}
                     <span className="ml-2 text-sm text-red-200">({seat.type})</span>

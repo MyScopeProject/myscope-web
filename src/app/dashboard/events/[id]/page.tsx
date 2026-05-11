@@ -247,7 +247,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
         <CardFooter className="flex gap-3">
           {isRegistered ? (
             <Button
-              variant="accent"
+              variant="secondary"
               onClick={handleUnregister}
               isLoading={unregistering}
               disabled={unregistering}

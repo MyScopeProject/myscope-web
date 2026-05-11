@@ -1,19 +1,21 @@
+'use client';
+
 /**
- * Button Component
+ * Button Component (Premium Design System)
  * 
  * @description Reusable button component with multiple variants and states
  * @usage
- * <Button variant="primary" size="md" onClick={handleClick}>Click Me</Button>
- * <Button variant="outline" disabled>Disabled</Button>
+ * <Button variant="primary" size="md">Click Me</Button>
+ * <Button variant="ghost" disabled>Disabled</Button>
  * 
- * @variants primary, secondary, accent, outline, ghost
+ * @variants primary, secondary, ghost, outline
  * @sizes sm, md, lg
  */
 
 import { ButtonHTMLAttributes, ReactNode } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'accent' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   children: ReactNode;
   isLoading?: boolean;
@@ -28,33 +30,120 @@ export default function Button({
   className = '',
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900';
+  const baseStyles = 'font-inter font-medium rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-3 focus:outline-offset-2';
   
   const variants = {
-    primary: 'bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 focus:ring-emerald-500',
-    secondary: 'bg-linear-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 focus:ring-indigo-500',
-    accent: 'bg-linear-to-r from-pink-600 to-pink-500 hover:from-pink-500 hover:to-pink-400 text-white shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 focus:ring-pink-500',
-    outline: 'border-2 border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-400 focus:ring-emerald-500',
-    ghost: 'text-gray-300 hover:bg-gray-800 hover:text-white focus:ring-gray-700',
+    primary: {
+      backgroundColor: '#A78BFA',
+      color: '#07060A',
+      boxShadow: '0 0 18px rgba(167, 139, 250, 0.45)',
+      border: 'none',
+      ':hover': {
+        backgroundColor: '#C4B5FD',
+      },
+      ':active': {
+        transform: 'scale(0.96)',
+      },
+    },
+    secondary: {
+      backgroundColor: 'transparent',
+      color: '#A78BFA',
+      border: '1px solid #A78BFA',
+      ':hover': {
+        backgroundColor: 'rgba(167, 139, 250, 0.08)',
+        borderColor: '#C4B5FD',
+        color: '#C4B5FD',
+      },
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+      color: '#9B95B5',
+      border: 'none',
+      ':hover': {
+        backgroundColor: 'rgba(167, 139, 250, 0.08)',
+        color: '#C4B5FD',
+      },
+    },
+    outline: {
+      backgroundColor: 'transparent',
+      color: '#F5F3FA',
+      border: '1px solid rgba(196, 181, 253, 0.12)',
+      ':hover': {
+        backgroundColor: 'rgba(167, 139, 250, 0.06)',
+        borderColor: 'rgba(196, 181, 253, 0.28)',
+      },
+    },
   };
 
   const sizes = {
-    sm: 'px-4 py-2 text-sm',
-    md: 'px-6 py-3 text-base',
-    lg: 'px-8 py-4 text-lg',
+    sm: { padding: '8px 16px', fontSize: '12px', minHeight: '32px' },
+    md: { padding: '12px 24px', fontSize: '14px', minHeight: '44px' },
+    lg: { padding: '14px 32px', fontSize: '16px', minHeight: '52px' },
+  };
+
+  const selectedVariant = variants[variant];
+  const selectedSize = sizes[size];
+
+  const buttonStyle: React.CSSProperties = {
+    ...selectedVariant,
+    ...selectedSize,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
+    outline: 'none',
   };
 
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      style={buttonStyle}
+      className={`${baseStyles} ${className}`}
       disabled={disabled || isLoading}
+      onMouseEnter={(e) => {
+        if (variant === 'primary' && !disabled) {
+          e.currentTarget.style.backgroundColor = '#C4B5FD';
+        } else if (variant === 'secondary' && !disabled) {
+          e.currentTarget.style.backgroundColor = 'rgba(167, 139, 250, 0.08)';
+          e.currentTarget.style.borderColor = '#C4B5FD';
+          e.currentTarget.style.color = '#C4B5FD';
+        } else if (variant === 'ghost' && !disabled) {
+          e.currentTarget.style.backgroundColor = 'rgba(167, 139, 250, 0.08)';
+          e.currentTarget.style.color = '#C4B5FD';
+        } else if (variant === 'outline' && !disabled) {
+          e.currentTarget.style.backgroundColor = 'rgba(167, 139, 250, 0.06)';
+          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (variant === 'primary' && !disabled) {
+          e.currentTarget.style.backgroundColor = '#A78BFA';
+        } else if (variant === 'secondary' && !disabled) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.borderColor = '#A78BFA';
+          e.currentTarget.style.color = '#A78BFA';
+        } else if (variant === 'ghost' && !disabled) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = '#9B95B5';
+        } else if (variant === 'outline' && !disabled) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+        }
+      }}
       {...props}
     >
       {isLoading ? (
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        <>
+          <div style={{
+            width: '14px',
+            height: '14px',
+            border: '2px solid currentColor',
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            animation: 'spin 800ms linear infinite',
+          }} />
           <span>Loading...</span>
-        </div>
+        </>
       ) : (
         children
       )}

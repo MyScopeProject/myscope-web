@@ -289,14 +289,14 @@ export default function MyBookingsPage() {
                       <div className="flex gap-3">
                         <button
                           onClick={() => router.push(`/bookings/${booking._id}`)}
-                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-all"
+                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-full font-medium transition-all"
                         >
                           View Details
                         </button>
                         {booking.status === 'Confirmed' && !isPastShowtime(booking.showtime.date) && (
                           <button
                             onClick={() => handleCancelBooking(booking._id)}
-                            className="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500 rounded-lg font-medium transition-all"
+                            className="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500 rounded-full font-medium transition-all"
                           >
                             Cancel Booking
                           </button>

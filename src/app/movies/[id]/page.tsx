@@ -93,7 +93,7 @@ export default function MovieDetailPage() {
           </div>
           <button
             onClick={() => router.push('/movies')}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-full transition-colors"
           >
             ← Back to Movies
           </button>

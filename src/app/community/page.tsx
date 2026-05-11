@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { Heart, MessageCircle, Trash2, X } from 'lucide-react';
 
 interface Comment {
   _id: string;
@@ -164,7 +165,6 @@ export default function CommunityPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Update post in state
         setPosts(posts.map(post => 
           post._id === postId ? data.data.post : post
         ));
@@ -254,14 +254,20 @@ export default function CommunityPage() {
   const filteredPosts = Array.isArray(posts) ? posts : [];
 
   return (
-    <div className="pt-16 min-h-screen pb-24 bg-gray-900">
+    <div className="pt-16 min-h-screen pb-24" style={{ backgroundColor: '#07060A' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-linear-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+        <div className="mb-12">
+          <h1 className="text-5xl md:text-7xl font-outfit font-bold mb-4" style={{
+            background: 'linear-gradient(110deg, #C4B5FD, #A78BFA)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-0.04em',
+          }}>
             Community
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>
             Connect with fans, share experiences, and join the conversation
           </p>
         </div>
@@ -271,11 +277,33 @@ export default function CommunityPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Create Post Card */}
             {user && (
-              <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+              <div className="rounded-2xl border p-6 transition-all" style={{
+                backgroundColor: '#15121D',
+                borderColor: 'rgba(196, 181, 253, 0.1)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+              }}
+              >
                 {!showCreatePost ? (
                   <button
                     onClick={() => setShowCreatePost(true)}
-                    className="w-full text-left px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-400 transition-colors"
+                    className="w-full text-left px-4 py-3 rounded-full transition-all font-inter"
+                    style={{
+                      backgroundColor: '#1E1A2B',
+                      color: '#9B95B5',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2A2636';
+                      e.currentTarget.style.color = '#C4B5FD';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1E1A2B';
+                      e.currentTarget.style.color = '#9B95B5';
+                    }}
                   >
                     What's on your mind, {user.name}?
                   </button>
@@ -286,7 +314,20 @@ export default function CommunityPage() {
                       onChange={(e) => setNewPostContent(e.target.value)}
                       placeholder="Share your thoughts..."
                       rows={4}
-                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none"
+                      className="w-full px-4 py-3 rounded-2xl resize-none outline-none font-inter text-sm"
+                      style={{
+                        backgroundColor: '#1E1A2B',
+                        border: '1px solid rgba(196, 181, 253, 0.12)',
+                        color: '#F5F3FA',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                        e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
                     />
                     
                     <input
@@ -294,7 +335,18 @@ export default function CommunityPage() {
                       value={newPostImage}
                       onChange={(e) => setNewPostImage(e.target.value)}
                       placeholder="Image URL (optional)"
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 rounded-full outline-none font-inter text-sm"
+                      style={{
+                        backgroundColor: '#1E1A2B',
+                        border: '1px solid rgba(196, 181, 253, 0.12)',
+                        color: '#F5F3FA',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+                      }}
                     />
                     
                     <input
@@ -302,14 +354,39 @@ export default function CommunityPage() {
                       value={newPostTags}
                       onChange={(e) => setNewPostTags(e.target.value)}
                       placeholder="Tags (comma separated, e.g. music, events, live)"
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 rounded-full outline-none font-inter text-sm"
+                      style={{
+                        backgroundColor: '#1E1A2B',
+                        border: '1px solid rgba(196, 181, 253, 0.12)',
+                        color: '#F5F3FA',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+                      }}
                     />
                     
                     <div className="flex gap-2">
                       <button
                         type="submit"
                         disabled={creating}
-                        className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                        className="px-6 py-2 rounded-full font-semibold transition-all font-inter"
+                        style={{
+                          backgroundColor: '#A78BFA',
+                          color: '#07060A',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!creating) {
+                            e.currentTarget.style.backgroundColor = '#B8A4FF';
+                            e.currentTarget.style.boxShadow = '0 12px 40px rgba(167, 139, 250, 0.4)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#A78BFA';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
                       >
                         {creating ? 'Posting...' : 'Post'}
                       </button>
@@ -321,7 +398,20 @@ export default function CommunityPage() {
                           setNewPostImage('');
                           setNewPostTags('');
                         }}
-                        className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-colors"
+                        className="px-6 py-2 rounded-full font-semibold transition-all font-inter border"
+                        style={{
+                          backgroundColor: '#1E1A2B',
+                          borderColor: 'rgba(196, 181, 253, 0.1)',
+                          color: '#F5F3FA',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#2A2636';
+                          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#1E1A2B';
+                          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                        }}
                       >
                         Cancel
                       </button>
@@ -334,14 +424,21 @@ export default function CommunityPage() {
             {/* Loading State */}
             {loading && (
               <div className="text-center py-12">
-                <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-400">Loading posts...</p>
+                <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
+                  borderColor: 'rgba(167, 139, 250, 0.3)',
+                  borderTopColor: '#A78BFA',
+                }} />
+                <p className="font-inter" style={{ color: '#9B95B5' }}>Loading posts...</p>
               </div>
             )}
 
             {/* Error State */}
             {error && (
-              <div className="p-4 bg-red-500/10 border border-red-500 rounded-lg text-red-400">
+              <div className="p-4 rounded-lg font-inter border" style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderColor: 'rgba(239, 68, 68, 0.28)',
+                color: '#ef4444',
+              }}>
                 {error}
               </div>
             )}
@@ -350,10 +447,13 @@ export default function CommunityPage() {
             {!loading && !error && (
               <>
                 {filteredPosts.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-800 rounded-xl border border-gray-700">
+                  <div className="text-center py-12 rounded-2xl border" style={{
+                    backgroundColor: '#15121D',
+                    borderColor: 'rgba(196, 181, 253, 0.1)',
+                  }}>
                     <div className="text-6xl mb-4">💬</div>
-                    <p className="text-gray-400 text-lg">No posts yet</p>
-                    <p className="text-gray-500 text-sm mt-2">
+                    <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>No posts yet</p>
+                    <p className="text-sm font-inter mt-2" style={{ color: 'rgba(155, 149, 181, 0.7)' }}>
                       Be the first to share something!
                     </p>
                   </div>
@@ -363,16 +463,28 @@ export default function CommunityPage() {
                     const isAuthor = user && post.author._id === user.id;
 
                     return (
-                      <div key={post._id} className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+                      <div key={post._id} className="rounded-2xl border p-6 transition-all" style={{
+                        backgroundColor: '#15121D',
+                        borderColor: 'rgba(196, 181, 253, 0.1)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+                      }}
+                      >
                         {/* Post Header */}
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-linear-to-br from-green-600 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold">
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold" style={{
+                              background: 'linear-gradient(135deg, #A78BFA, #C4B5FD)',
+                            }}>
                               {getInitials(post.author.name)}
                             </div>
                             <div>
-                              <h4 className="font-semibold">{post.author.name}</h4>
-                              <p className="text-sm text-gray-400">
+                              <h4 className="font-semibold font-inter" style={{ color: '#F5F3FA' }}>{post.author.name}</h4>
+                              <p className="text-sm font-inter" style={{ color: '#9B95B5' }}>
                                 {formatTimeAgo(post.createdAt)}
                                 {post.edited && ' • Edited'}
                               </p>
@@ -382,17 +494,18 @@ export default function CommunityPage() {
                           {isAuthor && (
                             <button
                               onClick={() => handleDeletePost(post._id)}
-                              className="text-gray-400 hover:text-red-400 transition-colors"
+                              className="transition-colors"
+                              style={{ color: '#9B95B5' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = '#9B95B5')}
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
+                              <Trash2 size={20} />
                             </button>
                           )}
                         </div>
 
                         {/* Post Content */}
-                        <p className="text-gray-300 whitespace-pre-wrap mb-4">{post.content}</p>
+                        <p className="whitespace-pre-wrap mb-4 font-inter" style={{ color: '#C4B5FD' }}>{post.content}</p>
 
                         {/* Post Image */}
                         {post.mediaUrl && post.mediaType === 'image' && (
@@ -412,7 +525,17 @@ export default function CommunityPage() {
                               <button
                                 key={index}
                                 onClick={() => setSelectedTag(tag)}
-                                className="px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-green-400 text-sm rounded-full transition-colors"
+                                className="px-2.5 py-1 rounded-full text-sm transition-all font-inter"
+                                style={{
+                                  backgroundColor: 'rgba(196, 181, 253, 0.1)',
+                                  color: '#A78BFA',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(196, 181, 253, 0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(196, 181, 253, 0.1)';
+                                }}
                               >
                                 #{tag}
                               </button>
@@ -421,46 +544,68 @@ export default function CommunityPage() {
                         )}
 
                         {/* Post Actions */}
-                        <div className="flex items-center gap-6 text-gray-400 border-t border-gray-700 pt-4">
+                        <div className="flex items-center gap-6 text-sm font-inter" style={{
+                          borderTop: '1px solid rgba(196, 181, 253, 0.1)',
+                          paddingTop: '16px',
+                          color: '#9B95B5',
+                        }}>
                           <button
                             onClick={() => handleLikePost(post._id)}
-                            className={`flex items-center gap-2 hover:text-green-400 transition-colors ${
-                              isLiked ? 'text-green-400' : ''
-                            }`}
+                            className="flex items-center gap-2 transition-colors"
+                            style={{
+                              color: isLiked ? '#A78BFA' : '#9B95B5',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isLiked) {
+                                e.currentTarget.style.color = '#A78BFA';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isLiked) {
+                                e.currentTarget.style.color = '#9B95B5';
+                              }
+                            }}
                           >
-                            <svg className="w-5 h-5" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                            </svg>
+                            <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
                             <span>{post.likes.length}</span>
                           </button>
 
                           <button
                             onClick={() => setCommentingOn(commentingOn === post._id ? null : post._id)}
-                            className="flex items-center gap-2 hover:text-green-400 transition-colors"
+                            className="flex items-center gap-2 transition-colors"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = '#A78BFA';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = '#9B95B5';
+                            }}
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                            </svg>
+                            <MessageCircle size={18} />
                             <span>{post.comments.length}</span>
                           </button>
                         </div>
 
                         {/* Comments Section */}
                         {post.comments.length > 0 && (
-                          <div className="mt-4 space-y-3 border-t border-gray-700 pt-4">
+                          <div className="mt-4 space-y-3" style={{
+                            borderTop: '1px solid rgba(196, 181, 253, 0.1)',
+                            paddingTop: '16px',
+                          }}>
                             {post.comments.map((comment) => (
                               <div key={comment._id} className="flex gap-3">
-                                <div className="w-8 h-8 bg-linear-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0" style={{
+                                  background: 'linear-gradient(135deg, #FF7AC6, #F0A6F8)',
+                                }}>
                                   {getInitials(comment.author.name)}
                                 </div>
                                 <div className="flex-1">
-                                  <div className="bg-gray-700 rounded-lg px-4 py-2">
-                                    <div className="font-semibold text-sm mb-1">{comment.author.name}</div>
-                                    <p className="text-gray-300 text-sm">{comment.content}</p>
+                                  <div className="rounded-lg px-4 py-2" style={{ backgroundColor: '#1E1A2B' }}>
+                                    <div className="font-semibold text-sm mb-1 font-inter" style={{ color: '#F5F3FA' }}>{comment.author.name}</div>
+                                    <p className="text-sm font-inter" style={{ color: '#C4B5FD' }}>{comment.content}</p>
                                   </div>
-                                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                                  <div className="flex items-center gap-4 mt-1 text-xs font-inter" style={{ color: '#9B95B5' }}>
                                     <span>{formatTimeAgo(comment.createdAt)}</span>
-                                    <button className="hover:text-green-400">
+                                    <button className="hover:text-pink-400 transition-colors">
                                       ❤️ {comment.likes.length}
                                     </button>
                                   </div>
@@ -479,11 +624,32 @@ export default function CommunityPage() {
                               onChange={(e) => setCommentInputs({ ...commentInputs, [post._id]: e.target.value })}
                               onKeyPress={(e) => e.key === 'Enter' && handleAddComment(post._id)}
                               placeholder="Write a comment..."
-                              className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                              className="flex-1 px-4 py-2 rounded-full outline-none font-inter text-sm"
+                              style={{
+                                backgroundColor: '#1E1A2B',
+                                border: '1px solid rgba(196, 181, 253, 0.12)',
+                                color: '#F5F3FA',
+                              }}
+                              onFocus={(e) => {
+                                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                              }}
+                              onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+                              }}
                             />
                             <button
                               onClick={() => handleAddComment(post._id)}
-                              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors"
+                              className="px-4 py-2 rounded-full font-semibold transition-all font-inter"
+                              style={{
+                                backgroundColor: '#A78BFA',
+                                color: '#07060A',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#B8A4FF';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '#A78BFA';
+                              }}
                             >
                               Send
                             </button>
@@ -500,35 +666,62 @@ export default function CommunityPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Trending Tags */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 sticky top-24">
+            <div className="rounded-2xl border p-6 sticky top-24 transition-all" style={{
+              backgroundColor: '#15121D',
+              borderColor: 'rgba(196, 181, 253, 0.1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+            }}
+            >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold flex items-center gap-2">
+                <h3 className="font-semibold flex items-center gap-2 font-inter" style={{ color: '#F5F3FA' }}>
                   <span>🔥</span>
                   Trending Tags
                 </h3>
                 {selectedTag && (
                   <button
                     onClick={handleClearFilters}
-                    className="text-xs text-green-400 hover:text-green-300"
+                    className="text-xs font-inter transition-colors"
+                    style={{ color: '#A78BFA' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#C4B5FD')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#A78BFA')}
                   >
                     Clear
                   </button>
                 )}
               </div>
               {selectedTag && (
-                <div className="mb-3 px-3 py-2 bg-green-600/20 border border-green-600/30 rounded-lg text-sm">
-                  <span className="text-green-400">Showing posts tagged:</span>
-                  <span className="text-white font-semibold ml-2">#{selectedTag}</span>
+                <div className="mb-3 px-3 py-2 rounded-full text-sm font-inter" style={{
+                  backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                  border: '1px solid rgba(167, 139, 250, 0.28)',
+                  color: '#A78BFA',
+                }}>
+                  <span>Showing posts tagged:</span>
+                  <span className="font-semibold ml-2">#{selectedTag}</span>
                 </div>
               )}
               <div className="space-y-2">
                 <button
                   onClick={() => setSelectedTag('')}
-                  className={`block w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    selectedTag === '' 
-                      ? 'bg-green-600 text-white' 
-                      : 'text-gray-400 hover:bg-gray-700'
-                  }`}
+                  className="block w-full text-left px-3 py-2 rounded-lg transition-colors font-inter"
+                  style={{
+                    backgroundColor: selectedTag === '' ? '#A78BFA' : 'transparent',
+                    color: selectedTag === '' ? '#07060A' : '#9B95B5',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedTag !== '') {
+                      e.currentTarget.style.backgroundColor = 'rgba(196, 181, 253, 0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedTag !== '') {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }
+                  }}
                 >
                   All Posts
                 </button>
@@ -536,11 +729,21 @@ export default function CommunityPage() {
                   <button
                     key={tag}
                     onClick={() => setSelectedTag(tag)}
-                    className={`block w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                      selectedTag === tag 
-                        ? 'bg-green-600 text-white' 
-                        : 'text-green-400 hover:bg-gray-700'
-                    }`}
+                    className="block w-full text-left px-3 py-2 rounded-lg transition-colors font-inter"
+                    style={{
+                      backgroundColor: selectedTag === tag ? '#A78BFA' : 'transparent',
+                      color: selectedTag === tag ? '#07060A' : '#A78BFA',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedTag !== tag) {
+                        e.currentTarget.style.backgroundColor = 'rgba(196, 181, 253, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedTag !== tag) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
                   >
                     #{tag}
                   </button>
@@ -549,16 +752,26 @@ export default function CommunityPage() {
             </div>
 
             {/* Community Stats */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-              <h3 className="font-semibold mb-4">Community Stats</h3>
+            <div className="rounded-2xl border p-6 transition-all" style={{
+              backgroundColor: '#15121D',
+              borderColor: 'rgba(196, 181, 253, 0.1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
+            }}
+            >
+              <h3 className="font-semibold mb-4 font-inter" style={{ color: '#F5F3FA' }}>Community Stats</h3>
               <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Total Posts</span>
-                  <span className="font-semibold">{filteredPosts.length}</span>
+                <div className="flex justify-between text-sm font-inter">
+                  <span style={{ color: '#9B95B5' }}>Total Posts</span>
+                  <span style={{ color: '#C4B5FD' }} className="font-semibold">{filteredPosts.length}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Active Today</span>
-                  <span className="font-semibold text-green-400">
+                <div className="flex justify-between text-sm font-inter">
+                  <span style={{ color: '#9B95B5' }}>Active Today</span>
+                  <span style={{ color: '#A78BFA' }} className="font-semibold">
                     {filteredPosts.filter(p => {
                       const postDate = new Date(p.createdAt);
                       const today = new Date();

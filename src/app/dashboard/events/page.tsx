@@ -127,7 +127,7 @@ export default function EventsDashboardPage() {
                   View Details
                 </Button>
                 <Button
-                  variant="accent"
+                  variant="secondary"
                   size="sm"
                   onClick={async (e) => {
                     e.stopPropagation();

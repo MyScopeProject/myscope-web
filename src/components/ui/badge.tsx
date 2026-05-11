@@ -1,12 +1,14 @@
+'use client';
+
 /**
- * Badge Component
+ * Badge Component (Premium Design System)
  * 
  * @description Colored badges for status, categories, and tags
  * @usage
  * <Badge variant="success">Active</Badge>
- * <Badge variant="warning" size="sm">Pending</Badge>
+ * <Badge variant="ai">AI Feature</Badge>
  * 
- * @variants success, warning, danger, info, primary, secondary
+ * @variants success, warning, danger, info, primary, ai
  * @sizes sm, md, lg
  */
 
@@ -14,7 +16,7 @@ import { ReactNode } from 'react';
 
 interface BadgeProps {
   children: ReactNode;
-  variant?: 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'secondary';
+  variant?: 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'ai';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   rounded?: boolean;
@@ -27,27 +29,61 @@ export default function Badge({
   className = '',
   rounded = false,
 }: BadgeProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-semibold transition-colors';
-  
   const variants = {
-    success: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-    warning: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
-    danger: 'bg-red-500/20 text-red-400 border border-red-500/30',
-    info: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-    primary: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-    secondary: 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30',
+    success: {
+      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+      color: '#10b981',
+      border: '1px solid rgba(16, 185, 129, 0.3)',
+    },
+    warning: {
+      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+      color: '#f59e0b',
+      border: '1px solid rgba(245, 158, 11, 0.3)',
+    },
+    danger: {
+      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+      color: '#ef4444',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
+    },
+    info: {
+      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      color: '#3b82f6',
+      border: '1px solid rgba(59, 130, 246, 0.3)',
+    },
+    primary: {
+      backgroundColor: 'rgba(167, 139, 250, 0.12)',
+      color: '#A78BFA',
+      border: '1px solid rgba(167, 139, 250, 0.35)',
+    },
+    ai: {
+      backgroundColor: 'rgba(196, 181, 253, 0.12)',
+      color: '#C4B5FD',
+      border: '1px solid rgba(196, 181, 253, 0.35)',
+    },
   };
 
   const sizes = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-3 py-1 text-sm',
-    lg: 'px-4 py-1.5 text-base',
+    sm: { padding: '6px 12px', fontSize: '10px' },
+    md: { padding: '8px 16px', fontSize: '12px' },
+    lg: { padding: '10px 20px', fontSize: '14px' },
   };
 
-  const roundedStyles = rounded ? 'rounded-full' : 'rounded-md';
+  const baseStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '500',
+    fontFamily: '"Inter", sans-serif',
+    transition: 'all 300ms ease',
+    borderRadius: rounded ? '999px' : '8px',
+    textTransform: variant === 'ai' ? 'uppercase' : 'none',
+    letterSpacing: variant === 'ai' ? '0.05em' : 'normal',
+    ...variants[variant],
+    ...sizes[size],
+  };
 
   return (
-    <span className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${roundedStyles} ${className}`}>
+    <span style={baseStyle} className={className}>
       {children}
     </span>
   );

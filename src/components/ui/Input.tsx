@@ -1,5 +1,7 @@
+'use client';
+
 /**
- * Input Components
+ * Input Components (Premium Design System)
  * 
  * @description Styled form inputs with focus and error states
  * @usage
@@ -29,29 +31,55 @@ export function Input({
   className = '',
   ...props
 }: InputProps) {
-  const baseStyles = 'w-full px-4 py-3 bg-gray-800 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900';
-  const errorStyles = error
-    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    : 'border-gray-700 focus:border-emerald-500 focus:ring-emerald-500';
-  const textStyles = 'text-gray-100 placeholder:text-gray-500';
+  const baseStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '12px 16px',
+    backgroundColor: '#1E1A2B',
+    border: `1px solid ${error ? '#ef4444' : 'rgba(196, 181, 253, 0.12)'}`,
+    borderRadius: '12px',
+    fontSize: '14px',
+    color: '#F5F3FA',
+    transition: 'all 200ms ease',
+    fontFamily: '"Inter", sans-serif',
+  };
 
   return (
-    <div className="w-full">
+    <div style={{ width: '100%' }}>
       {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label style={{
+          display: 'block',
+          fontSize: '14px',
+          fontWeight: '500',
+          fontFamily: '"Inter", sans-serif',
+          color: '#F5F3FA',
+          marginBottom: '12px',
+        }}>
           {label}
-          {required && <span className="text-red-400 ml-1">*</span>}
+          {required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
         </label>
       )}
       <input
-        className={`${baseStyles} ${errorStyles} ${textStyles} ${className}`}
+        style={baseStyle}
+        className={className}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(167, 139, 250, 0.12)';
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = error ? '#ef4444' : 'rgba(196, 181, 253, 0.12)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
         {...props}
       />
       {error && (
-        <p className="mt-1 text-sm text-red-400">{error}</p>
+        <p style={{ marginTop: '8px', fontSize: '12px', color: '#ef4444', fontWeight: '500' }}>
+          {error}
+        </p>
       )}
       {helperText && !error && (
-        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+        <p style={{ marginTop: '8px', fontSize: '12px', color: '#9B95B5' }}>
+          {helperText}
+        </p>
       )}
     </div>
   );
@@ -68,29 +96,56 @@ export function TextArea({
   className = '',
   ...props
 }: TextAreaProps) {
-  const baseStyles = 'w-full px-4 py-3 bg-gray-800 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 resize-none';
-  const errorStyles = error
-    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    : 'border-gray-700 focus:border-emerald-500 focus:ring-emerald-500';
-  const textStyles = 'text-gray-100 placeholder:text-gray-500';
+  const baseStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '12px 16px',
+    backgroundColor: '#1E1A2B',
+    border: `1px solid ${error ? '#ef4444' : 'rgba(196, 181, 253, 0.12)'}`,
+    borderRadius: '12px',
+    fontSize: '14px',
+    color: '#F5F3FA',
+    transition: 'all 200ms ease',
+    fontFamily: '"Inter", sans-serif',
+    resize: 'none',
+  };
 
   return (
-    <div className="w-full">
+    <div style={{ width: '100%' }}>
       {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label style={{
+          display: 'block',
+          fontSize: '14px',
+          fontWeight: '500',
+          fontFamily: '"Inter", sans-serif',
+          color: '#F5F3FA',
+          marginBottom: '12px',
+        }}>
           {label}
-          {required && <span className="text-red-400 ml-1">*</span>}
+          {required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
         </label>
       )}
       <textarea
-        className={`${baseStyles} ${errorStyles} ${textStyles} ${className}`}
+        style={baseStyle}
+        className={className}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(167, 139, 250, 0.12)';
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = error ? '#ef4444' : 'rgba(196, 181, 253, 0.12)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
         {...props}
       />
       {error && (
-        <p className="mt-1 text-sm text-red-400">{error}</p>
+        <p style={{ marginTop: '8px', fontSize: '12px', color: '#ef4444', fontWeight: '500' }}>
+          {error}
+        </p>
       )}
       {helperText && !error && (
-        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+        <p style={{ marginTop: '8px', fontSize: '12px', color: '#9B95B5' }}>
+          {helperText}
+        </p>
       )}
     </div>
   );
@@ -110,22 +165,44 @@ export function Select({
   className = '',
   ...props
 }: SelectProps) {
-  const baseStyles = 'w-full px-4 py-3 bg-gray-800 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900';
-  const errorStyles = error
-    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    : 'border-gray-700 focus:border-emerald-500 focus:ring-emerald-500';
-  const textStyles = 'text-gray-100';
+  const baseStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '12px 16px',
+    backgroundColor: '#1E1A2B',
+    border: `1px solid ${error ? '#ef4444' : 'rgba(196, 181, 253, 0.12)'}`,
+    borderRadius: '12px',
+    fontSize: '14px',
+    color: '#F5F3FA',
+    transition: 'all 200ms ease',
+    fontFamily: '"Inter", sans-serif',
+  };
 
   return (
-    <div className="w-full">
+    <div style={{ width: '100%' }}>
       {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label style={{
+          display: 'block',
+          fontSize: '14px',
+          fontWeight: '500',
+          fontFamily: '"Inter", sans-serif',
+          color: '#F5F3FA',
+          marginBottom: '12px',
+        }}>
           {label}
-          {required && <span className="text-red-400 ml-1">*</span>}
+          {required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
         </label>
       )}
       <select
-        className={`${baseStyles} ${errorStyles} ${textStyles} ${className}`}
+        style={baseStyle}
+        className={className}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(167, 139, 250, 0.12)';
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = error ? '#ef4444' : 'rgba(196, 181, 253, 0.12)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
         {...props}
       >
         {options.map((option) => (
@@ -135,10 +212,14 @@ export function Select({
         ))}
       </select>
       {error && (
-        <p className="mt-1 text-sm text-red-400">{error}</p>
+        <p style={{ marginTop: '8px', fontSize: '12px', color: '#ef4444', fontWeight: '500' }}>
+          {error}
+        </p>
       )}
       {helperText && !error && (
-        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+        <p style={{ marginTop: '8px', fontSize: '12px', color: '#9B95B5' }}>
+          {helperText}
+        </p>
       )}
     </div>
   );
