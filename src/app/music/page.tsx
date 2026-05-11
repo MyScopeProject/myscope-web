@@ -406,7 +406,7 @@ export default function MusicPage() {
                               strokeWidth="2"
                               fill={favorited ? 'currentColor' : 'none'}
                               style={{
-                                color: favorited ? '#FF7AC6' : '#9B95B5',
+                                color: favorited ? '#B794F6' : '#9B95B5',
                               }}
                               viewBox="0 0 24 24"
                               xmlns="http://www.w3.org/2000/svg"

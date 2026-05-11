@@ -21,8 +21,8 @@ export const theme = {
     accent: {
       primary: '#A78BFA',
       light: '#C4B5FD',
-      hotPink: '#FF7AC6',
-      pink: '#F0A6F8',
+      hotPink: '#B794F6',
+      pink: '#D8C7FE',
       indigo: '#6366F1',
     },
     status: {

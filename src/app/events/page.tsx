@@ -137,7 +137,7 @@ export default function EventsPage() {
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-5xl md:text-7xl font-outfit font-bold mb-4" style={{
-            background: 'linear-gradient(110deg, #FF7AC6, #C4B5FD)',
+            background: 'linear-gradient(110deg, #B794F6, #C4B5FD)',
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -179,15 +179,15 @@ export default function EventsPage() {
               onClick={handleSearch}
               className="px-6 py-3 rounded-full font-semibold font-inter transition-all flex items-center gap-2"
               style={{
-                backgroundColor: '#FF7AC6',
+                backgroundColor: '#B794F6',
                 color: '#07060A',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#FF8FD4';
-                e.currentTarget.style.boxShadow = '0 12px 40px rgba(255, 122, 198, 0.4)';
+                e.currentTarget.style.backgroundColor = '#C5A3FF';
+                e.currentTarget.style.boxShadow = '0 12px 40px rgba(183, 148, 246, 0.4)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#FF7AC6';
+                e.currentTarget.style.backgroundColor = '#B794F6';
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >

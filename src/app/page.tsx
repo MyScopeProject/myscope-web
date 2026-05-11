@@ -202,7 +202,7 @@ export default function Home() {
                 title: 'Event Booking',
                 description: 'Discover and attend live concerts, festivals, and exclusive shows',
                 href: '/events',
-                color: '#FF7AC6',
+                color: '#B794F6',
               },
               {
                 icon: MessageCircle,
@@ -284,7 +284,7 @@ export default function Home() {
             >
               Trending Across{' '}
               <span style={{
-                background: 'linear-gradient(110deg, #A78BFA, #FF7AC6)',
+                background: 'linear-gradient(110deg, #A78BFA, #B794F6)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
@@ -360,7 +360,7 @@ export default function Home() {
           }}>
             Ready to Amplify{' '}
             <span style={{
-              background: 'linear-gradient(110deg, #A78BFA, #C4B5FD, #FF7AC6)',
+              background: 'linear-gradient(110deg, #A78BFA, #C4B5FD, #B794F6)',
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
