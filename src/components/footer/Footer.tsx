@@ -20,10 +20,8 @@ export default function Footer() {
       { label: 'Blog', href: '/blog' },
     ],
     features: [
-      { label: 'Music', href: '/music' },
       { label: 'Events', href: '/events' },
-      { label: 'Shows', href: '/shows' },
-      { label: 'Community', href: '/community' },
+      { label: 'Movies', href: '/movies' },
     ],
     support: [
       { label: 'Help Center', href: '/help' },
@@ -57,7 +55,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="mb-6 max-w-sm leading-relaxed font-inter text-sm" style={{ color: '#9B95B5' }}>
-              Your world of music, events, and creators — powered by community. 
+              Your world of entertainment and events. 
               The next-generation multimedia social platform.
             </p>
             

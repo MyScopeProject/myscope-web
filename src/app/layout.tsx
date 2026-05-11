@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "MyScope - Your Entertainment Hub",
-  description: "Stream music, discover events, watch shows, and connect with your community",
+  description: "Discover events, watch movies, and enjoy premium entertainment",
 };
 
 export default function RootLayout({

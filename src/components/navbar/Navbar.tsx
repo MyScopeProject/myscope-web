@@ -3,27 +3,37 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
-import { Menu, X, Search, Bell, User, Settings } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Film } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [scrolled, setScrolled] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/events', label: 'Events' },
-    { href: '/movies', label: 'Movies' },
-    { href: '/community', label: 'Community' },
+    { href: '/', label: 'Home', icon: Home },
+    { href: '/events', label: 'Events', icon: Ticket },
+    { href: '/movies', label: 'Movies', icon: Film },
   ];
+
+  // Determine active link
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  };
 
   const handleLogout = () => {
     logout();
     setMobileMenuOpen(false);
+    setUserMenuOpen(false);
     router.push('/');
   };
 
@@ -31,10 +41,23 @@ export default function Navbar() {
     setSearchQuery(e.target.value);
   };
 
+  // Scroll effect for elevated state
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(e.target as Node)) {
         setMobileMenuOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener('click', handleClickOutside);

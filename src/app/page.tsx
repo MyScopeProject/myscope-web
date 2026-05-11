@@ -112,7 +112,7 @@ export default function Home() {
               className="text-lg md:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-inter"
               style={{ color: '#9B95B5' }}
             >
-              Your world of events and entertainment — powered by community and driven by innovation. Discover, connect, and share with creators worldwide.
+              Your world of events and entertainment — powered by innovation. Discover and enjoy premium experiences.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -124,11 +124,6 @@ export default function Home() {
                 <Button variant="primary" size="lg">
                   <Play size={20} className="mr-2" />
                   Explore Now
-                </Button>
-              </Link>
-              <Link href="/community">
-                <Button variant="outline" size="lg">
-                  Join Community
                 </Button>
               </Link>
             </motion.div>
@@ -197,13 +192,7 @@ export default function Home() {
                 href: '/events',
                 color: '#B794F6',
               },
-              {
-                icon: MessageCircle,
-                title: 'Community Hub',
-                description: 'Connect with fans, share moments, and build your network',
-                href: '/community',
-                color: '#C4B5FD',
-              },
+
               {
                 icon: Film,
                 title: 'Movies',
@@ -362,7 +351,7 @@ export default function Home() {
             </span>
           </h2>
           <p className="text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-inter" style={{ color: '#9B95B5' }}>
-            Join thousands of entertainment enthusiasts, creators, and fans in the most vibrant community. Discover exclusive content, book events, and connect with your community.
+            Discover exclusive events, watch the latest movies, and enjoy premium entertainment experiences.
           </p>
           <Link href="/auth/register">
             <Button variant="primary" size="lg" style={{ fontSize: '16px', padding: '16px 48px' }}>

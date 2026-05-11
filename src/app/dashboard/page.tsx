@@ -9,12 +9,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 interface DashboardStats {
   songsPlayed: number;
   eventsAttended: number;
-  showsWatched: number;
 }
 
 interface Activity {
   _id: string;
-  type: 'music' | 'event' | 'show' | 'post';
+  type: 'event' | 'post';
   title: string;
   timestamp: string;
   icon: string;
@@ -31,9 +30,7 @@ interface UpcomingEvent {
 function DashboardContent() {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
-    songsPlayed: 0,
     eventsAttended: 0,
-    showsWatched: 0,
   });
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
@@ -63,9 +60,7 @@ function DashboardContent() {
       // For now, we'll use placeholder stats until we have user-specific activity tracking
       // In a full implementation, these would come from a user activity/analytics endpoint
       setStats({
-        songsPlayed: 0,
         eventsAttended: 0,
-        showsWatched: 0,
       });
 
       setRecentActivity([]);
@@ -105,11 +100,9 @@ function DashboardContent() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
               {[
-                { label: 'Songs Played', value: stats.songsPlayed.toString(), icon: '🎵' },
                 { label: 'Events Attended', value: stats.eventsAttended.toString(), icon: '🎉' },
-                { label: 'Shows Watched', value: stats.showsWatched.toString(), icon: '🎬' },
               ].map((stat) => (
                 <div key={stat.label} className="p-6 bg-surface-1 rounded-lg border border-border hover:bg-surface-2 transition-colors">
                   <div className="text-3xl mb-2">{stat.icon}</div>
@@ -127,7 +120,7 @@ function DashboardContent() {
                     <div className="text-5xl mb-3">📊</div>
                     <p className="font-plex-sans">No recent activity yet</p>
                     <p className="text-sm text-text-muted/70 mt-2 font-plex-sans">
-                      Start exploring music, events, and shows!
+                      Start exploring events and movies!
                     </p>
                   </div>
                 ) : (
