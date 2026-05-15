@@ -2,12 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
 import { AuthProvider } from "@/context/AuthContext";
-import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
-import { FavoritesProvider } from "@/context/FavoritesContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
-import MiniPlayer from "@/components/MiniPlayer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,14 +35,9 @@ export default function RootLayout({
       >
         <GoogleOAuthProvider clientId={googleClientId}>
           <AuthProvider>
-            <FavoritesProvider>
-              <MusicPlayerProvider>
-                <Navbar />
-                {children}
-                <Footer />
-                <MiniPlayer />
-              </MusicPlayerProvider>
-            </FavoritesProvider>
+            <Navbar />
+            {children}
+            <Footer />
           </AuthProvider>
         </GoogleOAuthProvider>
       </body>
