@@ -7,6 +7,8 @@ interface User {
   name: string;
   email: string;
   createdAt: string;
+  profileImage?: string;
+  provider?: string; // 'local', 'google', etc.
 }
 
 interface AuthContextType {
@@ -18,6 +20,7 @@ interface AuthContextType {
   logout: () => void;
   checkAuth: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
+  googleLogin: (credential: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -130,6 +133,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('token');
   };
 
+  const googleLogin = async (credential: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token: credential }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const { user, token } = data.data;
+        setUser(user);
+        setToken(token);
+        localStorage.setItem('token', token);
+        return { success: true };
+      } else {
+        return { success: false, error: data.message || 'Google login failed' };
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  };
+
   const updateUser = async (userData: Partial<User>) => {
     try {
       if (!token) {
@@ -165,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, checkAuth, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, checkAuth, updateUser, googleLogin }}>
       {children}
     </AuthContext.Provider>
   );

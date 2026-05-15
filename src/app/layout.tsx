@@ -4,6 +4,7 @@ import "../styles/globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
 import { FavoritesProvider } from "@/context/FavoritesContext";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
 import MiniPlayer from "@/components/MiniPlayer";
@@ -28,21 +29,25 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <FavoritesProvider>
-            <MusicPlayerProvider>
-              <Navbar />
-              {children}
-              <Footer />
-              <MiniPlayer />
-            </MusicPlayerProvider>
-          </FavoritesProvider>
-        </AuthProvider>
+        <GoogleOAuthProvider clientId={googleClientId}>
+          <AuthProvider>
+            <FavoritesProvider>
+              <MusicPlayerProvider>
+                <Navbar />
+                {children}
+                <Footer />
+                <MiniPlayer />
+              </MusicPlayerProvider>
+            </FavoritesProvider>
+          </AuthProvider>
+        </GoogleOAuthProvider>
       </body>
     </html>
   );

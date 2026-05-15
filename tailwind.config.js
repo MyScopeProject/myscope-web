@@ -7,33 +7,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Rasaswadaya - Very Dark Navy with Purple Accents
+        // MyScope - Premium Violet Theme
         bg: {
-          dark: '#0a0e27',    // Very dark navy
+          dark: '#07060A',    // Premium dark background
           darker: '#000000',
-          DEFAULT: '#0a0e27',
+          DEFAULT: '#07060A',
         },
         surface: {
-          1: '#151a32',       // Surface 1
-          2: '#1f2642',       // Surface 2
-          3: '#2a2f4a',       // Surface 3
-          DEFAULT: '#151a32',
+          1: '#15121D',       // Surface 1
+          2: '#1E1A2B',       // Surface 2
+          3: '#2A2F4A',       // Surface 3
+          DEFAULT: '#15121D',
         },
         border: {
-          DEFAULT: 'rgba(255, 255, 255, 0.08)',  // Subtle white border
+          DEFAULT: 'rgba(196, 181, 253, 0.10)',  // Violet border
         },
         text: {
-          primary: '#ffffff',      // Pure white
-          secondary: '#b0b8d4',    // Light gray
-          muted: '#7d8bb3',        // Muted gray
+          primary: '#F5F3FA',      // Light text
+          secondary: '#9B95B5',    // Secondary text
+          muted: '#7D8BA8',        // Muted text
         },
         accent: {
-          primary: '#9f7aea',      // Purple accent
-          purple: '#a78bfa',       // Light purple
-          'hot-pink': '#ec4899',   // Hot pink
+          primary: '#A78BFA',      // Primary accent violet
+          purple: '#A78BFA',       // Light purple
+          'hot-pink': '#B794F6',   // Hot pink replacement (violet)
         },
         status: {
-          destructive: '#ef4444',
+          destructive: '#FF6B6B',
           success: '#10b981',
           warning: '#f59e0b',
           info: '#3b82f6',
