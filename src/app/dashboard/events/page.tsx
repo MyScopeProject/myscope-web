@@ -30,7 +30,7 @@ export default function EventsDashboardPage() {
     async function fetchUserEvents() {
       try {
         const res = await fetch(`${API_URL}/api/events/user`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
         });
         const data = await res.json();
         
@@ -56,7 +56,7 @@ export default function EventsDashboardPage() {
     try {
       const res = await fetch(`${API_URL}/api/events/${event._id}/unregister`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       if (res.ok) {
         setEvents(prev => prev.filter(e => e._id !== event._id));

@@ -170,10 +170,8 @@ export default function BookingPage() {
 
       const res = await fetch(`${API_URL}/api/bookings`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookingData),
       });
 
@@ -183,10 +181,8 @@ export default function BookingPage() {
         // Update payment status to completed (in real app, this happens after payment gateway)
         await fetch(`${API_URL}/api/bookings/${data.data._id}/payment`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paymentStatus: 'Completed' }),
         });
 

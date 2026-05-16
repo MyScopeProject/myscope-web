@@ -3,28 +3,43 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { motion } from 'framer-motion';
-import { User, Mail, Check, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Building2, Globe, Check, AlertCircle } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    city: '',
+  });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (user) {
-      setName(user.name);
-      setEmail(user.email);
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        city: user.city || '',
+      });
     }
   }, [user]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
 
-    const result = await updateUser({ name, email });
+    const result = await updateUser(formData);
     
     setLoading(false);
     
@@ -99,8 +114,11 @@ export default function ProfilePage() {
         >
           <div className="flex flex-col items-center text-center">
             <div
-              className="w-20 h-20 rounded-full flex items-center justify-center mb-6 text-3xl overflow-hidden"
-              style={{ background: 'rgba(183, 148, 246, 0.15)' }}
+              className="w-24 h-24 rounded-full flex items-center justify-center mb-6 text-4xl overflow-hidden border-2"
+              style={{ 
+                background: 'rgba(183, 148, 246, 0.15)',
+                borderColor: 'rgba(183, 148, 246, 0.3)',
+              }}
             >
               {user.profileImage ? (
                 <img
@@ -157,8 +175,9 @@ export default function ProfilePage() {
               </label>
               <input
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
                 required
                 className="w-full px-4 py-3 rounded-lg outline-none font-inter transition-all"
                 style={{
@@ -187,8 +206,9 @@ export default function ProfilePage() {
               </label>
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
                 required
                 className="w-full px-4 py-3 rounded-lg outline-none font-inter transition-all"
                 style={{
@@ -196,6 +216,68 @@ export default function ProfilePage() {
                   border: '1px solid rgba(196, 181, 253, 0.12)',
                   color: '#F5F3FA',
                 }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* Phone Field */}
+            <div>
+              <label className="block mb-3 font-inter font-semibold" style={{ color: '#F5F3FA' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Phone size={18} style={{ color: '#B794F6' }} />
+                  <span>Phone Number</span>
+                </div>
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg outline-none font-inter transition-all"
+                style={{
+                  background: '#1E1A2B',
+                  border: '1px solid rgba(196, 181, 253, 0.12)',
+                  color: '#F5F3FA',
+                }}
+                placeholder="(123) 456-7890"
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* City Field */}
+            <div>
+              <label className="block mb-3 font-inter font-semibold" style={{ color: '#F5F3FA' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 size={18} style={{ color: '#B794F6' }} />
+                  <span>City</span>
+                </div>
+              </label>
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg outline-none font-inter transition-all"
+                style={{
+                  background: '#1E1A2B',
+                  border: '1px solid rgba(196, 181, 253, 0.12)',
+                  color: '#F5F3FA',
+                }}
+                placeholder="New York"
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
                   e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';

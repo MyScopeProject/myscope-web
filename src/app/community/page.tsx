@@ -107,8 +107,6 @@ export default function CommunityPage() {
 
     try {
       setCreating(true);
-      const token = localStorage.getItem('token');
-      
       const tags = newPostTags
         .split(',')
         .map(tag => tag.trim().toLowerCase().replace(/^#/, ''))
@@ -116,10 +114,8 @@ export default function CommunityPage() {
 
       const response = await fetch(`${API_URL}/api/community`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: newPostContent,
           mediaUrl: newPostImage,
@@ -154,12 +150,9 @@ export default function CommunityPage() {
     }
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/community/${postId}/like`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -184,13 +177,10 @@ export default function CommunityPage() {
     if (!content) return;
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/community/${postId}/comment`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       });
 
@@ -212,12 +202,9 @@ export default function CommunityPage() {
     if (!confirm('Are you sure you want to delete this post?')) return;
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/community/${postId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       const data = await response.json();

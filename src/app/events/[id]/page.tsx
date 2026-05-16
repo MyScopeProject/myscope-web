@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 interface Event {
@@ -82,10 +83,8 @@ export default function EventDetailsPage() {
       setRegistering(true);
       const response = await fetch(`${API_URL}/api/events/${params.id}/register`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
 
       console.log('Response status:', response.status);
@@ -119,10 +118,8 @@ export default function EventDetailsPage() {
       setRegistering(true);
       const response = await fetch(`${API_URL}/api/events/${params.id}/unregister`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
 
       const data = await response.json();
@@ -362,13 +359,29 @@ export default function EventDetailsPage() {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={handleRegister}
-                  disabled={isSoldOut || registering}
-                  className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {registering ? 'Processing...' : isSoldOut ? 'Sold Out' : 'Register Now'}
-                </button>
+                <>
+                  {/* New ticket-types-based checkout. The "Register Now" button
+                      below is the legacy free-RSVP flow and stays for events
+                      that don't yet have ticket types defined. */}
+                  <Link
+                    href={`/events/${params.id}/checkout`}
+                    className="block w-full mb-2 px-6 py-3 rounded-lg font-semibold text-center"
+                    style={{
+                      background: 'linear-gradient(135deg, #A78BFA 0%, #FF7AC6 100%)',
+                      color: '#0a0712',
+                    }}
+                  >
+                    Book tickets
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleRegister}
+                    disabled={isSoldOut || registering}
+                    className="w-full px-6 py-3 bg-blue-600/30 hover:bg-blue-600/50 border border-blue-600/40 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {registering ? 'Processing...' : isSoldOut ? 'Sold Out' : 'Register Now (free RSVP)'}
+                  </button>
+                </>
               )}
 
               {!user && !isSoldOut && (

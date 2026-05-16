@@ -45,11 +45,9 @@ function DashboardContent() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-
       // Fetch upcoming events
       const eventsResponse = await fetch(`${API_URL}/api/events?upcoming=true&limit=6`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        credentials: 'include',
       });
       const eventsData = await eventsResponse.json();
       

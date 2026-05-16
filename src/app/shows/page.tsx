@@ -104,12 +104,9 @@ export default function ShowsPage() {
     }
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/shows/${showId}/like`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       const data = await response.json();

@@ -67,9 +67,7 @@ export default function BookingDetailPage() {
       setError('');
 
       const res = await fetch(`${API_URL}/api/bookings/${bookingId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       const data = await res.json();
@@ -92,9 +90,7 @@ export default function BookingDetailPage() {
     try {
       const res = await fetch(`${API_URL}/api/bookings/${bookingId}/cancel`, {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       const data = await res.json();

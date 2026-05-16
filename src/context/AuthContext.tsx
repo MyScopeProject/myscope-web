@@ -6,18 +6,23 @@ interface User {
   id: string;
   name: string;
   email: string;
+  role: string;
   createdAt: string;
   profileImage?: string;
   provider?: string; // 'local', 'google', etc.
+  phone?: string;
+  city?: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  // Sentinel: 'cookie' when authenticated via httpOnly cookie, null otherwise.
+  // Kept in the interface so existing `if (!token)` checks continue to work.
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   googleLogin: (credential: string) => Promise<{ success: boolean; error?: string }>;
@@ -26,46 +31,57 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const COOKIE_SENTINEL = 'cookie';
+
+type RawUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  created_at: string;
+  profile_image?: string;
+  google_id?: string;
+  phone?: string;
+  city?: string;
+};
+
+const mapUser = (raw: RawUser): User => ({
+  id: raw.id,
+  name: raw.name,
+  email: raw.email,
+  role: raw.role ?? 'user',
+  createdAt: raw.created_at,
+  profileImage: raw.profile_image,
+  provider: raw.google_id ? 'google' : 'local',
+  phone: raw.phone,
+  city: raw.city,
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check authentication status on mount
   useEffect(() => {
     checkAuth();
   }, []);
 
   const checkAuth = async () => {
     try {
-      const savedToken = localStorage.getItem('token');
-      
-      if (!savedToken) {
-        setLoading(false);
-        return;
-      }
-
-      // Verify token by fetching user data
       const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${savedToken}`,
-        },
+        credentials: 'include',
       });
 
       if (response.ok) {
         const data = await response.json();
-        setUser(data.data.user);
-        setToken(savedToken);
+        setUser(mapUser(data.data.user));
+        setToken(COOKIE_SENTINEL);
       } else {
-        // Token invalid or expired
-        localStorage.removeItem('token');
         setUser(null);
         setToken(null);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('token');
       setUser(null);
       setToken(null);
     } finally {
@@ -77,23 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        const { user, token } = data.data;
-        setUser(user);
-        setToken(token);
-        localStorage.setItem('token', token);
+        setUser(mapUser(data.data.user));
+        setToken(COOKIE_SENTINEL);
         return { success: true };
-      } else {
-        return { success: false, error: data.message || 'Registration failed' };
       }
+      return { success: false, error: data.message || 'Registration failed' };
     } catch (error) {
       console.error('Registration error:', error);
       return { success: false, error: 'Network error. Please try again.' };
@@ -104,56 +116,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        const { user, token } = data.data;
-        setUser(user);
-        setToken(token);
-        localStorage.setItem('token', token);
+        setUser(mapUser(data.data.user));
+        setToken(COOKIE_SENTINEL);
         return { success: true };
-      } else {
-        return { success: false, error: data.message || 'Login failed' };
       }
+      return { success: false, error: data.message || 'Login failed' };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, error: 'Network error. Please try again.' };
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
+  const logout = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setToken(null);
+    }
   };
 
   const googleLogin = async (credential: string) => {
     try {
       const response = await fetch(`${API_URL}/api/auth/google`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: credential }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        const { user, token } = data.data;
-        setUser(user);
-        setToken(token);
-        localStorage.setItem('token', token);
+        setUser(mapUser(data.data.user));
+        setToken(COOKIE_SENTINEL);
         return { success: true };
-      } else {
-        return { success: false, error: data.message || 'Google login failed' };
       }
+      return { success: false, error: data.message || 'Google login failed' };
     } catch (error) {
       console.error('Google login error:', error);
       return { success: false, error: 'Network error. Please try again.' };
@@ -162,32 +174,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = async (userData: Partial<User>) => {
     try {
-      if (!token) {
+      if (!user) {
         return { success: false, error: 'Not authenticated' };
       }
 
-      // Validate that we have data to update
       if (!userData.name && !userData.email) {
         return { success: false, error: 'No data provided to update' };
       }
 
       const response = await fetch(`${API_URL}/api/user/profile`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
       });
 
       const data = await response.json();
 
       if (data.success && data.data?.user) {
-        setUser(data.data.user);
+        setUser(mapUser(data.data.user));
         return { success: true };
-      } else {
-        return { success: false, error: data.message || 'Update failed' };
       }
+      return { success: false, error: data.message || 'Update failed' };
     } catch (error) {
       console.error('Update error:', error);
       return { success: false, error: 'Network error. Please try again.' };

@@ -40,7 +40,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     async function fetchEvent() {
       try {
         const res = await fetch(`${API_URL}/api/events/${params.id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
         });
         const data = await res.json();
         
@@ -68,7 +68,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     try {
       const res = await fetch(`${API_URL}/api/events/${event._id}/unregister`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       
       if (res.ok) {

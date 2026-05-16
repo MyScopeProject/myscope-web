@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Film } from 'lucide-react';
+import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Film, ScanLine } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,10 +18,15 @@ export default function Navbar() {
   const navRef = useRef<HTMLElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  const SCANNER_ROLES = new Set(['scanner', 'organizer', 'superadmin', 'moderator', 'event-manager']);
+
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
     { href: '/events', label: 'Events', icon: Ticket },
     { href: '/movies', label: 'Movies', icon: Film },
+    ...(user && SCANNER_ROLES.has(user.role)
+      ? [{ href: '/scanner', label: 'Scanner', icon: ScanLine }]
+      : []),
   ];
 
   // Determine active link
