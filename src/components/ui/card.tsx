@@ -1,116 +1,103 @@
-'use client';
+import * as React from "react"
 
-/**
- * Card Component (Premium Design System)
- * 
- * @description Container component with shadow, rounded corners, and sections
- * @usage
- * <Card>
- *   <CardHeader>Title Here</CardHeader>
- *   <CardBody>Content here</CardBody>
- *   <CardFooter>Footer content</CardFooter>
- * </Card>
- * 
- * @props hoverable - adds hover effect
- * @props gradient - adds gradient background
- */
+import { cn } from "@/lib/utils"
 
-import { ReactNode } from 'react';
-
-interface CardProps {
-  children: ReactNode;
-  className?: string;
-  hoverable?: boolean;
-  gradient?: boolean;
-}
-
-export function Card({ children, className = '', hoverable = false, gradient = false }: CardProps) {
-  const baseStyle: React.CSSProperties = {
-    backgroundColor: '#15121D',
-    border: '1px solid rgba(196, 181, 253, 0.1)',
-    borderRadius: '16px',
-    transition: 'all 300ms cubic-bezier(0.22, 1, 0.36, 1)',
-    cursor: hoverable ? 'pointer' : 'default',
-  };
-
-  const hoverStyle = hoverable ? {
-    ':hover': {
-      backgroundColor: '#1E1A2B',
-      borderColor: 'rgba(196, 181, 253, 0.28)',
-      boxShadow: '0 24px 50px rgba(167, 139, 250, 0.35)',
-      transform: 'translateY(-4px)',
-    }
-  } : {};
-
+function Card({
+  className,
+  size = "default",
+  ...props
+}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
   return (
     <div
-      className={className}
-      style={baseStyle}
-      onMouseEnter={(e) => {
-        if (hoverable) {
-          e.currentTarget.style.backgroundColor = '#1E1A2B';
-          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-          e.currentTarget.style.boxShadow = '0 24px 50px rgba(167, 139, 250, 0.35)';
-          e.currentTarget.style.transform = 'translateY(-4px)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (hoverable) {
-          e.currentTarget.style.backgroundColor = '#15121D';
-          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-          e.currentTarget.style.boxShadow = 'none';
-          e.currentTarget.style.transform = 'translateY(0)';
-        }
-      }}
-    >
-      {gradient ? (
-        <div style={{ backgroundColor: '#15121D', borderRadius: '16px', height: '100%' }}>
-          {children}
-        </div>
-      ) : (
-        children
+      data-slot="card"
+      data-size={size}
+      className={cn(
+        "group/card flex flex-col gap-6 overflow-hidden rounded-xl bg-card py-6 text-sm text-card-foreground shadow-xs ring-1 ring-foreground/10 has-[>img:first-child]:pt-0 data-[size=sm]:gap-4 data-[size=sm]:py-4 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        className
       )}
-    </div>
-  );
+      {...props}
+    />
+  )
 }
 
-export function CardHeader({ children, className = '' }: { children: ReactNode; className?: string }) {
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={className}
-      style={{
-        padding: '24px',
-        borderBottom: '1px solid rgba(196, 181, 253, 0.1)',
-      }}
-    >
-      {children}
-    </div>
-  );
+      data-slot="card-header"
+      className={cn(
+        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-6 group-data-[size=sm]/card:px-4 has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-6 group-data-[size=sm]/card:[.border-b]:pb-4",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function CardBody({ children, className = '' }: { children: ReactNode; className?: string }) {
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={className}
-      style={{
-        padding: '24px',
-      }}
-    >
-      {children}
-    </div>
-  );
+      data-slot="card-title"
+      className={cn(
+        "font-heading text-base leading-normal font-medium group-data-[size=sm]/card:text-sm",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function CardFooter({ children, className = '' }: { children: ReactNode; className?: string }) {
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={className}
-      style={{
-        padding: '24px',
-        borderTop: '1px solid rgba(196, 181, 253, 0.1)',
-      }}
-    >
-      {children}
-    </div>
-  );
+      data-slot="card-description"
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-6 group-data-[size=sm]/card:px-4", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn(
+        "flex items-center rounded-b-xl px-6 group-data-[size=sm]/card:px-4 [.border-t]:pt-6 group-data-[size=sm]/card:[.border-t]:pt-4",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
 }

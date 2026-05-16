@@ -1,365 +1,226 @@
-'use client';
+"use client"
 
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Ticket, MessageCircle, Film, Play, TrendingUp, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui';
+import * as React from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import {
+  ArrowRight,
+  Calendar,
+  MapPin,
+  Search,
+  Sparkles,
+  Trophy,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { EventCard, type EventCardData } from "@/components/events/event-card"
 
-export default function Home() {
-  // Animation variants
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 24 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
-  };
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-  const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.12,
-        delayChildren: 0,
-      },
-    },
-  };
+const STATS = [
+  { label: "Events listed", value: "1,200+" },
+  { label: "Tickets booked", value: "85K+" },
+  { label: "Cities covered", value: "12" },
+  { label: "Organizers", value: "300+" },
+]
+
+export default function HomePage() {
+  const router = useRouter()
+  const [events, setEvents] = React.useState<EventCardData[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [query, setQuery] = React.useState("")
+
+  React.useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/events?upcoming=true&limit=8`)
+        const data = await res.json()
+        if (!cancelled && data?.success) {
+          setEvents(data.data.events || [])
+        }
+      } catch {
+        // Soft-fail — featured strip just stays empty
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const q = query.trim()
+    router.push(q ? `/events?search=${encodeURIComponent(q)}` : "/events")
+  }
 
   return (
-    <div style={{ backgroundColor: '#07060A', color: '#F5F3FA' }}>
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20" style={{ backgroundColor: '#07060A' }}>
-        {/* Animated Background Gradients */}
-        <div className="absolute inset-0 -z-10" style={{
-          background: 'radial-gradient(ellipse at 20% 50%, rgba(167, 139, 250, 0.15) 0%, transparent 50%)',
-        }} />
-        <div className="absolute inset-0 -z-10" style={{
-          background: 'radial-gradient(ellipse at 80% 80%, rgba(255, 122, 198, 0.1) 0%, transparent 50%)',
-        }} />
-
-        {/* Animated Gradient Orbs */}
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl -z-10"
+    <div>
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        {/* Decorative gradient backdrop */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 opacity-60 dark:opacity-40"
           style={{
-            background: 'radial-gradient(circle, rgba(167, 139, 250, 0.3), transparent)',
-          }}
-        />
-        <motion.div
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1,
-          }}
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl -z-10"
-          style={{
-            background: 'radial-gradient(circle, rgba(255, 122, 198, 0.2), transparent)',
+            backgroundImage:
+              "radial-gradient(60% 60% at 20% 0%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 60%), radial-gradient(60% 60% at 90% 20%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 60%)",
           }}
         />
 
-        <div className="max-w-5xl mx-auto px-6 py-20 text-center relative z-10">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={staggerContainer}
-          >
-            {/* Badge */}
-            <motion.div variants={fadeInUp} className="mb-8">
-              <span
-                className="inline-block px-4 py-2.5 rounded-full text-sm font-medium font-inter mb-8"
-                style={{
-                  backgroundColor: 'rgba(196, 181, 253, 0.08)',
-                  border: '1px solid rgba(196, 181, 253, 0.28)',
-                  color: '#C4B5FD',
-                }}
-              >
-                <Sparkles className="inline w-4 h-4 mr-2" />
-                Welcome to Your Entertainment Hub
-              </span>
-            </motion.div>
+        <div className="mx-auto max-w-5xl px-4 py-20 text-center sm:px-6 md:py-28">
+          <Badge variant="default" className="mb-6">
+            <Sparkles className="h-3 w-3" />
+            New events every week
+          </Badge>
 
-            {/* Hero Title */}
-            <motion.h1
-              variants={fadeInUp}
-              className="text-5xl md:text-7xl lg:text-8xl font-outfit font-bold mb-8 leading-tight"
-              style={{ letterSpacing: '-0.04em' }}
-            >
-              <span className="block mb-3" style={{ color: '#F5F3FA' }}>Discover.</span>
-              <span className="block" style={{
-                background: 'linear-gradient(110deg, #A78BFA, #C4B5FD, #6366F1)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                Connect. Experience.
-              </span>
-            </motion.h1>
-
-            {/* Hero Description */}
-            <motion.p
-              variants={fadeInUp}
-              className="text-lg md:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-inter"
-              style={{ color: '#9B95B5' }}
-            >
-              Your world of events and entertainment — powered by innovation. Discover and enjoy premium experiences.
-            </motion.p>
-
-            {/* CTA Buttons */}
-            <motion.div
-              variants={fadeInUp}
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-            >
-              <Link href="/events">
-                <Button variant="primary" size="lg">
-                  <Play size={20} className="mr-2" />
-                  Explore Now
-                </Button>
-              </Link>
-            </motion.div>
-          </motion.div>
-        </div>
-
-        {/* Scroll Indicator */}
-        <motion.div
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        >
-          <div className="w-6 h-10 border-2 rounded-full p-1" style={{ borderColor: 'rgba(167, 139, 250, 0.3)' }}>
-            <motion.div
-              animate={{ y: [0, 12, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-1.5 h-1.5 bg-accent-primary rounded-full mx-auto"
-              style={{ backgroundColor: '#A78BFA' }}
-            />
-          </div>
-        </motion.div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-24 px-6 relative" style={{ backgroundColor: '#07060A' }}>
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={staggerContainer}
-            className="text-center mb-20"
-          >
-            <motion.h2
-              variants={fadeInUp}
-              className="text-4xl md:text-6xl font-outfit font-bold mb-6"
-              style={{ letterSpacing: '-0.04em' }}
-            >
-              Everything You Need,{' '}
-              <span style={{
-                background: 'linear-gradient(110deg, #A78BFA, #C4B5FD)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                One Platform
-              </span>
-            </motion.h2>
-            <motion.p variants={fadeInUp} className="text-lg font-inter" style={{ color: '#9B95B5' }}>
-              Seamlessly integrated features for the ultimate entertainment experience
-            </motion.p>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {[
-              {
-                icon: Ticket,
-                title: 'Event Booking',
-                description: 'Discover and attend live concerts, festivals, and exclusive events',
-                href: '/events',
-                color: '#B794F6',
-              },
-
-              {
-                icon: Film,
-                title: 'Movies',
-                description: 'Book tickets and watch the latest movies in theaters',
-                href: '/movies',
-                color: '#6366F1',
-              },
-            ].map((feature) => (
-              <motion.div key={feature.title} variants={fadeInUp}>
-                <Link href={feature.href}>
-                  <div
-                    className="group h-full p-8 rounded-lg border transition-all duration-300 cursor-pointer"
-                    style={{
-                      backgroundColor: '#15121D',
-                      border: '1px solid rgba(196, 181, 253, 0.1)',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#1E1A2B';
-                      e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                      e.currentTarget.style.boxShadow = '0 24px 50px rgba(167, 139, 250, 0.15)';
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#15121D';
-                      e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                      e.currentTarget.style.boxShadow = 'none';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    <div
-                      className="inline-flex p-4 rounded-lg mb-6 group-hover:scale-110 transition-transform"
-                      style={{
-                        backgroundColor: `rgba(167, 139, 250, 0.1)`,
-                        color: feature.color,
-                      }}
-                    >
-                      <feature.icon size={28} />
-                    </div>
-                    <h3 className="text-xl font-outfit font-semibold mb-3 transition-colors" style={{ color: '#F5F3FA' }}>
-                      {feature.title}
-                    </h3>
-                    <p className="text-sm leading-relaxed font-inter" style={{ color: '#9B95B5' }}>
-                      {feature.description}
-                    </p>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Trending Section */}
-      <section className="py-24 px-6" style={{ backgroundColor: '#0F0D14' }}>
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-            className="text-center mb-16"
-          >
-            <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 mb-6 font-inter font-medium text-sm" style={{ color: '#A78BFA' }}>
-              <TrendingUp size={18} />
-              <span>What's Hot Right Now</span>
-            </motion.div>
-            <motion.h2
-              variants={fadeInUp}
-              className="text-4xl md:text-6xl font-outfit font-bold mb-4"
-              style={{ letterSpacing: '-0.04em' }}
-            >
-              Trending Across{' '}
-              <span style={{
-                background: 'linear-gradient(110deg, #A78BFA, #B794F6)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                MyScope
-              </span>
-            </motion.h2>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12"
-          >
-            {[...Array(6)].map((_, i) => (
-              <motion.div
-                key={i}
-                variants={fadeInUp}
-                whileHover={{ scale: 1.05 }}
-                className="aspect-square rounded-2xl border transition-all cursor-pointer overflow-hidden group hover:shadow-lg"
-                style={{
-                  backgroundColor: '#15121D',
-                  border: '1px solid rgba(196, 181, 253, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                }}
-              >
-                <div className="w-full h-full flex items-center justify-center text-5xl group-hover:scale-110 transition-transform">
-                  {['�', '🎪', '🎭', '🎯', '🎲', '🎨'][i]}
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="text-center"
-          >
-            <Link href="/events">
-              <Button variant="secondary" size="lg">
-                See What's Trending
-              </Button>
-            </Link>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* CTA Banner Section */}
-      <section className="py-32 px-6 relative overflow-hidden" style={{ backgroundColor: '#07060A' }}>
-        <div className="absolute inset-0" style={{
-          background: 'radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.1) 0%, transparent 70%)',
-        }} />
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeInUp}
-          className="max-w-4xl mx-auto text-center relative z-10"
-        >
-          <Sparkles className="w-16 h-16 mx-auto mb-8" style={{ color: '#A78BFA' }} />
-          <h2 className="text-5xl md:text-7xl font-outfit font-bold mb-8" style={{
-            letterSpacing: '-0.04em',
-            color: '#F5F3FA',
-          }}>
-            Ready to Amplify{' '}
-            <span style={{
-              background: 'linear-gradient(110deg, #A78BFA, #C4B5FD, #B794F6)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              Your World?
-            </span>
-          </h2>
-          <p className="text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-inter" style={{ color: '#9B95B5' }}>
-            Discover exclusive events, watch the latest movies, and enjoy premium entertainment experiences.
+          <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+            Find the moments worth showing up for.
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-pretty text-base text-muted-foreground sm:text-lg">
+            Concerts, theatre, comedy, festivals, conferences — discover and book tickets for the best live
+            experiences across Sri Lanka.
           </p>
-          <Link href="/auth/register">
-            <Button variant="primary" size="lg" style={{ fontSize: '16px', padding: '16px 48px' }}>
-              Join MyScope Now
+
+          {/* Search bar */}
+          <form
+            onSubmit={handleSearch}
+            className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm"
+          >
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                placeholder="Search events, artists, venues…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="h-10 w-full rounded-lg bg-transparent pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none"
+              />
+            </div>
+            <Button type="submit" size="default">
+              Search
+              <ArrowRight />
             </Button>
-          </Link>
-        </motion.div>
+          </form>
+
+          {/* Stats */}
+          <dl className="mx-auto mt-10 grid max-w-2xl grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {stat.label}
+                </dt>
+                <dd className="mt-1 text-2xl font-bold tracking-tight text-foreground">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* Featured events */}
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Upcoming events</h2>
+            <p className="text-sm text-muted-foreground">
+              Handpicked happenings across Sri Lanka this month.
+            </p>
+          </div>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/events">
+              View all
+              <ArrowRight />
+            </Link>
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="aspect-16/10 animate-pulse rounded-xl bg-muted"
+              />
+            ))}
+          </div>
+        ) : events.length === 0 ? (
+          <EmptyEvents />
+        ) : (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {events.slice(0, 8).map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Organizer CTA */}
+      <section className="border-t border-border bg-card/40">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
+          <div className="overflow-hidden rounded-2xl border border-border bg-linear-to-br from-primary/10 via-card to-card p-8 sm:p-12">
+            <div className="grid items-center gap-8 md:grid-cols-2">
+              <div>
+                <Badge>For organizers</Badge>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                  Sell out your next show.
+                </h2>
+                <p className="mt-3 text-muted-foreground">
+                  Publish your event, take secure payments, scan tickets at the door, and get paid weekly —
+                  all from one dashboard built for Sri Lankan organizers.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Button asChild size="lg">
+                    <Link href="/become-organizer">
+                      Start hosting
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg">
+                    <Link href="/organizer">Organizer dashboard</Link>
+                  </Button>
+                </div>
+              </div>
+
+              <ul className="space-y-3 text-sm">
+                {[
+                  { icon: Calendar, text: "Multi-tier ticketing with sale windows" },
+                  { icon: MapPin, text: "QR check-in for staff at the venue" },
+                  { icon: Trophy, text: "Real-time analytics and payouts" },
+                ].map(({ icon: Icon, text }) => (
+                  <li
+                    key={text}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-background/60 p-3"
+                  >
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="text-foreground">{text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
-  );
+  )
+}
+
+function EmptyEvents() {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Calendar className="h-5 w-5" />
+      </span>
+      <h3 className="text-base font-semibold text-foreground">No upcoming events right now</h3>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        Check back soon — organizers are adding new shows every day.
+      </p>
+      <Button asChild variant="outline" size="sm">
+        <Link href="/events">Browse all events</Link>
+      </Button>
+    </div>
+  )
 }

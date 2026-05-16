@@ -1,545 +1,336 @@
-'use client';
+"use client"
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Search, X, MapPin, Clock, Ticket } from 'lucide-react';
+import * as React from "react"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import {
+  AlertCircle,
+  Calendar,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { EventCard, type EventCardData } from "@/components/events/event-card"
+import { cn } from "@/lib/utils"
 
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  location: string;
-  image?: string;
-  price: number;
-  tickets_available: number;
-  tickets_sold: number;
-  category: string;
-  organizer: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  status: string;
-  featured: boolean;
-  created_at: string;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+
+const CATEGORIES = [
+  "Music",
+  "Sports",
+  "Theater",
+  "Comedy",
+  "Conference",
+  "Festival",
+  "Other",
+]
+
+type DateFilter = "all" | "today" | "week" | "month"
+
+const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
+  { value: "all", label: "Any date" },
+  { value: "today", label: "Today" },
+  { value: "week", label: "This week" },
+  { value: "month", label: "This month" },
+]
+
+interface EventRow extends EventCardData {
+  description?: string
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
 export default function EventsPage() {
-  const router = useRouter();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const categories = ['Music', 'Sports', 'Theater', 'Comedy', 'Conference', 'Festival', 'Other'];
+  // Seed filters from the URL so deep links from the landing page work.
+  const [search, setSearch] = React.useState(() => searchParams?.get("search") ?? "")
+  const [category, setCategory] = React.useState(() => searchParams?.get("category") ?? "")
+  const [dateFilter, setDateFilter] = React.useState<DateFilter>(
+    () => (searchParams?.get("when") as DateFilter) ?? "all",
+  )
 
-  useEffect(() => {
-    fetchEvents();
-  }, [selectedCategory, dateFilter]);
+  // Debounce search input — fetch fires 350ms after typing stops.
+  const [debouncedSearch, setDebouncedSearch] = React.useState(search)
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350)
+    return () => clearTimeout(t)
+  }, [search])
 
-  const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      const params = new URLSearchParams();
-      if (selectedCategory) params.append('category', selectedCategory);
-      if (searchQuery.trim()) params.append('search', searchQuery);
-      params.append('upcoming', 'true'); // Only show upcoming events
-      
-      const url = `${API_URL}/api/events?${params.toString()}`;
-      const response = await fetch(url);
-      const data = await response.json();
+  const [events, setEvents] = React.useState<EventRow[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
 
-      if (data.success) {
-        setEvents(data.data.events || []);
-      } else {
-        setError('Failed to load events');
+  // Sync filter state back into the URL (replace, not push — no history spam).
+  React.useEffect(() => {
+    const params = new URLSearchParams()
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim())
+    if (category) params.set("category", category)
+    if (dateFilter !== "all") params.set("when", dateFilter)
+    const qs = params.toString()
+    router.replace(qs ? `/events?${qs}` : "/events", { scroll: false })
+  }, [debouncedSearch, category, dateFilter, router])
+
+  // Fetch when search/category change. Date filter is applied client-side.
+  React.useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const params = new URLSearchParams()
+        params.set("upcoming", "true")
+        if (category) params.set("category", category)
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim())
+
+        const res = await fetch(`${API_URL}/api/events?${params.toString()}`)
+        const data = await res.json()
+        if (cancelled) return
+        if (data?.success) {
+          setEvents(data.data.events || [])
+        } else {
+          setError(data?.message || "Failed to load events.")
+        }
+      } catch {
+        if (!cancelled) setError("Couldn't reach the server. Please try again.")
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-    } catch (err) {
-      setError('Error fetching events');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
+    })()
+    return () => {
+      cancelled = true
     }
-  };
+  }, [debouncedSearch, category])
 
-  const handleSearch = async () => {
-    fetchEvents();
-  };
+  // Client-side date window filter.
+  const filtered = React.useMemo(() => {
+    if (dateFilter === "all") return events
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    let end = new Date(start)
+    if (dateFilter === "today") {
+      end = new Date(start)
+      end.setDate(end.getDate() + 1)
+    } else if (dateFilter === "week") {
+      end.setDate(end.getDate() + 7)
+    } else {
+      end.setMonth(end.getMonth() + 1)
+    }
+    return events.filter((e) => {
+      const when = e.start_time || e.date
+      if (!when) return false
+      const d = new Date(when)
+      return d >= start && d <= end
+    })
+  }, [events, dateFilter])
 
-  const handleClearFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('');
-    setSelectedLocation('');
-    setDateFilter('all');
-  };
+  const clearAll = () => {
+    setSearch("")
+    setCategory("")
+    setDateFilter("all")
+  }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const day = date.getDate();
-    const year = date.getFullYear();
-    const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    return { month, day, year, time, full: `${month} ${day}, ${year} at ${time}` };
-  };
-
-  const filterByDate = (events: Event[]) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    return events.filter(event => {
-      const eventDate = new Date(event.date);
-      
-      if (dateFilter === 'today') {
-        const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-        return eventDay.getTime() === today.getTime();
-      } else if (dateFilter === 'week') {
-        const weekFromNow = new Date(today);
-        weekFromNow.setDate(weekFromNow.getDate() + 7);
-        return eventDate >= today && eventDate <= weekFromNow;
-      } else if (dateFilter === 'month') {
-        const monthFromNow = new Date(today);
-        monthFromNow.setMonth(monthFromNow.getMonth() + 1);
-        return eventDate >= today && eventDate <= monthFromNow;
-      }
-      return true;
-    });
-  };
-
-  const filterByLocation = (events: Event[]) => {
-    if (!selectedLocation) return events;
-    return events.filter(event => 
-      event.location.toLowerCase().includes(selectedLocation.toLowerCase())
-    );
-  };
-
-  const filteredEvents = filterByLocation(filterByDate(Array.isArray(events) ? events : []));
-
-  const getTicketsRemaining = (event: Event) => {
-    return (event.tickets_available ?? 0) - (event.tickets_sold ?? 0);
-  };
-
-  const handleEventClick = (eventId: string) => {
-    router.push(`/events/${eventId}`);
-  };
+  const hasActiveFilters = !!(search || category || dateFilter !== "all")
+  const activeFilterCount = [search, category, dateFilter !== "all"].filter(Boolean).length
 
   return (
-    <div className="pt-16 min-h-screen pb-24" style={{ backgroundColor: '#07060A' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-5xl md:text-7xl font-outfit font-bold mb-4" style={{
-            background: 'linear-gradient(110deg, #B794F6, #C4B5FD)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            letterSpacing: '-0.04em',
-          }}>
-            Events
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      {/* Header */}
+      <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Discover events
           </h1>
-          <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>
-            Discover concerts, festivals, and live experiences near you
+          <p className="mt-1 text-muted-foreground">
+            Concerts, theatre, comedy, festivals, and more — happening near you.
           </p>
         </div>
+        <div className="text-sm text-muted-foreground">
+          {loading ? "Loading…" : `${filtered.length} ${filtered.length === 1 ? "event" : "events"}`}
+        </div>
+      </div>
 
-        {/* Search and Filters */}
-        <div className="mb-8 space-y-4">
-          {/* Search Bar */}
-          <div className="flex gap-2">
+      {/* Filter bar */}
+      <div className="mb-6 rounded-2xl border border-border bg-card p-3 shadow-xs sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
-              type="text"
-              placeholder="Search for events, venues, or organizers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="flex-1 px-4 py-3 rounded-full outline-none text-sm font-inter transition-all"
-              style={{
-                backgroundColor: '#1E1A2B',
-                border: '1px solid rgba(196, 181, 253, 0.12)',
-                color: '#F5F3FA',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
+              type="search"
+              placeholder="Search events, artists, venues…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
             />
-            <button
-              onClick={handleSearch}
-              className="px-6 py-3 rounded-full font-semibold font-inter transition-all flex items-center gap-2"
-              style={{
-                backgroundColor: '#B794F6',
-                color: '#07060A',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#C5A3FF';
-                e.currentTarget.style.boxShadow = '0 12px 40px rgba(183, 148, 246, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#B794F6';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <Search size={18} />
-              Search
-            </button>
-            {(searchQuery || selectedCategory || selectedLocation || dateFilter !== 'all') && (
-              <button
-                onClick={handleClearFilters}
-                className="px-4 py-3 rounded-full font-semibold font-inter transition-all border"
-                style={{
-                  backgroundColor: '#1E1A2B',
-                  borderColor: 'rgba(196, 181, 253, 0.1)',
-                  color: '#F5F3FA',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#2A2636';
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1E1A2B';
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                }}
-                title="Clear all filters"
-              >
-                <X size={18} />
-              </button>
-            )}
           </div>
 
-          {/* Active Filters Display */}
-          {(searchQuery || selectedCategory || selectedLocation || dateFilter !== 'all') && (
-            <div className="flex items-center gap-2 flex-wrap text-sm font-inter">
-              <span style={{ color: '#9B95B5' }}>Active filters:</span>
-              {searchQuery && (
-                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
-                  backgroundColor: 'rgba(183, 148, 246, 0.15)',
-                  border: '1px solid rgba(183, 148, 246, 0.28)',
-                  color: '#B794F6',
-                }}>
-                  Search: "{searchQuery}"
-                  <button onClick={() => { setSearchQuery(''); fetchEvents(); }} className="hover:opacity-70">×</button>
-                </span>
-              )}
-              {selectedCategory && (
-                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
-                  backgroundColor: 'rgba(183, 148, 246, 0.15)',
-                  border: '1px solid rgba(183, 148, 246, 0.28)',
-                  color: '#B794F6',
-                }}>
-                  Category: {selectedCategory}
-                  <button onClick={() => setSelectedCategory('')} className="hover:opacity-70">×</button>
-                </span>
-              )}
-              {selectedLocation && (
-                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
-                  backgroundColor: 'rgba(183, 148, 246, 0.15)',
-                  border: '1px solid rgba(183, 148, 246, 0.28)',
-                  color: '#B794F6',
-                }}>
-                  Location: {selectedLocation}
-                  <button onClick={() => setSelectedLocation('')} className="hover:opacity-70">×</button>
-                </span>
-              )}
-              {dateFilter !== 'all' && (
-                <span className="px-3 py-1 rounded-full flex items-center gap-2" style={{
-                  backgroundColor: 'rgba(183, 148, 246, 0.15)',
-                  border: '1px solid rgba(183, 148, 246, 0.28)',
-                  color: '#B794F6',
-                }}>
-                  Date: {dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? 'This Week' : 'This Month'}
-                  <button onClick={() => setDateFilter('all')} className="hover:opacity-70">×</button>
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Category Filter */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            <button
-              onClick={() => setSelectedCategory('')}
-              className="px-4 py-2 rounded-full whitespace-nowrap transition-all font-inter text-sm"
-              style={{
-                backgroundColor: selectedCategory === '' ? '#B794F6' : '#1E1A2B',
-                color: selectedCategory === '' ? '#07060A' : '#9B95B5',
-                border: `1px solid ${selectedCategory === '' ? '#B794F6' : 'rgba(196, 181, 253, 0.1)'}`,
-              }}
-              onMouseEnter={(e) => {
-                if (selectedCategory !== '') {
-                  e.currentTarget.style.backgroundColor = '#2A2636';
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (selectedCategory !== '') {
-                  e.currentTarget.style.backgroundColor = '#1E1A2B';
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                }
-              }}
+          {/* Category */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
+            <label className="sr-only" htmlFor="filter-category">Category</label>
+            <select
+              id="filter-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
             >
-              All Categories
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className="px-4 py-2 rounded-full whitespace-nowrap transition-all font-inter text-sm"
-                style={{
-                  backgroundColor: selectedCategory === category ? '#B794F6' : '#1E1A2B',
-                  color: selectedCategory === category ? '#07060A' : '#9B95B5',
-                  border: `1px solid ${selectedCategory === category ? '#B794F6' : 'rgba(196, 181, 253, 0.1)'}`,
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedCategory !== category) {
-                    e.currentTarget.style.backgroundColor = '#2A2636';
-                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedCategory !== category) {
-                    e.currentTarget.style.backgroundColor = '#1E1A2B';
-                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                  }
-                }}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
+              <option value="">All categories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
 
-          {/* Date and Location Filters */}
-          <div className="flex flex-wrap gap-4">
-            {/* Date Filter */}
-            <div className="flex-1 min-w-[200px]">
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg font-inter text-sm outline-none"
-                style={{
-                  backgroundColor: '#1E1A2B',
-                  borderColor: 'rgba(196, 181, 253, 0.12)',
-                  border: '1px solid rgba(196, 181, 253, 0.12)',
-                  color: '#F5F3FA',
-                }}
-              >
-                <option value="all">All Dates</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-              </select>
-            </div>
-
-            {/* Location Filter */}
-            <div className="flex-1 min-w-[200px]">
-              <input
-                type="text"
-                placeholder="Filter by location..."
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg font-inter text-sm outline-none"
-                style={{
-                  backgroundColor: '#1E1A2B',
-                  borderColor: 'rgba(196, 181, 253, 0.12)',
-                  border: '1px solid rgba(196, 181, 253, 0.12)',
-                  color: '#F5F3FA',
-                }}
-              />
-            </div>
+            <label className="sr-only" htmlFor="filter-date">Date</label>
+            <select
+              id="filter-date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            >
+              {DATE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
-              borderColor: 'rgba(183, 148, 246, 0.3)',
-              borderTopColor: '#B794F6',
-            }} />
-            <p className="font-inter" style={{ color: '#9B95B5' }}>Loading events...</p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="p-4 rounded-lg mb-8 font-inter border" style={{
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            borderColor: 'rgba(239, 68, 68, 0.28)',
-            color: '#ef4444',
-          }}>
-            {error}
-          </div>
-        )}
-
-        {/* Events Grid */}
-        {!loading && !error && (
-          <>
-            {filteredEvents.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🎫</div>
-                <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>No events found</p>
-                <p className="text-sm font-inter mt-2" style={{ color: 'rgba(155, 149, 181, 0.7)' }}>
-                  Try adjusting your filters or search query
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="mb-4 font-inter text-sm" style={{ color: '#9B95B5' }}>
-                  Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredEvents.map((event) => {
-                    const dateInfo = formatDate(event.date);
-                    const ticketsRemaining = getTicketsRemaining(event);
-                    const isSoldOut = ticketsRemaining <= 0;
-                    const isAlmostSoldOut = ticketsRemaining > 0 && ticketsRemaining <= 10;
-
-                    return (
-                      <div
-                        key={event.id}
-                        onClick={() => handleEventClick(event.id)}
-                        className="group cursor-pointer rounded-2xl overflow-hidden border transition-all"
-                        style={{
-                          backgroundColor: '#15121D',
-                          borderColor: 'rgba(196, 181, 253, 0.1)',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                          e.currentTarget.style.boxShadow = '0 24px 50px rgba(167, 139, 250, 0.15)';
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                          e.currentTarget.style.boxShadow = 'none';
-                          e.currentTarget.style.transform = 'translateY(0)';
-                        }}
-                      >
-                        {/* Event Image */}
-                        <div className="relative aspect-video overflow-hidden" style={{ backgroundColor: '#1E1A2B' }}>
-                          {event.image ? (
-                            <img
-                              src={event.image}
-                              alt={event.title}
-                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br" style={{
-                              backgroundImage: 'linear-gradient(135deg, #1E1A2B, #2A2636)',
-                            }}>
-                              🎫
-                            </div>
-                          )}
-                          
-                          {/* Date Badge */}
-                          <div className="absolute top-4 left-4 rounded-lg p-2 text-center min-w-[60px] font-inter" style={{
-                            backgroundColor: '#B794F6',
-                            color: '#07060A',
-                          }}>
-                            <div className="text-xs font-semibold uppercase">{dateInfo.month}</div>
-                            <div className="text-2xl font-bold">{dateInfo.day}</div>
-                          </div>
-
-                          {/* Status Badges */}
-                          <div className="absolute top-4 right-4 flex flex-col gap-2">
-                            {event.featured && (
-                              <span className="px-3 py-1 bg-yellow-500 text-black text-xs font-semibold rounded-full font-inter">
-                                Featured
-                              </span>
-                            )}
-                            {isSoldOut && (
-                              <span className="px-3 py-1 text-white text-xs font-semibold rounded-full font-inter" style={{
-                                backgroundColor: '#ef4444',
-                              }}>
-                                Sold Out
-                              </span>
-                            )}
-                            {isAlmostSoldOut && !isSoldOut && (
-                              <span className="px-3 py-1 text-white text-xs font-semibold rounded-full font-inter" style={{
-                                backgroundColor: '#F59E0B',
-                              }}>
-                                Almost Sold Out
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Event Details */}
-                        <div className="p-5">
-                          {/* Category */}
-                          <div className="mb-3">
-                            <span className="px-2.5 py-1 rounded-full text-xs font-inter" style={{
-                              backgroundColor: 'rgba(196, 181, 253, 0.1)',
-                              color: '#C4B5FD',
-                            }}>
-                              {event.category}
-                            </span>
-                          </div>
-
-                          {/* Title */}
-                          <h3 className="text-lg font-bold mb-2 font-outfit transition-colors line-clamp-2" style={{
-                            color: '#F5F3FA',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = '#B794F6')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = '#F5F3FA')}
-                          >
-                            {event.title}
-                          </h3>
-
-                          {/* Description */}
-                          <p className="text-sm mb-4 line-clamp-2 font-inter" style={{ color: '#9B95B5' }}>
-                            {event.description}
-                          </p>
-
-                          {/* Location */}
-                          <div className="flex items-start gap-2 mb-2 text-sm font-inter" style={{ color: '#C4B5FD' }}>
-                            <MapPin size={18} className="shrink-0 mt-0.5" />
-                            <span className="line-clamp-1">{event.location}</span>
-                          </div>
-
-                          {/* Time */}
-                          <div className="flex items-center gap-2 mb-4 text-sm font-inter" style={{ color: '#C4B5FD' }}>
-                            <Clock size={18} className="shrink-0" />
-                            <span>{dateInfo.time}</span>
-                          </div>
-
-                          {/* Price and Tickets */}
-                          <div className="flex items-center justify-between pt-4 font-inter" style={{
-                            borderTop: '1px solid rgba(196, 181, 253, 0.1)',
-                          }}>
-                            <div>
-                              <div className="text-xs" style={{ color: '#9B95B5' }}>Price</div>
-                              <div className="text-xl font-bold" style={{ color: '#B794F6' }}>
-                                {event.price === 0 ? 'Free' : `$${event.price}`}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs" style={{ color: '#9B95B5' }}>Tickets Left</div>
-                              <div className="text-lg font-semibold" style={{
-                                color: isSoldOut ? '#ef4444' : isAlmostSoldOut ? '#F59E0B' : '#10B981'
-                              }}>
-                                {isSoldOut ? 'Sold Out' : ticketsRemaining}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+        {/* Active filter chips */}
+        {hasActiveFilters && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {activeFilterCount} active
+            </span>
+            {search && (
+              <FilterChip label={`“${search}”`} onClear={() => setSearch("")} />
             )}
-          </>
+            {category && (
+              <FilterChip label={category} onClear={() => setCategory("")} />
+            )}
+            {dateFilter !== "all" && (
+              <FilterChip
+                label={DATE_OPTIONS.find((o) => o.value === dateFilter)?.label ?? dateFilter}
+                onClear={() => setDateFilter("all")}
+              />
+            )}
+            <button
+              type="button"
+              onClick={clearAll}
+              className="ml-auto text-xs font-medium text-primary hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
         )}
       </div>
+
+      {/* Results */}
+      {loading ? (
+        <LoadingGrid />
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => setSearch((s) => s)} />
+      ) : filtered.length === 0 ? (
+        <EmptyState hasFilters={hasActiveFilters} onClear={clearAll} />
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((event) => (
+            <EventCard key={event.id} event={event} />
+          ))}
+        </div>
+      )}
     </div>
-  );
+  )
+}
+
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <Badge variant="default" className="gap-1.5 pr-1.5">
+      <span className="truncate max-w-[160px]">{label}</span>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={`Remove ${label}`}
+        className={cn(
+          "inline-flex h-4 w-4 items-center justify-center rounded-full",
+          "hover:bg-primary/20",
+        )}
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </Badge>
+  )
+}
+
+function LoadingGrid() {
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="overflow-hidden rounded-xl border border-border bg-card"
+        >
+          <div className="aspect-16/10 animate-pulse bg-muted" />
+          <div className="space-y-2 p-4">
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-3/5 animate-pulse rounded bg-muted" />
+            <div className="mt-3 h-3 w-2/5 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EmptyState({
+  hasFilters,
+  onClear,
+}: {
+  hasFilters: boolean
+  onClear: () => void
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Calendar className="h-5 w-5" />
+      </span>
+      <h3 className="text-base font-semibold text-foreground">
+        {hasFilters ? "No events match your filters" : "No upcoming events"}
+      </h3>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        {hasFilters
+          ? "Try widening your search — fewer filters often surface more results."
+          : "Check back soon — organizers are adding new shows every day."}
+      </p>
+      {hasFilters ? (
+        <Button variant="outline" size="sm" onClick={onClear}>
+          Clear filters
+        </Button>
+      ) : (
+        <Button asChild variant="outline" size="sm">
+          <Link href="/">Back to home</Link>
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-12 text-center">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+        <AlertCircle className="h-5 w-5" />
+      </span>
+      <h3 className="text-base font-semibold text-foreground">Couldn&rsquo;t load events</h3>
+      <p className="max-w-sm text-sm text-muted-foreground">{message}</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
+  )
 }

@@ -1,325 +1,288 @@
-'use client';
+"use client"
 
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Calendar, MapPin, Ticket, AlertCircle, Trash2, Eye } from 'lucide-react';
+import * as React from "react"
+import Link from "next/link"
+import {
+  AlertCircle,
+  Calendar,
+  Eye,
+  MapPin,
+  Search,
+  Ticket,
+  Trash2,
+} from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
+import ProtectedRoute from "@/components/ProtectedRoute"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-interface Event {
-  _id: string;
-  title: string;
-  date: string;
-  location: string;
-  status: string;
-  ticketsRemaining: number;
-  price?: number;
-  category?: string;
+interface UserEvent {
+  id?: string
+  _id?: string
+  title: string
+  date?: string
+  start_time?: string
+  location?: string
+  venue_name?: string
+  banner_url?: string | null
+  category?: string | null
+  status?: string
+  price?: number
+  tickets_available?: number
+  tickets_sold?: number
 }
 
-export default function EventsDashboardPage() {
-  const { token } = useAuth();
-  const router = useRouter();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [unregisteringId, setUnregisteringId] = useState<string | null>(null);
+function MyEventsContent() {
+  const { token } = useAuth()
+  const [events, setEvents] = React.useState<UserEvent[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
+  const [unregisteringId, setUnregisteringId] = React.useState<string | null>(null)
+  const [search, setSearch] = React.useState("")
 
-  useEffect(() => {
-    async function fetchUserEvents() {
-      try {
-        const res = await fetch(`${API_URL}/api/events/user`, {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        
-        if (data.success && data.data?.events) {
-          setEvents(data.data.events);
-        } else {
-          setEvents([]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch user events', error);
-        setEvents([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (token) fetchUserEvents();
-  }, [token]);
-
-  const handleUnregister = async (event: Event) => {
-    if (!confirm(`Are you sure you want to unregister from "${event.title}"?`)) return;
-    
-    setUnregisteringId(event._id);
+  const fetchUserEvents = React.useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/events/${event._id}/unregister`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        setEvents(prev => prev.filter(e => e._id !== event._id));
-        alert('Unregistered successfully');
+      setLoading(true)
+      setError(null)
+      const res = await fetch(`${API_URL}/api/events/user`, { credentials: "include" })
+      const data = await res.json()
+      if (data?.success && data.data?.events) {
+        setEvents(data.data.events)
       } else {
-        alert('Failed to unregister');
+        setEvents([])
       }
-    } catch (err) {
-      alert('Error unregistering');
+    } catch {
+      setError("Couldn't load your events. Please try again.")
     } finally {
-      setUnregisteringId(null);
+      setLoading(false)
     }
-  };
+  }, [])
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+  React.useEffect(() => {
+    if (token) fetchUserEvents()
+  }, [token, fetchUserEvents])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'upcoming':
-        return { bg: 'rgba(59, 130, 246, 0.1)', text: '#3B82F6', label: 'Upcoming' };
-      case 'ongoing':
-        return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10B981', label: 'Ongoing' };
-      default:
-        return { bg: 'rgba(156, 163, 175, 0.1)', text: '#9CA3AF', label: status };
+  const handleUnregister = async (event: UserEvent) => {
+    const id = event.id ?? event._id
+    if (!id) return
+    if (!confirm(`Cancel your registration for "${event.title}"?`)) return
+
+    setUnregisteringId(id)
+    try {
+      const res = await fetch(`${API_URL}/api/events/${id}/unregister`, {
+        method: "POST",
+        credentials: "include",
+      })
+      if (res.ok) {
+        setEvents((prev) => prev.filter((e) => (e.id ?? e._id) !== id))
+      } else {
+        const data = await res.json().catch(() => null)
+        alert(data?.message || "Failed to unregister.")
+      }
+    } catch {
+      alert("Network error. Please try again.")
+    } finally {
+      setUnregisteringId(null)
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-6 md:p-8" style={{ backgroundColor: '#07060A', minHeight: '100vh' }}>
-        <div className="text-center py-12">
-          <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
-            borderColor: 'rgba(183, 148, 246, 0.3)',
-            borderTopColor: '#B794F6',
-          }} />
-          <p className="font-inter" style={{ color: '#9B95B5' }}>Loading your events...</p>
-        </div>
-      </div>
-    );
   }
 
-  return (
-    <div className="p-6 md:p-8" style={{ backgroundColor: '#07060A', minHeight: '100vh' }}>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-12"
-      >
-        <h1 className="text-4xl md:text-5xl font-outfit font-bold mb-2" style={{
-          background: 'linear-gradient(110deg, #B794F6, #C4B5FD)',
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          letterSpacing: '-0.04em',
-        }}>
-          My Events
-        </h1>
-        <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>
-          Manage your registered events
-        </p>
-      </motion.div>
+  const filtered = React.useMemo(() => {
+    if (!search.trim()) return events
+    const q = search.toLowerCase()
+    return events.filter(
+      (e) =>
+        e.title?.toLowerCase().includes(q) ||
+        e.location?.toLowerCase().includes(q) ||
+        e.venue_name?.toLowerCase().includes(q),
+    )
+  }, [events, search])
 
-      {events.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="rounded-xl border p-12 text-center"
-          style={{
-            background: '#15121D',
-            borderColor: 'rgba(196, 181, 253, 0.1)',
-          }}
-        >
-          <div className="text-6xl mb-4">🎫</div>
-          <p className="text-2xl font-outfit font-bold mb-2" style={{ color: '#F5F3FA' }}>
-            No Events Yet
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">My events</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Events you&rsquo;re registered for or have booked tickets to.
           </p>
-          <p className="font-inter mb-6" style={{ color: '#9B95B5' }}>
-            You haven't registered for any events yet. Explore our events to find something exciting!
-          </p>
-          <button
-            onClick={() => router.push('/events')}
-            className="px-6 py-3 rounded-lg font-inter font-semibold transition-all duration-300"
-            style={{
-              background: '#B794F6',
-              color: '#07060A',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#C5A3FF';
-              e.currentTarget.style.boxShadow = '0 12px 40px rgba(183, 148, 246, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#B794F6';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            Explore Events
-          </button>
-        </motion.div>
+        </div>
+        <Button asChild size="sm">
+          <Link href="/events">
+            <Ticket /> Browse more
+          </Link>
+        </Button>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          placeholder="Search your events…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+        />
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <ListSkeleton />
+      ) : error ? (
+        <ErrorState message={error} onRetry={fetchUserEvents} />
+      ) : filtered.length === 0 ? (
+        <EmptyState hasSearch={!!search} />
       ) : (
-        <motion.div
-          className="space-y-4"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            visible: {
-              transition: { staggerChildren: 0.1 },
-            },
-          }}
-        >
-          {events.map((event, idx) => {
-            const statusColor = getStatusColor(event.status);
+        <ul className="space-y-3">
+          {filtered.map((event) => {
+            const id = event.id ?? event._id ?? ""
+            const when = event.start_time || event.date
+            const dateObj = when ? new Date(when) : null
+            const venue = event.venue_name || event.location
 
             return (
-              <motion.div
-                key={event._id}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-                }}
-                className="rounded-xl border overflow-hidden transition-all duration-300"
-                style={{
-                  background: '#15121D',
-                  borderColor: 'rgba(196, 181, 253, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.3)';
-                  e.currentTarget.style.boxShadow = '0 24px 50px rgba(167, 139, 250, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+              <li
+                key={id}
+                className="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
               >
-                <div className="p-6 md:p-8">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                    {/* Event Title & Category */}
-                    <div className="md:col-span-2">
-                      <h3 className="text-xl font-outfit font-bold mb-3" style={{ color: '#F5F3FA' }}>
-                        {event.title}
-                      </h3>
-                      <div className="flex items-center gap-2 mb-3">
-                        <MapPin size={16} style={{ color: '#9B95B5' }} />
-                        <span className="text-sm font-inter" style={{ color: '#9B95B5' }}>
-                          {event.location}
-                        </span>
-                      </div>
-                      {event.category && (
-                        <span className="inline-block px-3 py-1 rounded-full text-xs font-inter font-semibold" style={{
-                          backgroundColor: 'rgba(196, 181, 253, 0.1)',
-                          color: '#C4B5FD',
-                        }}>
-                          {event.category}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Date */}
-                    <div>
-                      <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Date</p>
-                      <div className="flex items-center gap-2">
-                        <Calendar size={18} style={{ color: '#B794F6' }} />
-                        <p className="font-outfit font-bold" style={{ color: '#B794F6' }}>
-                          {formatDate(event.date)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Status */}
-                    <div>
-                      <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Status</p>
-                      <div
-                        className="px-3 py-2 rounded-lg text-sm font-inter font-semibold w-fit"
-                        style={{
-                          backgroundColor: statusColor.bg,
-                          color: statusColor.text,
-                        }}
-                      >
-                        {statusColor.label}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div style={{ borderTop: '1px solid rgba(196, 181, 253, 0.1)', margin: '16px 0' }} />
-
-                  {/* Event Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div>
-                      <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Tickets</p>
-                      <div className="flex items-center gap-2">
-                        <Ticket size={18} style={{ color: '#10B981' }} />
-                        <p className="font-outfit font-bold" style={{ color: '#10B981' }}>
-                          {event.ticketsRemaining} available
-                        </p>
-                      </div>
-                    </div>
-                    {event.price && (
-                      <div>
-                        <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Price</p>
-                        <p className="text-lg font-outfit font-bold" style={{ color: '#B794F6' }}>
-                          ₹{event.price.toLocaleString()}
-                        </p>
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  {/* Banner thumbnail */}
+                  <div className="relative aspect-21/9 w-full shrink-0 overflow-hidden bg-muted sm:aspect-auto sm:h-auto sm:w-40">
+                    {event.banner_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={event.banner_url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/20 via-primary/5 to-secondary text-3xl">
+                        🎫
                       </div>
                     )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-4" style={{ borderTop: '1px solid rgba(196, 181, 253, 0.1)' }}>
-                    <button
-                      onClick={() => router.push(`/events/${event._id}`)}
-                      className="flex items-center gap-2 px-6 py-2 rounded-lg font-inter font-semibold transition-all duration-300"
-                      style={{
-                        background: '#1E1A2B',
-                        border: '1px solid rgba(196, 181, 253, 0.1)',
-                        color: '#B794F6',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.3)';
-                        e.currentTarget.style.background = '#2A2636';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                        e.currentTarget.style.background = '#1E1A2B';
-                      }}
-                    >
-                      <Eye size={18} />
-                      View Details
-                    </button>
-                    <button
-                      onClick={() => handleUnregister(event)}
-                      disabled={unregisteringId === event._id}
-                      className="flex items-center gap-2 px-6 py-2 rounded-lg font-inter font-semibold transition-all duration-300 disabled:opacity-50"
-                      style={{
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        color: '#EF4444',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (unregisteringId !== event._id) {
-                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                      }}
-                    >
-                      <Trash2 size={18} />
-                      {unregisteringId === event._id ? 'Unregistering...' : 'Unregister'}
-                    </button>
+                  {/* Content */}
+                  <div className="flex flex-1 flex-col gap-3 p-4 sm:py-5 sm:pr-5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {event.category && <Badge variant="default">{event.category}</Badge>}
+                      {event.status && (
+                        <Badge variant="outline" className="capitalize">
+                          {event.status}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <h3 className="text-base font-semibold leading-tight text-foreground sm:text-lg">
+                      {event.title}
+                    </h3>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                      {dateObj && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {dateObj.toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      )}
+                      {venue && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {venue}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-1">
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/events/${id}`}>
+                          <Eye /> View
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleUnregister(event)}
+                        disabled={unregisteringId === id}
+                      >
+                        <Trash2 />
+                        {unregisteringId === id ? "Cancelling…" : "Unregister"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </motion.div>
-            );
+              </li>
+            )
           })}
-        </motion.div>
+        </ul>
       )}
     </div>
-  );
+  )
+}
+
+function ListSkeleton() {
+  return (
+    <ul className="space-y-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <li
+          key={i}
+          className={cn("h-32 animate-pulse rounded-xl border border-border bg-card sm:h-28")}
+        />
+      ))}
+    </ul>
+  )
+}
+
+function EmptyState({ hasSearch }: { hasSearch: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Ticket className="h-5 w-5" />
+      </span>
+      <h3 className="text-base font-semibold text-foreground">
+        {hasSearch ? "No matches" : "You haven't registered for any events yet"}
+      </h3>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        {hasSearch
+          ? "Try a different search term."
+          : "Browse what's on and grab tickets to your next experience."}
+      </p>
+      <Button asChild variant="outline" size="sm">
+        <Link href="/events">Browse events</Link>
+      </Button>
+    </div>
+  )
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-12 text-center">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+        <AlertCircle className="h-5 w-5" />
+      </span>
+      <h3 className="text-base font-semibold text-foreground">Couldn&rsquo;t load events</h3>
+      <p className="max-w-sm text-sm text-muted-foreground">{message}</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
+  )
+}
+
+export default function DashboardEventsPage() {
+  return (
+    <ProtectedRoute>
+      <MyEventsContent />
+    </ProtectedRoute>
+  )
 }

@@ -5,8 +5,9 @@
  * @usage import { Button, Navbar, Footer } from '@/components';
  */
 
-// ====== UI Components (re-exported from ui folder) ======
-export * from './ui';
+// Legacy custom UI primitives (kept during the shadcn migration).
+// New code should import individual shadcn components from '@/components/ui/<name>'.
+export * from './ui-legacy';
 
 // ====== Layout Components ======
 export { default as Navbar } from './navbar/Navbar';

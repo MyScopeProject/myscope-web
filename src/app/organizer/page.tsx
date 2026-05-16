@@ -1,10 +1,11 @@
-'use client';
+"use client"
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import * as React from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
-  BarChart2,
+  AlertCircle,
+  ArrowRight,
   Banknote,
   CalendarDays,
   CheckCircle,
@@ -16,264 +17,356 @@ import {
   TrendingUp,
   Users,
   XCircle,
-} from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+} from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 interface DashboardData {
-  event_counts: { draft: number; pending: number; approved: number; rejected: number; cancelled: number };
-  totals: { revenue: number; tickets: number; bookings: number; checked_in: number };
-  top_events: { event_id: string; title: string; revenue: number; tickets: number; bookings: number }[];
+  event_counts: {
+    draft: number
+    pending: number
+    approved: number
+    rejected: number
+    cancelled: number
+  }
+  totals: { revenue: number; tickets: number; bookings: number; checked_in: number }
+  top_events: {
+    event_id: string
+    title: string
+    revenue: number
+    tickets: number
+    bookings: number
+  }[]
   recent_bookings: {
-    id: string;
-    booking_reference: string;
-    event_title: string;
-    number_of_tickets: number;
-    total_amount: number | string;
-    attendee_name: string | null;
-    created_at: string;
-  }[];
+    id: string
+    booking_reference: string
+    event_title: string
+    number_of_tickets: number
+    total_amount: number | string
+    attendee_name: string | null
+    created_at: string
+  }[]
 }
 
 interface Balance {
-  pending: number;
-  net: number;
-  gross: number;
-  paid_out: number;
-  platform_fee_pct: number;
+  pending: number
+  net: number
+  gross: number
+  paid_out: number
+  platform_fee_pct: number
+}
+
+const STATUS_META: Record<
+  keyof DashboardData["event_counts"],
+  { label: string; tone: "default" | "warning" | "success" | "destructive" | "outline"; icon: React.ComponentType<{ className?: string }> }
+> = {
+  draft: { label: "Drafts", tone: "outline", icon: FileText },
+  pending: { label: "Pending", tone: "warning", icon: Clock },
+  approved: { label: "Live", tone: "success", icon: CheckCircle },
+  rejected: { label: "Rejected", tone: "destructive", icon: XCircle },
+  cancelled: { label: "Cancelled", tone: "outline", icon: XCircle },
+}
+
+const formatLkr = (n: number | string) => {
+  const v = typeof n === "string" ? Number(n) : n
+  return `LKR ${(v || 0).toLocaleString()}`
 }
 
 export default function OrganizerDashboardPage() {
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
 
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [balance, setBalance] = useState<Balance | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [data, setData] = React.useState<DashboardData | null>(null)
+  const [balance, setBalance] = React.useState<Balance | null>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState("")
 
   // Auth + role guard
-  useEffect(() => {
-    if (authLoading) return;
+  React.useEffect(() => {
+    if (authLoading) return
     if (!user) {
-      router.replace('/auth/login?redirect=/organizer');
-      return;
+      router.replace("/auth/login?redirect=/organizer")
+      return
     }
-    if (user.role !== 'organizer' && user.role !== 'superadmin') {
-      // Non-organizers go through the application flow
-      router.replace('/become-organizer');
+    if (user.role !== "organizer" && user.role !== "superadmin") {
+      router.replace("/become-organizer")
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, router])
 
-  useEffect(() => {
-    if (!user || (user.role !== 'organizer' && user.role !== 'superadmin')) return;
+  React.useEffect(() => {
+    if (!user || (user.role !== "organizer" && user.role !== "superadmin")) return
     Promise.all([
-      fetch(`${API_URL}/api/organizer/events/dashboard`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`${API_URL}/api/organizer/payouts/balance`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`${API_URL}/api/organizer/events/dashboard`, { credentials: "include" }).then((r) => r.json()),
+      fetch(`${API_URL}/api/organizer/payouts/balance`, { credentials: "include" }).then((r) => r.json()),
     ])
       .then(([dashRes, balRes]) => {
-        if (!dashRes?.success) { setError(dashRes?.message || 'Failed to load dashboard.'); return; }
-        setData(dashRes.data as DashboardData);
-        if (balRes?.success) setBalance(balRes.data.balance);
+        if (!dashRes?.success) {
+          setError(dashRes?.message || "Failed to load dashboard.")
+          return
+        }
+        setData(dashRes.data as DashboardData)
+        if (balRes?.success) setBalance(balRes.data.balance)
       })
-      .catch(() => setError('Network error.'))
-      .finally(() => setLoading(false));
-  }, [user]);
+      .catch(() => setError("Network error."))
+      .finally(() => setLoading(false))
+  }, [user])
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#07060A' }}>
-        <Loader className="w-8 h-8 animate-spin text-purple-400" />
+      <div className="flex h-64 items-center justify-center">
+        <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
-    );
+    )
   }
 
-  if (error) {
+  if (error || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#07060A' }}>
-        <div className="text-center">
-          <p className="text-gray-400 mb-4">{error}</p>
-          <Link href="/" className="text-purple-400 underline text-sm">Back to home</Link>
-        </div>
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-5 w-5" />
+        </span>
+        <h2 className="mt-3 text-base font-semibold text-foreground">Couldn&rsquo;t load dashboard</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{error}</p>
       </div>
-    );
+    )
   }
 
-  if (!data) return null;
-
-  const counts = data.event_counts;
+  const firstName = user?.name?.split(" ")[0] ?? "there"
 
   return (
-    <div className="min-h-screen pt-20 pb-24 px-4" style={{ backgroundColor: '#07060A' }}>
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+    <div className="space-y-8">
+      {/* Hero */}
+      <section className="overflow-hidden rounded-2xl border border-border bg-linear-to-br from-primary/10 via-card to-card p-6 shadow-xs sm:p-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Organizer dashboard</h1>
-            <p className="text-gray-400 text-sm mt-1">Welcome back, {user?.name?.split(' ')[0] ?? 'there'}.</p>
+            <p className="text-sm font-medium text-muted-foreground">Organizer dashboard</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Hey {firstName} 👋
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+              Quick view of your events, bookings, revenue, and pending payouts.
+            </p>
           </div>
-          <Link
-            href="/organizer/events/create"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm"
-            style={{ background: 'linear-gradient(135deg, #A78BFA 0%, #FF7AC6 100%)', color: '#0a0712' }}
-          >
-            <Plus className="w-4 h-4" /> New event
-          </Link>
+          <Button asChild size="lg">
+            <Link href="/organizer/events/create">
+              <Plus /> Create event
+            </Link>
+          </Button>
         </div>
+      </section>
 
-        {/* KPI cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <KpiCard
-            icon={<TrendingUp className="w-5 h-5" />}
-            label="Total revenue"
-            value={`LKR ${data.totals.revenue.toLocaleString()}`}
-            sub={`${data.totals.bookings} confirmed bookings`}
-            color="#A78BFA"
-          />
-          <KpiCard
-            icon={<Ticket className="w-5 h-5" />}
-            label="Tickets sold"
-            value={String(data.totals.tickets)}
-            color="#38BDF8"
-          />
-          <KpiCard
-            icon={<Users className="w-5 h-5" />}
-            label="Checked in"
-            value={`${data.totals.checked_in} / ${data.totals.tickets}`}
-            sub={data.totals.tickets > 0 ? `${Math.round((data.totals.checked_in / data.totals.tickets) * 100)}%` : '—'}
-            color="#34D399"
-          />
-          <KpiCard
-            icon={<Banknote className="w-5 h-5" />}
-            label="Pending payout"
-            value={balance ? `LKR ${balance.pending.toLocaleString()}` : '—'}
-            sub={balance ? `After ${(balance.platform_fee_pct * 100).toFixed(0)}% platform fee` : undefined}
-            color="#FB923C"
-            highlight={!!balance && balance.pending > 0}
-            href="/organizer/payouts"
-          />
-        </div>
+      {/* KPI cards */}
+      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <KpiCard
+          icon={TrendingUp}
+          label="Gross revenue"
+          value={formatLkr(data.totals.revenue)}
+          hint={`${data.totals.bookings} bookings`}
+        />
+        <KpiCard
+          icon={Ticket}
+          label="Tickets sold"
+          value={data.totals.tickets.toLocaleString()}
+          hint="across all events"
+        />
+        <KpiCard
+          icon={Users}
+          label="Checked in"
+          value={data.totals.checked_in.toLocaleString()}
+          hint="at the door"
+        />
+        <KpiCard
+          icon={Banknote}
+          label="Pending payout"
+          value={balance ? formatLkr(balance.pending) : "—"}
+          hint={balance ? `Platform fee ${(balance.platform_fee_pct * 100).toFixed(1)}%` : undefined}
+        />
+      </section>
 
-        {/* Event status overview */}
-        <section className="mb-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">Events at a glance</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <StatusPill href="/organizer/events?status=draft"    icon={<FileText className="w-4 h-4" />}    label="Drafts"    count={counts.draft}    color="#9CA3AF" />
-            <StatusPill href="/organizer/events?status=pending"  icon={<Clock className="w-4 h-4" />}       label="Pending"   count={counts.pending}  color="#F59E0B" />
-            <StatusPill href="/organizer/events?status=approved" icon={<CheckCircle className="w-4 h-4" />} label="Approved" count={counts.approved} color="#10B981" />
-            <StatusPill href="/organizer/events?status=rejected" icon={<XCircle className="w-4 h-4" />}     label="Rejected"  count={counts.rejected} color="#EF4444" />
-            <StatusPill href="/organizer/events"                 icon={<CalendarDays className="w-4 h-4" />} label="All"       count={Object.values(counts).reduce((s, n) => s + n, 0)} color="#A78BFA" />
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top events by revenue */}
-          <section>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3 flex items-center gap-2">
-              <BarChart2 className="w-4 h-4" /> Top events by revenue
-            </h2>
-            {data.top_events.length === 0 ? (
-              <EmptyHint message="No revenue yet — your first booking will show up here." />
-            ) : (
-              <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'rgba(196,181,253,0.12)', backgroundColor: 'rgba(21,18,29,0.5)' }}>
-                {data.top_events.map((e, i) => (
-                  <Link
-                    key={e.event_id}
-                    href={`/organizer/events/${e.event_id}/analytics`}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
-                    style={{ borderTop: i === 0 ? 'none' : '1px solid rgba(196,181,253,0.07)' }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-white font-medium truncate">{e.title}</div>
-                      <div className="text-xs text-gray-500">{e.bookings} booking{e.bookings === 1 ? '' : 's'} · {e.tickets} ticket{e.tickets === 1 ? '' : 's'}</div>
-                    </div>
-                    <div className="text-purple-300 font-semibold ml-3">LKR {e.revenue.toLocaleString()}</div>
-                  </Link>
-                ))}
+      {/* Event-status grid */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Events by status
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {(Object.keys(STATUS_META) as Array<keyof DashboardData["event_counts"]>).map((key) => {
+            const meta = STATUS_META[key]
+            const Icon = meta.icon
+            const count = data.event_counts[key] ?? 0
+            return (
+              <div
+                key={key}
+                className="rounded-xl border border-border bg-card p-4 shadow-xs"
+              >
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium uppercase tracking-wider">{meta.label}</span>
+                </div>
+                <div className="mt-2 text-2xl font-bold text-foreground">{count}</div>
               </div>
-            )}
-          </section>
+            )
+          })}
+        </div>
+      </section>
 
-          {/* Recent bookings */}
-          <section>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3 flex items-center gap-2">
-              <Ticket className="w-4 h-4" /> Recent bookings
-            </h2>
-            {data.recent_bookings.length === 0 ? (
-              <EmptyHint message="Once attendees buy tickets they'll appear here." />
-            ) : (
-              <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'rgba(196,181,253,0.12)', backgroundColor: 'rgba(21,18,29,0.5)' }}>
-                {data.recent_bookings.map((b, i) => (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between px-4 py-3"
-                    style={{ borderTop: i === 0 ? 'none' : '1px solid rgba(196,181,253,0.07)' }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-white font-medium truncate">{b.attendee_name ?? '—'}</div>
-                      <div className="text-xs text-gray-500 truncate">{b.event_title} · {new Date(b.created_at).toLocaleDateString()}</div>
-                    </div>
-                    <div className="text-right ml-3 shrink-0">
-                      <div className="text-sm text-white">{b.number_of_tickets} × ticket</div>
-                      <div className="text-xs text-purple-300">LKR {Number(b.total_amount).toLocaleString()}</div>
+      {/* Two-column: Top events + Recent bookings */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Top events */}
+        <div className="rounded-xl border border-border bg-card shadow-xs">
+          <div className="flex items-center justify-between border-b border-border p-4">
+            <h3 className="text-sm font-semibold text-foreground">Top events by revenue</h3>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/organizer/events">
+                All <ArrowRight />
+              </Link>
+            </Button>
+          </div>
+          {data.top_events.length === 0 ? (
+            <EmptyRow text="No revenue data yet." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.top_events.map((e) => (
+                <li key={e.event_id} className="flex items-center justify-between gap-4 p-4">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/organizer/events/${e.event_id}/analytics`}
+                      className="line-clamp-1 text-sm font-medium text-foreground hover:text-primary"
+                    >
+                      {e.title}
+                    </Link>
+                    <div className="text-xs text-muted-foreground">
+                      {e.tickets} tickets · {e.bookings} bookings
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
+                  <div className="shrink-0 text-right">
+                    <div className="text-sm font-semibold text-foreground">{formatLkr(e.revenue)}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </div>
+
+        {/* Recent bookings */}
+        <div className="rounded-xl border border-border bg-card shadow-xs">
+          <div className="border-b border-border p-4">
+            <h3 className="text-sm font-semibold text-foreground">Recent bookings</h3>
+          </div>
+          {data.recent_bookings.length === 0 ? (
+            <EmptyRow text="No bookings yet." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.recent_bookings.map((b) => (
+                <li key={b.id} className="flex items-center justify-between gap-4 p-4">
+                  <div className="min-w-0">
+                    <div className="line-clamp-1 text-sm font-medium text-foreground">
+                      {b.event_title}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {b.attendee_name ?? "Anonymous"} · {b.booking_reference} ·{" "}
+                      {b.number_of_tickets} ticket{b.number_of_tickets === 1 ? "" : "s"}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-sm font-semibold text-foreground">
+                      {formatLkr(b.total_amount)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(b.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      {/* Payout snapshot */}
+      {balance && (
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-xs">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Badge>Payouts</Badge>
+              <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground">
+                {formatLkr(balance.pending)} pending
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Net after platform fee &amp; refunds. Paid out weekly.
+              </p>
+            </div>
+            <Button asChild variant="outline">
+              <Link href="/organizer/payouts">
+                <Banknote /> View payouts
+              </Link>
+            </Button>
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-5 text-sm">
+            <BalanceMetric label="Gross" value={formatLkr(balance.gross)} />
+            <BalanceMetric label="Net" value={formatLkr(balance.net)} />
+            <BalanceMetric label="Paid out" value={formatLkr(balance.paid_out)} />
+          </div>
+        </section>
+      )}
+
+      {/* Footer CTA */}
+      <section className="rounded-2xl border border-dashed border-border bg-card/40 p-6 text-center">
+        <CalendarDays className="mx-auto h-8 w-8 text-primary/60" />
+        <h2 className="mt-2 text-base font-semibold text-foreground">Ready to launch another show?</h2>
+        <p className="text-sm text-muted-foreground">Spin up a new event in under five minutes.</p>
+        <Button asChild className="mt-4">
+          <Link href="/organizer/events/create">
+            <Plus /> Create event
+          </Link>
+        </Button>
+      </section>
     </div>
-  );
+  )
 }
 
 function KpiCard({
-  icon, label, value, sub, color, highlight = false, href,
-}: { icon: React.ReactNode; label: string; value: string; sub?: string; color: string; highlight?: boolean; href?: string }) {
-  const body = (
-    <>
-      <div className="h-9 w-9 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: `${color}1a`, color }}>{icon}</div>
-      <div className="text-xl font-bold text-white">{value}</div>
-      {sub && <div className="text-xs mt-0.5" style={{ color }}>{sub}</div>}
-      <div className="text-xs text-gray-400 mt-1">{label}</div>
-    </>
-  );
-  const cls = "p-5 rounded-2xl border block transition-colors";
-  const style = {
-    backgroundColor: highlight ? `${color}12` : 'rgba(21,18,29,0.5)',
-    borderColor: highlight ? `${color}55` : 'rgba(196,181,253,0.12)',
-  };
-  return href ? (
-    <Link href={href} className={`${cls} hover:opacity-90`} style={style}>{body}</Link>
-  ) : (
-    <div className={cls} style={style}>{body}</div>
-  );
-}
-
-function StatusPill({
-  href, icon, label, count, color,
-}: { href: string; icon: React.ReactNode; label: string; count: number; color: string }) {
+  icon: Icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string | number
+  hint?: string
+}) {
   return (
-    <Link
-      href={href}
-      className="flex items-center justify-between px-4 py-3 rounded-xl border hover:bg-white/5 transition-colors"
-      style={{ borderColor: 'rgba(196,181,253,0.12)', backgroundColor: 'rgba(21,18,29,0.5)' }}
-    >
-      <span className="flex items-center gap-2 text-sm" style={{ color }}>
-        {icon}
-        <span className="text-gray-300">{label}</span>
-      </span>
-      <span className="text-sm font-semibold" style={{ color }}>{count}</span>
-    </Link>
-  );
-}
-
-function EmptyHint({ message }: { message: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-gray-500" style={{ borderColor: 'rgba(196,181,253,0.15)' }}>
-      {message}
+    <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className="mt-1 text-2xl font-bold text-foreground">{value}</div>
+        </div>
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      {hint && <p className="mt-2 truncate text-xs text-muted-foreground">{hint}</p>}
     </div>
-  );
+  )
+}
+
+function BalanceMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={cn("mt-0.5 text-base font-semibold text-foreground")}>{value}</div>
+    </div>
+  )
+}
+
+function EmptyRow({ text }: { text: string }) {
+  return <div className="p-8 text-center text-sm text-muted-foreground">{text}</div>
 }

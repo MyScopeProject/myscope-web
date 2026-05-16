@@ -1,321 +1,270 @@
-'use client';
+"use client"
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { motion } from 'framer-motion';
-import { User, Mail, Phone, MapPin, Building2, Globe, Check, AlertCircle } from 'lucide-react';
+import * as React from "react"
+import Image from "next/image"
+import {
+  AlertCircle,
+  Building2,
+  Check,
+  Loader,
+  Mail,
+  MapPin,
+  Phone,
+  Save,
+  User as UserIcon,
+} from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
+import ProtectedRoute from "@/components/ProtectedRoute"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
-export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    city: '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+function ProfileContent() {
+  const { user, updateUser } = useAuth()
+  const [form, setForm] = React.useState({
+    name: "",
+    email: "",
+    phone: "",
+    city: "",
+  })
+  const [loading, setLoading] = React.useState(false)
+  const [message, setMessage] = React.useState<{ type: "success" | "error"; text: string } | null>(null)
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (user) {
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        city: user.city || '',
-      });
+      setForm({
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        city: user.city || "",
+      })
     }
-  }, [user]);
+  }, [user])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
+  // Auto-dismiss flash message
+  React.useEffect(() => {
+    if (!message) return
+    const t = setTimeout(() => setMessage(null), 3500)
+    return () => clearTimeout(t)
+  }, [message])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage(null);
-
-    const result = await updateUser(formData);
-    
-    setLoading(false);
-    
+    e.preventDefault()
+    setLoading(true)
+    setMessage(null)
+    const result = await updateUser(form)
+    setLoading(false)
     if (result.success) {
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      setMessage({ type: "success", text: "Profile updated successfully." })
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to update profile' });
+      setMessage({ type: "error", text: result.error || "Failed to update profile." })
     }
-
-    setTimeout(() => setMessage(null), 3000);
-  };
+  }
 
   if (!user) {
     return (
-      <div className="p-6 md:p-8" style={{ backgroundColor: '#07060A', minHeight: '100vh' }}>
-        <div className="text-center py-12">
-          <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
-            borderColor: 'rgba(183, 148, 246, 0.3)',
-            borderTopColor: '#B794F6',
-          }} />
-          <p className="font-inter" style={{ color: '#9B95B5' }}>Loading...</p>
-        </div>
+      <div className="flex h-64 items-center justify-center">
+        <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
-    );
+    )
   }
 
+  const initials = (user.name || "U")
+    .split(" ")
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase()
+
   return (
-    <div className="p-6 md:p-8" style={{ backgroundColor: '#07060A', minHeight: '100vh' }}>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-12"
-      >
-        <h1 className="text-4xl md:text-5xl font-outfit font-bold mb-2" style={{
-          background: 'linear-gradient(110deg, #B794F6, #C4B5FD)',
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          letterSpacing: '-0.04em',
-        }}>
-          Edit Profile
-        </h1>
-        <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>Update your personal information</p>
-      </motion.div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Profile</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your personal information and contact details.
+        </p>
+      </div>
 
-      {message && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 p-4 rounded-lg border font-inter flex items-center gap-3"
-          style={{
-            background: message.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-            borderColor: message.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-            color: message.type === 'success' ? '#10B981' : '#EF4444',
-          }}
-        >
-          {message.type === 'success' ? <Check size={20} /> : <AlertCircle size={20} />}
-          <span>{message.text}</span>
-        </motion.div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Profile Card */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="rounded-xl border p-8"
-          style={{
-            background: '#15121D',
-            borderColor: 'rgba(196, 181, 253, 0.1)',
-          }}
-        >
-          <div className="flex flex-col items-center text-center">
-            <div
-              className="w-24 h-24 rounded-full flex items-center justify-center mb-6 text-4xl overflow-hidden border-2"
-              style={{ 
-                background: 'rgba(183, 148, 246, 0.15)',
-                borderColor: 'rgba(183, 148, 246, 0.3)',
-              }}
-            >
-              {user.profileImage ? (
-                <img
-                  src={user.profileImage}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                '👤'
+      {/* Identity card */}
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
+        <div className="flex items-center gap-4">
+          <span className="inline-flex h-16 w-16 shrink-0 overflow-hidden rounded-full bg-primary/10 text-xl font-semibold text-primary">
+            {user.profileImage ? (
+              <Image
+                src={user.profileImage}
+                alt={user.name ?? "User"}
+                width={64}
+                height={64}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center">{initials}</span>
+            )}
+          </span>
+          <div className="min-w-0">
+            <div className="text-lg font-semibold text-foreground">{user.name}</div>
+            <div className="truncate text-sm text-muted-foreground">{user.email}</div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <Badge variant="default" className="capitalize">{user.role}</Badge>
+              {user.provider && user.provider !== "local" && (
+                <Badge variant="outline" className="capitalize">via {user.provider}</Badge>
               )}
             </div>
-            <h2 className="text-2xl font-outfit font-bold mb-2" style={{ color: '#F5F3FA' }}>
-              {user.name}
-            </h2>
-            <p className="font-inter text-sm" style={{ color: '#9B95B5' }}>
-              {user.email}
-            </p>
-            {user.provider && (
-              <div className="mt-3 px-3 py-1 rounded-full text-xs font-inter" style={{
-                background: 'rgba(183, 148, 246, 0.1)',
-                color: '#B794F6',
-                textTransform: 'capitalize',
-              }}>
-                Connected via {user.provider}
-              </div>
-            )}
-            <div className="mt-6 pt-6" style={{ borderTop: '1px solid rgba(196, 181, 253, 0.1)' }}>
-              <p className="text-xs font-inter uppercase mb-4" style={{ color: '#7D8BA8' }}>Member since</p>
-              <p className="font-outfit text-lg" style={{ color: '#B794F6' }}>
-                {new Date(user.createdAt || '').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+          </div>
+        </div>
+      </div>
+
+      {/* Flash */}
+      {message && (
+        <div
+          className={cn(
+            "flex items-start gap-2 rounded-md border px-3 py-2 text-sm",
+            message.type === "success"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+              : "border-destructive/30 bg-destructive/10 text-destructive",
+          )}
+        >
+          {message.type === "success" ? (
+            <Check className="mt-0.5 h-4 w-4 shrink-0" />
+          ) : (
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          )}
+          <span>{message.text}</span>
+        </div>
+      )}
+
+      {/* Edit form */}
+      <form
+        onSubmit={handleSubmit}
+        className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8"
+      >
+        <div className="mb-5">
+          <h2 className="text-base font-semibold text-foreground">Account details</h2>
+          <p className="text-xs text-muted-foreground">Updates apply immediately to your account.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Field
+            id="name"
+            label="Full name"
+            icon={UserIcon}
+            value={form.name}
+            onChange={(v) => setForm({ ...form, name: v })}
+            placeholder="Akila Perera"
+            required
+          />
+          <Field
+            id="email"
+            label="Email"
+            type="email"
+            icon={Mail}
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
+            placeholder="you@example.com"
+            required
+            helper="Used for login and ticket emails."
+          />
+          <Field
+            id="phone"
+            label="Phone"
+            type="tel"
+            icon={Phone}
+            value={form.phone}
+            onChange={(v) => setForm({ ...form, phone: v })}
+            placeholder="+94 77 123 4567"
+          />
+          <Field
+            id="city"
+            label="City"
+            icon={MapPin}
+            value={form.city}
+            onChange={(v) => setForm({ ...form, city: v })}
+            placeholder="Colombo"
+          />
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-2">
+          <Button type="submit" disabled={loading}>
+            <Save />
+            {loading ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
+      </form>
+
+      {/* Organizer block */}
+      {(user.role === "organizer" || user.role === "superadmin") && (
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <Building2 className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Organizer access</h2>
+              <p className="text-sm text-muted-foreground">
+                You can publish events and manage ticket sales.
               </p>
+              <Button asChild variant="outline" size="sm" className="mt-3">
+                <a href="/organizer">Open organizer dashboard</a>
+              </Button>
             </div>
           </div>
-        </motion.div>
-
-        {/* Edit Form */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-2 rounded-xl border p-8"
-          style={{
-            background: '#15121D',
-            borderColor: 'rgba(196, 181, 253, 0.1)',
-          }}
-        >
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name Field */}
-            <div>
-              <label className="block mb-3 font-inter font-semibold" style={{ color: '#F5F3FA' }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <User size={18} style={{ color: '#B794F6' }} />
-                  <span>Full Name</span>
-                </div>
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 rounded-lg outline-none font-inter transition-all"
-                style={{
-                  background: '#1E1A2B',
-                  border: '1px solid rgba(196, 181, 253, 0.12)',
-                  color: '#F5F3FA',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-
-            {/* Email Field */}
-            <div>
-              <label className="block mb-3 font-inter font-semibold" style={{ color: '#F5F3FA' }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Mail size={18} style={{ color: '#B794F6' }} />
-                  <span>Email Address</span>
-                </div>
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 rounded-lg outline-none font-inter transition-all"
-                style={{
-                  background: '#1E1A2B',
-                  border: '1px solid rgba(196, 181, 253, 0.12)',
-                  color: '#F5F3FA',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-
-            {/* Phone Field */}
-            <div>
-              <label className="block mb-3 font-inter font-semibold" style={{ color: '#F5F3FA' }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Phone size={18} style={{ color: '#B794F6' }} />
-                  <span>Phone Number</span>
-                </div>
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg outline-none font-inter transition-all"
-                style={{
-                  background: '#1E1A2B',
-                  border: '1px solid rgba(196, 181, 253, 0.12)',
-                  color: '#F5F3FA',
-                }}
-                placeholder="(123) 456-7890"
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-
-            {/* City Field */}
-            <div>
-              <label className="block mb-3 font-inter font-semibold" style={{ color: '#F5F3FA' }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Building2 size={18} style={{ color: '#B794F6' }} />
-                  <span>City</span>
-                </div>
-              </label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg outline-none font-inter transition-all"
-                style={{
-                  background: '#1E1A2B',
-                  border: '1px solid rgba(196, 181, 253, 0.12)',
-                  color: '#F5F3FA',
-                }}
-                placeholder="New York"
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.2)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-
-            {/* Submit Button */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-6 py-3 rounded-lg font-inter font-semibold transition-all duration-300 disabled:opacity-50"
-                style={{
-                  background: '#B794F6',
-                  color: '#07060A',
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.background = '#C5A3FF';
-                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(183, 148, 246, 0.4)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#B794F6';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                {loading ? 'Saving Changes...' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </div>
+        </div>
+      )}
     </div>
-  );
+  )
+}
+
+function Field({
+  id,
+  label,
+  type = "text",
+  icon: Icon,
+  value,
+  onChange,
+  placeholder,
+  required,
+  helper,
+}: {
+  id: string
+  label: string
+  type?: string
+  icon: React.ComponentType<{ className?: string }>
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  required?: boolean
+  helper?: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-foreground">
+        {label}
+        {required && <span className="ml-0.5 text-destructive">*</span>}
+      </label>
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          className="pl-9"
+        />
+      </div>
+      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
+    </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <ProtectedRoute>
+      <ProfileContent />
+    </ProtectedRoute>
+  )
 }
