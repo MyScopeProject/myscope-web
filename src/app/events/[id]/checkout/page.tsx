@@ -72,13 +72,13 @@ export default function CheckoutPage() {
     }
   }, [authLoading, user, eventId, router]);
 
-  // Pre-fill attendee from logged-in user
+  // Pre-fill attendee from logged-in user profile (Dashboard → Profile updates these).
   useEffect(() => {
     if (user) {
       setAttendee({
         name: user.name || '',
         email: user.email || '',
-        phone: (user as { phone?: string }).phone || '',
+        phone: user.phone || '',
       });
     }
   }, [user]);

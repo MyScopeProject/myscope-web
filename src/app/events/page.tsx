@@ -5,25 +5,24 @@ import { useRouter } from 'next/navigation';
 import { Search, X, MapPin, Clock, Ticket } from 'lucide-react';
 
 interface Event {
-  _id: string;
+  id: string;
   title: string;
   description: string;
   date: string;
   location: string;
   image?: string;
   price: number;
-  ticketsAvailable: number;
-  ticketsSold: number;
+  tickets_available: number;
+  tickets_sold: number;
   category: string;
   organizer: {
-    _id: string;
+    id: string;
     name: string;
     email: string;
   };
-  attendees: string[];
   status: string;
   featured: boolean;
-  createdAt: string;
+  created_at: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -124,7 +123,7 @@ export default function EventsPage() {
   const filteredEvents = filterByLocation(filterByDate(Array.isArray(events) ? events : []));
 
   const getTicketsRemaining = (event: Event) => {
-    return event.ticketsAvailable - event.ticketsSold;
+    return (event.tickets_available ?? 0) - (event.tickets_sold ?? 0);
   };
 
   const handleEventClick = (eventId: string) => {
@@ -406,8 +405,8 @@ export default function EventsPage() {
 
                     return (
                       <div
-                        key={event._id}
-                        onClick={() => handleEventClick(event._id)}
+                        key={event.id}
+                        onClick={() => handleEventClick(event.id)}
                         className="group cursor-pointer rounded-2xl overflow-hidden border transition-all"
                         style={{
                           backgroundColor: '#15121D',

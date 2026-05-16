@@ -26,10 +26,16 @@ export default function LoginPage() {
 
     if (result.success) {
       router.push('/dashboard');
+    } else if (result.code === 'EMAIL_NOT_VERIFIED') {
+      // Bounce the user to the verification page (the email is what they typed).
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingVerificationEmail', email);
+      }
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
     } else {
       setError(result.error || 'Login failed. Please try again.');
     }
-    
+
     setLoading(false);
   };
 

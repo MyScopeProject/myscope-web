@@ -14,18 +14,29 @@ interface User {
   city?: string;
 }
 
+interface AuthResult {
+  success: boolean;
+  error?: string;
+  // 'EMAIL_NOT_VERIFIED' surfaces from /login when account isn't verified yet.
+  code?: 'EMAIL_NOT_VERIFIED' | string;
+  // Set when /register succeeds — the account exists but isn't logged in yet.
+  needsVerification?: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   // Sentinel: 'cookie' when authenticated via httpOnly cookie, null otherwise.
   // Kept in the interface so existing `if (!token)` checks continue to work.
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  register: (name: string, email: string, password: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   googleLogin: (credential: string) => Promise<{ success: boolean; error?: string }>;
+  verifyEmail: (email: string, otp: string) => Promise<AuthResult>;
+  resendVerification: (email: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string): Promise<AuthResult> => {
     try {
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
@@ -100,10 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json();
 
+      // Backend creates the account but doesn't issue a cookie until verification.
       if (data.success) {
-        setUser(mapUser(data.data.user));
-        setToken(COOKIE_SENTINEL);
-        return { success: true };
+        return { success: true, needsVerification: true };
       }
       return { success: false, error: data.message || 'Registration failed' };
     } catch (error) {
@@ -112,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<AuthResult> => {
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
@@ -124,13 +134,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
 
       if (data.success) {
-        setUser(mapUser(data.data.user));
-        setToken(COOKIE_SENTINEL);
+        // /login response shape: { success, user, token } (user at the top level)
+        const rawUser = data.data?.user ?? data.user;
+        if (rawUser) {
+          setUser(mapUser(rawUser));
+          setToken(COOKIE_SENTINEL);
+        } else {
+          // Cookie was set but body lacks user — pick it up via checkAuth.
+          await checkAuth();
+        }
         return { success: true };
       }
-      return { success: false, error: data.message || 'Login failed' };
+      // Surface EMAIL_NOT_VERIFIED so callers can redirect to /auth/verify-email.
+      return { success: false, error: data.message || 'Login failed', code: data.code };
     } catch (error) {
       console.error('Login error:', error);
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  };
+
+  const verifyEmail = async (email: string, otp: string): Promise<AuthResult> => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/verify-email`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Verify endpoint also sets the auth cookie + returns the user.
+        if (data.data?.user) {
+          setUser(mapUser(data.data.user));
+          setToken(COOKIE_SENTINEL);
+        }
+        return { success: true };
+      }
+      return { success: false, error: data.message || 'Verification failed' };
+    } catch (error) {
+      console.error('Verify-email error:', error);
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  };
+
+  const resendVerification = async (email: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      return data.success
+        ? { success: true }
+        : { success: false, error: data.message || 'Could not resend code' };
+    } catch (error) {
+      console.error('Resend-verification error:', error);
       return { success: false, error: 'Network error. Please try again.' };
     }
   };
@@ -178,7 +238,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'Not authenticated' };
       }
 
-      if (!userData.name && !userData.email) {
+      // Accept any subset of editable fields (name, email, phone, city)
+      const hasUpdate = ['name', 'email', 'phone', 'city'].some(
+        (k) => (userData as Record<string, unknown>)[k] !== undefined,
+      );
+      if (!hasUpdate) {
         return { success: false, error: 'No data provided to update' };
       }
 
@@ -203,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, checkAuth, updateUser, googleLogin }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, checkAuth, updateUser, googleLogin, verifyEmail, resendVerification }}>
       {children}
     </AuthContext.Provider>
   );

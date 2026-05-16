@@ -56,7 +56,12 @@ export default function RegisterPage() {
     const result = await register(formData.name, formData.email, formData.password);
 
     if (result.success) {
-      router.push('/dashboard');
+      // Backend doesn't issue a session until the user verifies their email.
+      // Remember the email so the verify page can prefill it.
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingVerificationEmail', formData.email);
+      }
+      router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
     } else {
       setError(result.error || 'Registration failed. Please try again.');
     }

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Film, ScanLine } from 'lucide-react';
+import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Film, ScanLine, ChevronDown, CalendarDays, Banknote, Briefcase, ClipboardList } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -154,40 +154,78 @@ export default function Navbar() {
             </button>
 
             {user ? (
-              <>
+              <div className="relative" ref={userMenuRef}>
                 <button
-                  className="p-2 hover:bg-surface-2 rounded-full transition-all duration-300"
-                  style={{ color: '#F5F3FA' }}
-                  aria-label="Settings"
-                >
-                  <Settings size={20} />
-                </button>
-                <Link
-                  href="/dashboard"
-                  className="p-2 hover:bg-surface-2 rounded-full transition-all duration-300"
-                  style={{ color: '#F5F3FA' }}
-                  aria-label="Dashboard"
-                >
-                  <User size={20} />
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="px-5 py-2 rounded-full font-inter font-medium text-sm transition-all duration-300"
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setUserMenuOpen(o => !o); }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300"
                   style={{
                     background: '#1E1A2B',
                     border: '1px solid rgba(196, 181, 253, 0.12)',
                     color: '#F5F3FA',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.28)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.12)';
-                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
                 >
-                  Logout
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ background: 'linear-gradient(135deg, #A78BFA 0%, #FF7AC6 100%)', color: '#0a0712' }}
+                  >
+                    {(user.name?.[0] || 'U').toUpperCase()}
+                  </div>
+                  <span className="hidden lg:inline text-sm font-inter">{user.name?.split(' ')[0] || 'Account'}</span>
+                  <ChevronDown size={14} />
                 </button>
-              </>
+
+                {userMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-60 rounded-xl border shadow-2xl overflow-hidden z-50"
+                    style={{ background: '#15121D', borderColor: 'rgba(196, 181, 253, 0.15)' }}
+                  >
+                    <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(196,181,253,0.08)' }}>
+                      <div className="text-sm font-semibold" style={{ color: '#F5F3FA' }}>{user.name}</div>
+                      <div className="text-xs truncate" style={{ color: '#9B95B5' }}>{user.email}</div>
+                      <div className="mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(167,139,250,0.15)', color: '#A78BFA' }}>
+                        {user.role}
+                      </div>
+                    </div>
+
+                    <MenuLink href="/dashboard" icon={<User size={16} />} onClick={() => setUserMenuOpen(false)}>Dashboard</MenuLink>
+                    <MenuLink href="/bookings" icon={<Ticket size={16} />} onClick={() => setUserMenuOpen(false)}>My Bookings</MenuLink>
+
+                    {/* Organizer section — only visible to organizer/superadmin */}
+                    {(user.role === 'organizer' || user.role === 'superadmin') && (
+                      <>
+                        <MenuDivider label="Organizer" />
+                        <MenuLink href="/organizer" icon={<Briefcase size={16} />} onClick={() => setUserMenuOpen(false)}>Dashboard</MenuLink>
+                        <MenuLink href="/organizer/events" icon={<CalendarDays size={16} />} onClick={() => setUserMenuOpen(false)}>My Events</MenuLink>
+                        <MenuLink href="/organizer/events/create" icon={<ClipboardList size={16} />} onClick={() => setUserMenuOpen(false)}>Create Event</MenuLink>
+                        <MenuLink href="/organizer/payouts" icon={<Banknote size={16} />} onClick={() => setUserMenuOpen(false)}>Payouts</MenuLink>
+                      </>
+                    )}
+
+                    {/* Non-organizers get a "Become an organizer" CTA */}
+                    {user.role === 'user' && (
+                      <MenuLink href="/become-organizer" icon={<Briefcase size={16} />} onClick={() => setUserMenuOpen(false)}>
+                        Become an organizer
+                      </MenuLink>
+                    )}
+
+                    <MenuDivider />
+                    <MenuLink href="/dashboard/profile" icon={<Settings size={16} />} onClick={() => setUserMenuOpen(false)}>Settings</MenuLink>
+                    <button
+                      type="button"
+                      onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-white/5 transition-colors text-left"
+                      style={{ color: '#FCA5A5' }}
+                    >
+                      <LogOut size={16} />
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <Link
@@ -222,6 +260,7 @@ export default function Navbar() {
 
           {/* Mobile Menu Button */}
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-2 rounded-lg transition-colors duration-300"
             style={{ color: '#9B95B5' }}
@@ -294,15 +333,52 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/dashboard"
-                    className="block font-inter font-medium text-sm transition-colors duration-300"
+                    className="block font-inter font-medium text-sm"
                     style={{ color: '#A78BFA' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#C4B5FD')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#A78BFA')}
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Dashboard
                   </Link>
+                  <Link
+                    href="/bookings"
+                    className="block font-inter font-medium text-sm"
+                    style={{ color: '#A78BFA' }}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    My Bookings
+                  </Link>
+                  {(user.role === 'organizer' || user.role === 'superadmin') && (
+                    <>
+                      <Link
+                        href="/organizer/events"
+                        className="block font-inter font-medium text-sm"
+                        style={{ color: '#A78BFA' }}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        My Events
+                      </Link>
+                      <Link
+                        href="/organizer/payouts"
+                        className="block font-inter font-medium text-sm"
+                        style={{ color: '#A78BFA' }}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Payouts
+                      </Link>
+                    </>
+                  )}
+                  {user.role === 'user' && (
+                    <Link
+                      href="/become-organizer"
+                      className="block font-inter font-medium text-sm"
+                      style={{ color: '#A78BFA' }}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Become an organizer
+                    </Link>
+                  )}
                   <button
+                    type="button"
                     onClick={handleLogout}
                     className="w-full px-4 py-2 rounded-full font-inter font-medium text-sm transition-all duration-300"
                     style={{
@@ -346,5 +422,36 @@ export default function Navbar() {
         )}
       </div>
     </nav>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dropdown helpers
+// ---------------------------------------------------------------------------
+
+function MenuLink({
+  href, icon, children, onClick,
+}: { href: string; icon: React.ReactNode; children: React.ReactNode; onClick?: () => void }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-white/5 transition-colors"
+      style={{ color: '#F5F3FA' }}
+      role="menuitem"
+    >
+      {icon}
+      {children}
+    </Link>
+  );
+}
+
+function MenuDivider({ label }: { label?: string }) {
+  return label ? (
+    <div className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wide" style={{ color: '#6B7280' }}>
+      {label}
+    </div>
+  ) : (
+    <div className="my-1 border-t" style={{ borderColor: 'rgba(196,181,253,0.08)' }} />
   );
 }

@@ -5,6 +5,18 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
+interface TicketType {
+  id: string;
+  name: string;
+  description?: string | null;
+  price: number | string;
+  quantity: number;
+  quantity_sold: number;
+  per_order_limit?: number;
+  sales_start?: string | null;
+  sales_end?: string | null;
+}
+
 interface Event {
   _id: string;
   title: string;
@@ -25,6 +37,7 @@ interface Event {
   status: string;
   featured: boolean;
   createdAt: string;
+  ticket_types?: TicketType[];
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -297,6 +310,59 @@ export default function EventDetailsPage() {
                   {event.description}
                 </p>
               </div>
+
+              {/* Ticket tiers (new ticket-types model) */}
+              {event.ticket_types && event.ticket_types.length > 0 && (
+                <div className="border-t border-gray-700 pt-6 mt-6">
+                  <h2 className="text-xl font-semibold mb-3">Tickets</h2>
+                  <div className="space-y-3">
+                    {event.ticket_types.map((tt) => {
+                      const remaining = Math.max(0, (tt.quantity ?? 0) - (tt.quantity_sold ?? 0));
+                      const soldOut = remaining <= 0;
+                      const now = Date.now();
+                      const notStarted = tt.sales_start ? new Date(tt.sales_start).getTime() > now : false;
+                      const ended = tt.sales_end ? new Date(tt.sales_end).getTime() < now : false;
+                      return (
+                        <div
+                          key={tt.id}
+                          className="rounded-lg border p-4 flex items-start justify-between gap-4"
+                          style={{ borderColor: 'rgba(167, 139, 250, 0.2)', backgroundColor: 'rgba(167, 139, 250, 0.04)' }}
+                        >
+                          <div className="min-w-0">
+                            <div className="font-semibold text-white">{tt.name}</div>
+                            {tt.description && (
+                              <div className="text-sm text-gray-400 mt-1">{tt.description}</div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                              <span>
+                                {soldOut ? (
+                                  <span className="text-red-400">Sold out</span>
+                                ) : remaining <= 10 ? (
+                                  <span className="text-orange-400">Only {remaining} left</span>
+                                ) : (
+                                  <span>{remaining} available</span>
+                                )}
+                              </span>
+                              {notStarted && tt.sales_start && (
+                                <span>Sales open {new Date(tt.sales_start).toLocaleDateString()}</span>
+                              )}
+                              {ended && <span className="text-red-400">Sales ended</span>}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-lg font-bold text-blue-400">
+                              {Number(tt.price) === 0 ? 'Free' : `LKR ${Number(tt.price).toLocaleString()}`}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Tap <span className="text-purple-300">Book tickets</span> to choose tier and quantity.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

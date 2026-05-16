@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, Clock, MapPin, X, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Ticket, Calendar, Clock, MapPin, X, AlertCircle, CheckCircle, XCircle, Film, Loader } from 'lucide-react';
 
 interface Booking {
   _id: string;
@@ -36,6 +37,25 @@ interface Booking {
   bookingDate: string;
 }
 
+// Event-side bookings come from the snake_case checkout flow (Step 6)
+interface EventBookingRow {
+  id: string;
+  booking_reference: string;
+  number_of_tickets: number;
+  ticket_price: number | string;
+  total_amount: number | string;
+  status: 'Pending' | 'Confirmed' | 'Cancelled' | 'Refunded';
+  payment_status: string;
+  created_at: string;
+  checked_in_at: string | null;
+  event?: {
+    id: string;
+    title: string;
+    date: string | null;
+    location: string | null;
+  } | null;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function MyBookingsPage() {
@@ -44,9 +64,12 @@ export default function MyBookingsPage() {
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+  const [eventBookings, setEventBookings] = useState<EventBookingRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [eventLoading, setEventLoading] = useState(false);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'Confirmed' | 'Cancelled' | 'Completed'>('all');
+  const [kind, setKind] = useState<'movies' | 'events'>('movies');
 
   useEffect(() => {
     if (!user) {
@@ -54,7 +77,23 @@ export default function MyBookingsPage() {
       return;
     }
     fetchBookings();
+    fetchEventBookings();
   }, [user]);
+
+  const fetchEventBookings = async () => {
+    try {
+      setEventLoading(true);
+      const res = await fetch(`${API_URL}/api/event-bookings`, { credentials: 'include' });
+      const data = await res.json();
+      if (data?.success) {
+        setEventBookings((data.data?.bookings ?? data.data ?? []) as EventBookingRow[]);
+      }
+    } catch (err) {
+      console.error('Event bookings fetch failed:', err);
+    } finally {
+      setEventLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (filter === 'all') {
@@ -208,7 +247,27 @@ export default function MyBookingsPage() {
           </motion.div>
         )}
 
-        {/* Filter Tabs */}
+        {/* Movies / Events selector */}
+        <div className="mb-6 flex gap-2 p-1 rounded-xl w-fit" style={{ background: '#15121D', border: '1px solid rgba(196,181,253,0.1)' }}>
+          {(['movies', 'events'] as const).map(k => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setKind(k)}
+              className="px-5 py-2 rounded-lg font-inter font-semibold text-sm inline-flex items-center gap-2 transition-colors"
+              style={{
+                background: kind === k ? '#A78BFA' : 'transparent',
+                color: kind === k ? '#07060A' : '#9B95B5',
+              }}
+            >
+              {k === 'movies' ? <Film className="w-4 h-4" /> : <Ticket className="w-4 h-4" />}
+              {k === 'movies' ? `Movies (${bookings.length})` : `Events (${eventBookings.length})`}
+            </button>
+          ))}
+        </div>
+
+        {/* Filter Tabs — only meaningful for movies (event statuses differ) */}
+        {kind === 'movies' && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -241,9 +300,10 @@ export default function MyBookingsPage() {
             </button>
           ))}
         </motion.div>
+        )}
 
         {/* Bookings List */}
-        {filteredBookings.length === 0 ? (
+        {kind === 'movies' && (filteredBookings.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -451,6 +511,93 @@ export default function MyBookingsPage() {
               );
             })}
           </motion.div>
+        ))}
+
+        {/* Events list */}
+        {kind === 'events' && (
+          eventLoading ? (
+            <div className="flex justify-center py-16"><Loader className="w-8 h-8 animate-spin text-purple-400" /></div>
+          ) : eventBookings.length === 0 ? (
+            <div className="rounded-xl border p-12 text-center" style={{ background: '#15121D', borderColor: 'rgba(196, 181, 253, 0.1)' }}>
+              <div className="text-6xl mb-4">🎟️</div>
+              <p className="text-xl font-outfit mb-2" style={{ color: '#F5F3FA' }}>No event bookings yet</p>
+              <p className="font-inter mb-6" style={{ color: '#9B95B5' }}>Discover events happening near you.</p>
+              <button
+                type="button"
+                onClick={() => router.push('/events')}
+                className="px-6 py-3 rounded-lg font-inter font-semibold"
+                style={{ background: '#A78BFA', color: '#07060A' }}
+              >
+                Browse Events
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {eventBookings.map(eb => {
+                const total = Number(eb.total_amount) || 0;
+                const statusMeta = (() => {
+                  switch (eb.status) {
+                    case 'Confirmed': return { bg: 'rgba(16,185,129,0.1)', color: '#10B981', label: eb.checked_in_at ? 'Checked in' : 'Confirmed' };
+                    case 'Pending':   return { bg: 'rgba(245,158,11,0.1)', color: '#F59E0B', label: 'Pending payment' };
+                    case 'Cancelled': return { bg: 'rgba(239,68,68,0.1)',  color: '#EF4444', label: 'Cancelled' };
+                    case 'Refunded':  return { bg: 'rgba(59,130,246,0.1)', color: '#3B82F6', label: 'Refunded' };
+                    default:          return { bg: 'rgba(156,163,175,0.1)', color: '#9CA3AF', label: eb.status };
+                  }
+                })();
+
+                return (
+                  <Link
+                    key={eb.id}
+                    href={`/bookings/event/${eb.id}`}
+                    className="block rounded-xl border p-6 transition-colors"
+                    style={{ background: '#15121D', borderColor: 'rgba(196, 181, 253, 0.1)' }}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                      <div className="md:col-span-5">
+                        <h3 className="text-lg font-outfit font-bold" style={{ color: '#F5F3FA' }}>
+                          {eb.event?.title ?? '(deleted event)'}
+                        </h3>
+                        <div className="flex items-center gap-3 mt-1 text-xs font-inter" style={{ color: '#9B95B5' }}>
+                          {eb.event?.date && (
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" />
+                              {new Date(eb.event.date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {eb.event?.location && (
+                            <span className="inline-flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5" />
+                              <span className="line-clamp-1">{eb.event.location}</span>
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-mono text-xs mt-2" style={{ color: '#A78BFA' }}>{eb.booking_reference}</p>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <p className="text-[10px] uppercase font-inter" style={{ color: '#9B95B5' }}>Tickets</p>
+                        <p className="font-outfit text-lg font-bold" style={{ color: '#F5F3FA' }}>{eb.number_of_tickets}</p>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <p className="text-[10px] uppercase font-inter" style={{ color: '#9B95B5' }}>Total</p>
+                        <p className="font-outfit text-lg font-bold" style={{ color: '#B794F6' }}>LKR {total.toLocaleString()}</p>
+                      </div>
+
+                      <div className="md:col-span-3">
+                        <span
+                          className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-inter font-semibold"
+                          style={{ background: statusMeta.bg, color: statusMeta.color }}
+                        >
+                          {statusMeta.label}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
     </div>
