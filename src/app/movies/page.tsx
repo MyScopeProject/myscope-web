@@ -27,7 +27,7 @@ interface Movie {
   director?: string;
   cast_list?: string;
   imdb_rating?: number;
-  theatres?: Array<{ theatre_name: string; location: string; showtime: string }>;
+  theatres?: Array<{ theatre_name: string; location: string; showtime: string; price?: number }>;
   created_at: string;
   updated_at: string;
 }
@@ -273,12 +273,12 @@ export default function MoviesPage() {
           >
             {filteredMovies.map((movie) => (
               <motion.div
-                key={movie._id}
+                key={movie.id}
                 variants={{
                   hidden: { opacity: 0, y: 20 },
                   visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
                 }}
-                onClick={() => handleMovieClick(movie._id)}
+                onClick={() => handleMovieClick(movie.id)}
                 className="group cursor-pointer rounded-xl overflow-hidden border transition-all duration-300"
                 style={{
                   backgroundColor: '#15121D',
@@ -330,7 +330,7 @@ export default function MoviesPage() {
                   >
                     <div className="flex items-center gap-2 font-inter text-sm text-white">
                       <Ticket size={16} />
-                      <span>{movie.theatres.length} Theaters</span>
+                      <span>{movie.theatres?.length ?? 0} Theaters</span>
                     </div>
                   </div>
                 </div>
