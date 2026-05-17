@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { IBM_Plex_Sans, Inter, Outfit } from "next/font/google";
 import "../styles/globals.css";
 import { AuthProvider } from "@/context/AuthContext";
@@ -71,7 +72,13 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="system">
           <GoogleOAuthProvider clientId={googleClientId}>
             <AuthProvider>
-              <SiteHeader />
+              {/* SiteHeader uses useSearchParams() — Next 16 requires a
+                  Suspense boundary around any component that reads search
+                  params, or static prerender of /404 fails. Fallback is
+                  just an empty 16-tall band so layout doesn't jump. */}
+              <Suspense fallback={<div className="h-16" aria-hidden />}>
+                <SiteHeader />
+              </Suspense>
               <main className="min-h-[calc(100vh-4rem)]">{children}</main>
               <SiteFooter />
             </AuthProvider>
