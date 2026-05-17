@@ -337,32 +337,41 @@ export default function MoviesPage() {
 
                 {/* Movie Details */}
                 <div className="p-4">
-                  {/* Genre Tags */}
-                  <div className="mb-3 flex gap-2 flex-wrap">
-                    {movie.genre.slice(0, 2).map((g, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 rounded-full text-xs font-inter font-semibold"
-                        style={{
-                          backgroundColor: 'rgba(196, 181, 253, 0.1)',
-                          color: '#C4B5FD',
-                        }}
-                      >
-                        {g}
-                      </span>
-                    ))}
-                    {movie.genre.length > 2 && (
-                      <span
-                        className="px-2 py-1 rounded-full text-xs font-inter font-semibold"
-                        style={{
-                          backgroundColor: 'rgba(196, 181, 253, 0.08)',
-                          color: '#9B95B5',
-                        }}
-                      >
-                        +{movie.genre.length - 2}
-                      </span>
-                    )}
-                  </div>
+                  {/* Genre Tags — `genre` is a comma-separated string in the DB,
+                      so split into an array first before slicing. */}
+                  {(() => {
+                    const genres = (movie.genre ?? "")
+                      .split(",")
+                      .map((g) => g.trim())
+                      .filter(Boolean)
+                    return (
+                      <div className="mb-3 flex gap-2 flex-wrap">
+                        {genres.slice(0, 2).map((g, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 rounded-full text-xs font-inter font-semibold"
+                            style={{
+                              backgroundColor: 'rgba(196, 181, 253, 0.1)',
+                              color: '#C4B5FD',
+                            }}
+                          >
+                            {g}
+                          </span>
+                        ))}
+                        {genres.length > 2 && (
+                          <span
+                            className="px-2 py-1 rounded-full text-xs font-inter font-semibold"
+                            style={{
+                              backgroundColor: 'rgba(196, 181, 253, 0.08)',
+                              color: '#9B95B5',
+                            }}
+                          >
+                            +{genres.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {/* Title */}
                   <h3 className="text-sm font-bold mb-2 font-outfit line-clamp-2 transition-colors" style={{
@@ -393,11 +402,16 @@ export default function MoviesPage() {
                         {movie.language}
                       </div>
                     )}
-                    {movie.theatres.length > 0 && (
-                      <div style={{ color: '#B794F6', fontWeight: 600 }}>
-                        From ₹{Math.min(...movie.theatres.map(t => t.price)).toLocaleString()}
-                      </div>
-                    )}
+                    {(() => {
+                      const prices = (movie.theatres ?? [])
+                        .map((t) => t.price)
+                        .filter((p): p is number => typeof p === "number")
+                      return prices.length > 0 ? (
+                        <div style={{ color: '#B794F6', fontWeight: 600 }}>
+                          From ₹{Math.min(...prices).toLocaleString()}
+                        </div>
+                      ) : null
+                    })()}
                   </div>
                 </div>
               </motion.div>
