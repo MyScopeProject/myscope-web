@@ -4,180 +4,108 @@ import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { AlertCircle, ArrowRight, Eye, EyeOff, LogIn } from "lucide-react"
-import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
+import { AlertCircle, Loader } from "lucide-react"
+import { useGoogleLogin } from "@react-oauth/google"
 import { useAuth } from "@/context/AuthContext"
-import { useTheme } from "@/components/theme/theme-provider"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+      <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z"/>
+      <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z"/>
+      <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332Z"/>
+      <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.167 6.656 3.58 9 3.58Z"/>
+    </svg>
+  )
+}
 
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams?.get("redirect") || "/dashboard"
-  const { login, googleLogin } = useAuth()
-  const { resolvedTheme } = useTheme()
+  const redirect = searchParams?.get("redirect") || "/"
+  const { googleLoginWithAccessToken } = useAuth()
 
-  const [email, setEmail] = React.useState("")
-  const [password, setPassword] = React.useState("")
-  const [showPassword, setShowPassword] = React.useState(false)
   const [error, setError] = React.useState("")
   const [loading, setLoading] = React.useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-
-    const result = await login(email, password)
-
-    if (result.success) {
-      router.push(redirect)
-    } else if (result.code === "EMAIL_NOT_VERIFIED") {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("pendingVerificationEmail", email)
+  const signIn = useGoogleLogin({
+    onSuccess: async ({ access_token }) => {
+      setError("")
+      setLoading(true)
+      const result = await googleLoginWithAccessToken(access_token)
+      if (result.success) {
+        router.push(redirect)
+      } else {
+        setError(result.error || "Google sign-in failed.")
+        setLoading(false)
       }
-      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
-    } else {
-      setError(result.error || "Login failed. Please try again.")
-    }
-    setLoading(false)
-  }
-
-  const handleGoogleSuccess = async (cred: CredentialResponse) => {
-    if (!cred.credential) {
-      setError("Google didn't return a credential. Try again.")
-      return
-    }
-    setError("")
-    setLoading(true)
-    const result = await googleLogin(cred.credential)
-    if (result.success) {
-      router.push(redirect)
-    } else {
-      setError(result.error || "Google login failed.")
-    }
-    setLoading(false)
-  }
+    },
+    onError: () => {
+      setError("Google sign-in was cancelled or failed. Try again.")
+    },
+  })
 
   return (
-    <div className="relative isolate flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16">
-      {/* Background flourish */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 opacity-70 dark:opacity-40"
-        style={{
-          backgroundImage:
-            "radial-gradient(50% 50% at 50% 0%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 60%)",
-        }}
-      />
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-background px-4 py-16">
+      <div className="w-full max-w-sm">
 
-      <div className="w-full max-w-md">
         {/* Brand */}
-        <div className="mb-8 text-center">
-          <Link href="/" className="inline-flex items-center">
-            <Image
-              src="/Images/logo.png"
-              alt="MyScope"
-              width={200}
-              height={72}
-              className="h-20 w-auto"
-            />
-          </Link>
-          <h1 className="mt-6 text-2xl font-bold tracking-tight">Welcome back</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Sign in to your MyScope account.</p>
+        <div className="mb-8 flex flex-col items-center gap-2">
+          <Image
+            src="/Images/logo.png"
+            alt="MyScope"
+            width={160}
+            height={48}
+            className="h-12 w-auto"
+            priority
+          />
+          <h1 className="text-3xl font-bold tracking-tight text-violet-900 dark:text-violet-200">
+            MyScope
+          </h1>
+          <p className="text-sm text-muted-foreground">Sign in or create your account</p>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm dark:ring-1 dark:ring-white/10">
+
           {error && (
-            <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div className="mb-6 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="text-sm font-medium">Email address</label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-sm font-medium">Password</label>
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Forgot?
-                </Link>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  required
-                  className="pr-9"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              <LogIn />
-              {loading ? "Signing in…" : "Sign in"}
-            </Button>
-          </form>
+          {/* Custom Google button */}
+          <button
+            type="button"
+            onClick={() => signIn()}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground shadow-xs transition-colors hover:bg-muted disabled:opacity-60"
+          >
+            {loading ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            {loading ? "Signing in…" : "Continue with Google"}
+          </button>
 
           {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-card px-3 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
+          <div className="my-6 border-t border-border" />
 
-          {/* Google */}
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => setError("Google login failed. Please try again.")}
-              theme={resolvedTheme === "dark" ? "filled_black" : "outline"}
-              size="large"
-              width="320"
-            />
-          </div>
+          {/* Terms */}
+          <p className="text-center text-xs leading-relaxed text-muted-foreground">
+            By continuing you agree to our{" "}
+            <Link href="/terms" className="text-foreground underline underline-offset-2 hover:text-primary">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="text-foreground underline underline-offset-2 hover:text-primary">
+              Privacy Policy
+            </Link>
+          </p>
         </div>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Don&rsquo;t have an account?{" "}
-          <Link href="/auth/register" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
-            Sign up
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </p>
       </div>
     </div>
   )

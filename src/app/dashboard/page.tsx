@@ -2,186 +2,256 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { ArrowRight, Calendar, Ticket, TrendingUp } from "lucide-react"
+import Image from "next/image"
+import {
+  AlertCircle,
+  Calendar,
+  Eye,
+  MapPin,
+  Search,
+  Ticket,
+  Trash2,
+} from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
-import { Button } from "@/components/ui/button"
-import { EventCard, type EventCardData } from "@/components/events/event-card"
+import { Badge } from "@/components/ui/badge"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-interface Stats {
-  upcomingEventsCount: number
-  registeredCount: number
+interface UserEvent {
+  id?: string
+  _id?: string
+  title: string
+  date?: string
+  start_time?: string
+  location?: string
+  venue_name?: string
+  banner_url?: string | null
+  category?: string | null
+  status?: string
 }
 
 function DashboardContent() {
-  const { user } = useAuth()
-  const [stats, setStats] = React.useState<Stats>({ upcomingEventsCount: 0, registeredCount: 0 })
-  const [upcoming, setUpcoming] = React.useState<EventCardData[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const { user, token } = useAuth()
 
-  React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        setLoading(true)
-        const [upcomingRes, myRes] = await Promise.all([
-          fetch(`${API_URL}/api/events?upcoming=true&limit=6`, { credentials: "include" }).then((r) => r.json()),
-          fetch(`${API_URL}/api/events/my-events`, { credentials: "include" })
-            .then((r) => r.json())
-            .catch(() => ({ success: false })),
-        ])
-        if (cancelled) return
-        const upcomingList: EventCardData[] = upcomingRes?.data?.events ?? []
-        const registered: unknown[] = myRes?.data?.events ?? []
-        setUpcoming(upcomingList)
-        setStats({
-          upcomingEventsCount: upcomingList.length,
-          registeredCount: registered.length,
-        })
-      } catch {
-        // soft-fail
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+  // My registrations
+  const [myEvents, setMyEvents] = React.useState<UserEvent[]>([])
+  const [myLoading, setMyLoading] = React.useState(true)
+  const [myError, setMyError] = React.useState<string | null>(null)
+  const [unregisteringId, setUnregisteringId] = React.useState<string | null>(null)
+  const [search, setSearch] = React.useState("")
+
+  // Fetch my registered events
+  const fetchMyEvents = React.useCallback(async () => {
+    try {
+      setMyLoading(true)
+      setMyError(null)
+      const res = await fetch(`${API_URL}/api/events/user`, { credentials: "include" })
+      const data = await res.json()
+      setMyEvents(data?.success ? (data.data?.events ?? []) : [])
+    } catch {
+      setMyError("Couldn't load your events. Please try again.")
+    } finally {
+      setMyLoading(false)
     }
   }, [])
 
-  if (!user) return null
+  React.useEffect(() => {
+    if (token) fetchMyEvents()
+  }, [token, fetchMyEvents])
 
+  const handleUnregister = async (event: UserEvent) => {
+    const id = event.id ?? event._id
+    if (!id) return
+    if (!confirm(`Cancel registration for "${event.title}"?`)) return
+    setUnregisteringId(id)
+    try {
+      const res = await fetch(`${API_URL}/api/events/${id}/unregister`, { method: "POST", credentials: "include" })
+      if (res.ok) setMyEvents(prev => prev.filter(e => (e.id ?? e._id) !== id))
+      else {
+        const data = await res.json().catch(() => null)
+        alert(data?.message || "Failed to unregister.")
+      }
+    } catch { alert("Network error. Please try again.") }
+    finally { setUnregisteringId(null) }
+  }
+
+  const filtered = React.useMemo(() => {
+    if (!search.trim()) return myEvents
+    const q = search.toLowerCase()
+    return myEvents.filter(e =>
+      e.title?.toLowerCase().includes(q) ||
+      e.location?.toLowerCase().includes(q) ||
+      e.venue_name?.toLowerCase().includes(q)
+    )
+  }, [myEvents, search])
+
+  if (!user) return null
   const firstName = user.name?.split(" ")[0] ?? "there"
+  const initial = user.name?.charAt(0).toUpperCase() ?? "?"
 
   return (
-    <div className="space-y-8">
-      {/* Hero */}
-      <section className="overflow-hidden rounded-2xl border border-border bg-linear-to-br from-primary/10 via-card to-card p-6 shadow-xs sm:p-8">
-        <p className="text-sm font-medium text-muted-foreground">Welcome back</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Hey {firstName} 👋
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Here&rsquo;s what&rsquo;s on around you. Discover new events, manage your tickets, and keep your
-          profile up to date.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/events">
-              Browse events
-              <ArrowRight />
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/events">My events</Link>
-          </Button>
+    <div className="space-y-10">
+
+      {/* Greeting */}
+      <section className="flex items-center gap-4">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10">
+          {user.profileImage ? (
+            <Image
+              src={user.profileImage}
+              alt={user.name ?? "Profile"}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-lg font-bold text-primary">
+              {initial}
+            </span>
+          )}
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Hey, {firstName}</h1>
+          <p className="text-sm text-muted-foreground">{user.email}</p>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard
-          icon={Calendar}
-          label="Upcoming events"
-          value={stats.upcomingEventsCount}
-          hint="Available to book"
-        />
-        <StatCard
-          icon={Ticket}
-          label="Your registrations"
-          value={stats.registeredCount}
-          hint="Events you've signed up for"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Account"
-          value={user.role === "user" ? "Member" : user.role}
-          hint={user.email}
-          isText
-        />
-      </section>
-
-      {/* Upcoming events */}
+      {/* My registrations */}
       <section>
-        <div className="mb-4 flex items-end justify-between">
+        <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">Upcoming events</h2>
-            <p className="text-sm text-muted-foreground">Fresh picks happening soon.</p>
+            <h2 className="text-lg font-semibold text-foreground">My registrations</h2>
+            <p className="text-sm text-muted-foreground">Events you&rsquo;ve signed up for</p>
           </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/events">
-              View all
-              <ArrowRight />
-            </Link>
-          </Button>
+          {myEvents.length > 0 && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                placeholder="Search…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="h-8 w-40 rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring sm:w-52"
+              />
+            </div>
+          )}
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="aspect-16/10 animate-pulse rounded-xl bg-muted" />
-            ))}
+        {myLoading ? (
+          <div className="space-y-3">
+            {[1, 2].map(i => <div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-card" />)}
           </div>
-        ) : upcoming.length === 0 ? (
-          <EmptyEvents />
+        ) : myError ? (
+          <ErrorState message={myError} onRetry={fetchMyEvents} />
+        ) : filtered.length === 0 ? (
+          <EmptyState hasSearch={!!search} />
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {upcoming.slice(0, 6).map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
+          <ul className="space-y-3">
+            {filtered.map(event => {
+              const id = event.id ?? event._id ?? ""
+              const when = event.start_time || event.date
+              const dateObj = when ? new Date(when) : null
+              const venue = event.venue_name || event.location
+              return (
+                <li key={id} className="flex overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+                  {/* Thumbnail */}
+                  <div className="relative hidden w-28 shrink-0 overflow-hidden bg-muted sm:block">
+                    {event.banner_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={event.banner_url} alt="" className="h-full w-full object-cover"
+                        onError={e => ((e.target as HTMLImageElement).style.display = "none")} />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-2xl">🎫</div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="flex flex-1 items-center gap-4 p-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                        {event.category && <Badge variant="default" className="text-xs">{event.category}</Badge>}
+                        {event.status && <Badge variant="outline" className="capitalize text-xs">{event.status}</Badge>}
+                      </div>
+                      <p className="truncate font-semibold text-foreground">{event.title}</p>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        {dateObj && (
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        )}
+                        {venue && (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {venue}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Link href={`/events/${id}`}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+                        <Eye className="h-3.5 w-3.5" /> View
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleUnregister(event)}
+                        disabled={unregisteringId === id}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-destructive/40 px-3 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {unregisteringId === id ? "Cancelling…" : "Unregister"}
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         )}
       </section>
+
     </div>
   )
 }
 
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  isText = false,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string | number
-  hint?: string
-  isText?: boolean
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-          <div className={isText ? "mt-1 text-xl font-semibold capitalize text-foreground" : "mt-1 text-3xl font-bold text-foreground"}>
-            {value}
-          </div>
-        </div>
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-      {hint && <p className="mt-2 truncate text-xs text-muted-foreground">{hint}</p>}
-    </div>
-  )
-}
 
-function EmptyEvents() {
+function EmptyState({ hasSearch }: { hasSearch: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Calendar className="h-5 w-5" />
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 py-12 text-center">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Ticket className="h-4 w-4" />
       </span>
-      <h3 className="text-base font-semibold text-foreground">No upcoming events</h3>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        Check back soon — organizers add new shows every day.
-      </p>
-      <Button asChild variant="outline" size="sm">
-        <Link href="/events">Browse all events</Link>
-      </Button>
+      <div>
+        <p className="text-sm font-semibold text-foreground">
+          {hasSearch ? "No matches" : "No registrations yet"}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {hasSearch ? "Try a different search term." : "Browse events and grab your first ticket."}
+        </p>
+      </div>
+      {!hasSearch && (
+        <Link href="/events"
+          className="rounded-lg border border-border px-4 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+          Browse events
+        </Link>
+      )}
+    </div>
+  )
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 py-12 text-center">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+        <AlertCircle className="h-4 w-4" />
+      </span>
+      <div>
+        <p className="text-sm font-semibold text-foreground">Couldn&rsquo;t load events</p>
+        <p className="mt-1 text-xs text-muted-foreground">{message}</p>
+      </div>
+      <button type="button" onClick={onRetry}
+        className="rounded-lg border border-border px-4 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+        Try again
+      </button>
     </div>
   )
 }

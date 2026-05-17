@@ -34,6 +34,7 @@ interface EventRow {
   category: string | null
   venue_name: string | null
   venue_address: string | null
+  venue_location_url: string | null
   start_time: string | null
   end_time: string | null
   capacity: number | null
@@ -100,6 +101,7 @@ export default function EditEventPage() {
     category: "",
     venue_name: "",
     venue_address: "",
+    venue_location_url: "",
     start_time: "",
     end_time: "",
     capacity: "",
@@ -143,6 +145,7 @@ export default function EditEventPage() {
           category: e.category ?? "",
           venue_name: e.venue_name ?? "",
           venue_address: e.venue_address ?? "",
+          venue_location_url: e.venue_location_url ?? "",
           start_time: isoToLocal(e.start_time),
           end_time: isoToLocal(e.end_time),
           capacity: e.capacity != null ? String(e.capacity) : "",
@@ -323,12 +326,19 @@ export default function EditEventPage() {
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <FieldGroup id="category" label="Category">
-              <Input
+              <select
                 id="category"
-                type="text"
+                aria-label="Event category"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-              />
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+              >
+                <option value="">Pick one…</option>
+                <option value="Concerts">Concerts</option>
+                <option value="Theatre">Theatre</option>
+                <option value="Sports">Sports</option>
+                <option value="Events">Events</option>
+              </select>
             </FieldGroup>
             <FieldGroup id="capacity" label="Capacity">
               <Input
@@ -388,6 +398,16 @@ export default function EditEventPage() {
             />
           </FieldGroup>
 
+          <FieldGroup id="venue_location_url" label="Location URL" hint="Paste a Google Maps link so attendees can find the venue.">
+            <Input
+              id="venue_location_url"
+              type="url"
+              value={form.venue_location_url}
+              onChange={(e) => setForm({ ...form, venue_location_url: e.target.value })}
+              placeholder="https://maps.google.com/..."
+            />
+          </FieldGroup>
+
           <BannerUploadField
             value={form.banner_url}
             onChange={(url) => setForm({ ...form, banner_url: url })}
@@ -432,11 +452,13 @@ function FieldGroup({
   id,
   label,
   required,
+  hint,
   children,
 }: {
   id?: string
   label: string
   required?: boolean
+  hint?: string
   children: React.ReactNode
 }) {
   return (
@@ -446,6 +468,7 @@ function FieldGroup({
         {required && <span className="ml-0.5 text-destructive">*</span>}
       </label>
       {children}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
 }
@@ -540,21 +563,13 @@ function BannerUploadField({
 
       {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
 
-      <Input
-        type="url"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Or paste a public image URL…"
-        disabled={disabled || uploading}
-      />
-
       {value && (
         <div className="space-y-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={value}
             alt="Banner preview"
-            className="aspect-21/9 w-full rounded-xl border border-border object-cover"
+            className="w-full rounded-xl border border-border bg-muted object-contain"
             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
           {!disabled && (

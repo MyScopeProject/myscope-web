@@ -10,12 +10,15 @@ import {
   CheckCircle,
   Clock,
   Loader,
+  Pencil,
+  Save,
   TrendingUp,
   Wallet,
   XCircle,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -28,6 +31,12 @@ interface Balance {
   paid_out: number
   pending: number
   platform_fee_pct: number
+}
+
+interface BankDetails {
+  bank_name: string | null
+  bank_account_number: string | null
+  bank_account_name: string | null
 }
 
 interface Payout {
@@ -65,6 +74,18 @@ export default function OrganizerPayoutsPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
 
+  // Bank details — loaded from /api/organizers/me, edited inline.
+  const [bank, setBank] = React.useState<BankDetails | null>(null)
+  const [bankForm, setBankForm] = React.useState<BankDetails>({
+    bank_name: "",
+    bank_account_number: "",
+    bank_account_name: "",
+  })
+  const [bankEditing, setBankEditing] = React.useState(false)
+  const [bankSaving, setBankSaving] = React.useState(false)
+  const [bankError, setBankError] = React.useState("")
+  const [bankSavedAt, setBankSavedAt] = React.useState<number | null>(null)
+
   React.useEffect(() => {
     if (authLoading) return
     if (!user) router.push("/auth/login?redirect=/organizer/payouts")
@@ -75,8 +96,9 @@ export default function OrganizerPayoutsPage() {
     Promise.all([
       fetch(`${API_URL}/api/organizer/payouts/balance`, { credentials: "include" }).then((r) => r.json()),
       fetch(`${API_URL}/api/organizer/payouts`, { credentials: "include" }).then((r) => r.json()),
+      fetch(`${API_URL}/api/organizers/me`, { credentials: "include" }).then((r) => r.json()),
     ])
-      .then(([balRes, payRes]) => {
+      .then(([balRes, payRes, meRes]) => {
         if (!balRes?.success) {
           setError(balRes?.message || "Failed to load balance.")
           return
@@ -87,10 +109,69 @@ export default function OrganizerPayoutsPage() {
         }
         setBalance(balRes.data.balance)
         setPayouts(payRes.data.payouts as Payout[])
+
+        // Seed bank state from the organizer profile. Auto-open editor when
+        // nothing is on file so the empty state has a clear CTA.
+        const p = meRes?.data?.profile
+        if (p) {
+          const initial: BankDetails = {
+            bank_name: p.bank_name ?? "",
+            bank_account_number: p.bank_account_number ?? "",
+            bank_account_name: p.bank_account_name ?? "",
+          }
+          setBank(initial)
+          setBankForm(initial)
+          if (!initial.bank_name && !initial.bank_account_number) {
+            setBankEditing(true)
+          }
+        }
       })
       .catch(() => setError("Network error."))
       .finally(() => setLoading(false))
   }, [user])
+
+  const handleSaveBank = async () => {
+    setBankError("")
+    if (!bankForm.bank_name?.trim() || !bankForm.bank_account_number?.trim() || !bankForm.bank_account_name?.trim()) {
+      setBankError("All three fields are required.")
+      return
+    }
+    setBankSaving(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organizers/me/bank`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bankForm),
+      })
+      const data = await res.json()
+      if (!data?.success) {
+        setBankError(data?.message || "Failed to save.")
+        return
+      }
+      const saved: BankDetails = {
+        bank_name: data.data.profile.bank_name ?? "",
+        bank_account_number: data.data.profile.bank_account_number ?? "",
+        bank_account_name: data.data.profile.bank_account_name ?? "",
+      }
+      setBank(saved)
+      setBankForm(saved)
+      setBankEditing(false)
+      setBankSavedAt(Date.now())
+    } catch {
+      setBankError("Network error.")
+    } finally {
+      setBankSaving(false)
+    }
+  }
+
+  // Tiny helper: only show the last 4 digits of the account number once saved.
+  const maskedAccount = (n: string | null) => {
+    if (!n) return "—"
+    const trimmed = n.replace(/\s+/g, "")
+    if (trimmed.length <= 4) return trimmed
+    return `•••• ${trimmed.slice(-4)}`
+  }
 
   if (authLoading || loading) {
     return (
@@ -164,6 +245,111 @@ export default function OrganizerPayoutsPage() {
         </section>
       )}
 
+      {/* Bank details — where MyScope sends payouts. Editable any time. */}
+      <section className="rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Bank details</h2>
+            <p className="text-xs text-muted-foreground">
+              Where MyScope sends your weekly payouts.
+            </p>
+          </div>
+          {bank && !bankEditing && (bank.bank_name || bank.bank_account_number) && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setBankEditing(true)
+                setBankError("")
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+          )}
+        </div>
+
+        <div className="p-4">
+          {/* Display mode — show saved values with the account number masked */}
+          {!bankEditing && bank && (bank.bank_name || bank.bank_account_number) && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <BankRow label="Bank" value={bank.bank_name || "—"} />
+              <BankRow label="Account number" value={maskedAccount(bank.bank_account_number)} mono />
+              <BankRow label="Account holder" value={bank.bank_account_name || "—"} />
+            </div>
+          )}
+
+          {/* Edit mode — form for first-time setup or editing */}
+          {bankEditing && (
+            <div className="space-y-4">
+              {bankError && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{bankError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <BankField
+                  id="bank-name"
+                  label="Bank"
+                  placeholder="Bank of Ceylon"
+                  value={bankForm.bank_name ?? ""}
+                  onChange={(v) => setBankForm((f) => ({ ...f, bank_name: v }))}
+                />
+                <BankField
+                  id="bank-acct-num"
+                  label="Account number"
+                  placeholder="1234567890"
+                  value={bankForm.bank_account_number ?? ""}
+                  onChange={(v) => setBankForm((f) => ({ ...f, bank_account_number: v }))}
+                />
+              </div>
+
+              <BankField
+                id="bank-acct-name"
+                label="Account holder name"
+                placeholder="Acme Events Pvt Ltd"
+                value={bankForm.bank_account_name ?? ""}
+                onChange={(v) => setBankForm((f) => ({ ...f, bank_account_name: v }))}
+              />
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                {bank && (bank.bank_name || bank.bank_account_number) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setBankForm(bank)
+                      setBankEditing(false)
+                      setBankError("")
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveBank}
+                  disabled={bankSaving}
+                >
+                  {bankSaving ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  {bankSaving ? "Saving…" : "Save bank details"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {bankSavedAt && !bankEditing && (
+            <p className="mt-3 text-xs text-emerald-700 dark:text-emerald-400">
+              Bank details saved.
+            </p>
+          )}
+        </div>
+      </section>
+
       {/* Payouts list */}
       <section className="rounded-xl border border-border bg-card shadow-xs">
         <div className="border-b border-border p-4">
@@ -188,9 +374,9 @@ export default function OrganizerPayoutsPage() {
               const meta = STATUS_META[p.status]
               const Icon = meta.icon
               return (
-                <li key={p.id} className="flex items-center justify-between gap-4 p-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                <li key={p.id} className="flex items-start justify-between gap-3 p-4 sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <Badge variant={meta.variant}>
                         <Icon className="h-3 w-3" />
                         {meta.label}
@@ -265,20 +451,72 @@ function BalanceCard({
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card p-5 shadow-xs",
+        "rounded-xl border bg-card p-4 sm:p-5 shadow-xs",
         highlight ? "border-primary/40" : "border-border",
       )}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-          <div className="mt-1 text-2xl font-bold text-foreground">{value}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+          <div className="mt-1 truncate text-xl sm:text-2xl font-bold text-foreground">{value}</div>
         </div>
-        <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-md", iconStyles)}>
+        <span className={cn("inline-flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-md", iconStyles)}>
           <Icon className="h-4 w-4" />
         </span>
       </div>
       {hint && <p className="mt-2 truncate text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  )
+}
+
+function BankRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
+  return (
+    <div>
+      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <div className={cn("mt-1 text-sm font-semibold text-foreground", mono && "font-mono")}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function BankField({
+  id,
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: string
+  placeholder?: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-foreground">
+        {label}
+        <span className="ml-0.5 text-destructive">*</span>
+      </label>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+      />
     </div>
   )
 }

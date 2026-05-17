@@ -1,19 +1,20 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertCircle,
-  Building2,
   CheckCircle,
   Clock,
+  ImageIcon,
   Loader,
+  Upload,
   XCircle,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -26,6 +27,7 @@ interface OrganizerProfile {
   business_type: string | null
   nic_or_br: string | null
   phone: string | null
+  profile_image_url: string | null
   bank_name: string | null
   bank_account_number: string | null
   bank_account_name: string | null
@@ -35,14 +37,14 @@ interface OrganizerProfile {
   updated_at?: string
 }
 
+// Bank/payout fields are intentionally omitted here — organizers fill them in
+// from the dashboard after approval. Keeps the application form short.
 const emptyForm = {
   business_name: "",
   business_type: "company",
   nic_or_br: "",
   phone: "",
-  bank_name: "",
-  bank_account_number: "",
-  bank_account_name: "",
+  profile_image_url: "",
 }
 
 export default function BecomeOrganizerPage() {
@@ -55,6 +57,40 @@ export default function BecomeOrganizerPage() {
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState("")
   const [success, setSuccess] = React.useState("")
+  const [uploadingImage, setUploadingImage] = React.useState(false)
+  const fileRef = React.useRef<HTMLInputElement>(null)
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file (PNG, JPG, WebP…).")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5 MB.")
+      return
+    }
+    setError("")
+    setUploadingImage(true)
+    try {
+      const fd = new FormData()
+      fd.append("image", file)
+      const res = await fetch(`${API_URL}/api/organizers/upload-profile-image`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      })
+      const data = await res.json()
+      if (!data?.success) throw new Error(data?.message || "Upload failed.")
+      setForm((f) => ({ ...f, profile_image_url: data.data.url }))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Upload failed.")
+    } finally {
+      setUploadingImage(false)
+      if (fileRef.current) fileRef.current.value = ""
+    }
+  }
 
   React.useEffect(() => {
     if (!authLoading && !user) {
@@ -79,9 +115,7 @@ export default function BecomeOrganizerPage() {
               business_type: p.business_type ?? "company",
               nic_or_br: p.nic_or_br ?? "",
               phone: p.phone ?? "",
-              bank_name: p.bank_name ?? "",
-              bank_account_number: p.bank_account_number ?? "",
-              bank_account_name: p.bank_account_name ?? "",
+              profile_image_url: p.profile_image_url ?? "",
             })
           }
         }
@@ -142,9 +176,16 @@ export default function BecomeOrganizerPage() {
     <div className="mx-auto max-w-2xl px-4 py-12 sm:py-16">
       {/* Header */}
       <div className="mb-8 text-center">
-        <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Building2 className="h-7 w-7" />
-        </span>
+        <div className="inline-flex items-center justify-center">
+          <Image
+            src="/Images/logo.png"
+            alt="MyScope"
+            width={240}
+            height={72}
+            className="h-20 w-auto object-contain"
+            priority
+          />
+        </div>
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Become an Organizer
         </h1>
@@ -206,6 +247,68 @@ export default function BecomeOrganizerPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Profile image — circular avatar uploader. Shown on event pages
+                as the organizer's brand image, so encourage a logo. */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                Profile image
+              </label>
+              <div className="flex items-center gap-4">
+                <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-muted-foreground">
+                  {form.profile_image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={form.profile_image_url}
+                      alt="Organizer"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <ImageIcon className="h-7 w-7" />
+                  )}
+                </span>
+                <div className="flex-1">
+                  <label
+                    className={cn(
+                      "inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted",
+                      uploadingImage && "pointer-events-none opacity-60",
+                    )}
+                  >
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                      title="Upload organizer profile image"
+                    />
+                    {uploadingImage ? (
+                      <>
+                        <Loader className="h-3.5 w-3.5 animate-spin" />
+                        Uploading…
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-3.5 w-3.5" />
+                        {form.profile_image_url ? "Replace image" : "Upload image"}
+                      </>
+                    )}
+                  </label>
+                  {form.profile_image_url && !uploadingImage && (
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, profile_image_url: "" })}
+                      className="ml-2 text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      Remove
+                    </button>
+                  )}
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    PNG, JPG, or WebP — under 5 MB. Use your brand logo if you have one.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Business name */}
             <Field label="Business / organization name" htmlFor="business_name" required>
               <input
@@ -247,8 +350,8 @@ export default function BecomeOrganizerPage() {
               </Field>
             </div>
 
-            {/* Phone */}
-            <Field label="Contact phone" htmlFor="phone">
+            {/* WhatsApp — primary contact channel for organizers in SL */}
+            <Field label="WhatsApp number" htmlFor="phone">
               <input
                 id="phone"
                 type="tel"
@@ -257,55 +360,10 @@ export default function BecomeOrganizerPage() {
                 placeholder="+94 77 123 4567"
                 className={inputCls}
               />
-            </Field>
-
-            {/* Bank section */}
-            <div className="border-t border-border pt-5">
-              <div className="mb-1 flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-foreground">Payout bank details</h3>
-                <Badge variant="outline" className="text-xs">Optional</Badge>
-              </div>
-              <p className="mb-4 text-xs text-muted-foreground">
-                We&rsquo;ll use this account to pay out your event revenue. You can add it later.
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Attendees will use this to reach you about bookings.
               </p>
-
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Field label="Bank" htmlFor="bank_name">
-                  <input
-                    id="bank_name"
-                    type="text"
-                    value={form.bank_name}
-                    onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
-                    placeholder="Bank of Ceylon"
-                    className={inputCls}
-                  />
-                </Field>
-
-                <Field label="Account number" htmlFor="bank_account_number">
-                  <input
-                    id="bank_account_number"
-                    type="text"
-                    value={form.bank_account_number}
-                    onChange={(e) => setForm({ ...form, bank_account_number: e.target.value })}
-                    placeholder="1234567890"
-                    className={inputCls}
-                  />
-                </Field>
-              </div>
-
-              <div className="mt-5">
-                <Field label="Account holder name" htmlFor="bank_account_name">
-                  <input
-                    id="bank_account_name"
-                    type="text"
-                    value={form.bank_account_name}
-                    onChange={(e) => setForm({ ...form, bank_account_name: e.target.value })}
-                    placeholder="Acme Events Pvt Ltd"
-                    className={inputCls}
-                  />
-                </Field>
-              </div>
-            </div>
+            </Field>
 
             <Button type="submit" className="w-full" size="lg" disabled={submitting}>
               {submitting ? (

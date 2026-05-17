@@ -6,25 +6,21 @@ import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertCircle,
   Calendar,
+  ChevronDown,
   Search,
-  SlidersHorizontal,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { EventCard, type EventCardData } from "@/components/events/event-card"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 const CATEGORIES = [
-  "Music",
+  "Concerts",
+  "Theatre",
   "Sports",
-  "Theater",
-  "Comedy",
-  "Conference",
-  "Festival",
-  "Other",
+  "Events",
 ]
 
 type DateFilter = "all" | "today" | "week" | "month"
@@ -50,6 +46,11 @@ export default function EventsPage() {
   const [dateFilter, setDateFilter] = React.useState<DateFilter>(
     () => (searchParams?.get("when") as DateFilter) ?? "all",
   )
+
+  // Keep category in sync when navigating via navbar links (same page, new query params).
+  React.useEffect(() => {
+    setCategory(searchParams?.get("category") ?? "")
+  }, [searchParams])
 
   // Debounce search input — fetch fires 350ms after typing stops.
   const [debouncedSearch, setDebouncedSearch] = React.useState(search)
@@ -132,100 +133,93 @@ export default function EventsPage() {
   }
 
   const hasActiveFilters = !!(search || category || dateFilter !== "all")
-  const activeFilterCount = [search, category, dateFilter !== "all"].filter(Boolean).length
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
-      {/* Header */}
-      <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Discover events
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Concerts, theatre, comedy, festivals, and more — happening near you.
-          </p>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
+      {/* Header — tighter and quieter than before */}
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Events
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+          Concerts, theatre, sports, and more.
+        </p>
+      </div>
+
+      {/* Filters — one card-style row: search + date dropdown */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        {/* Slim search input — icon inside, clear button inside, one piece */}
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            placeholder="Search events, artists, venues…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary/50 focus:outline-none"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
-        <div className="text-sm text-muted-foreground">
-          {loading ? "Loading…" : `${filtered.length} ${filtered.length === 1 ? "event" : "events"}`}
+
+        {/* Date dropdown — replaces 4 pills with a single compact select */}
+        <div className="relative shrink-0">
+          <select
+            aria-label="Date range"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+            className="h-11 w-full appearance-none rounded-xl border border-border bg-card pl-10 pr-9 text-sm font-medium text-foreground transition-colors focus:border-primary/50 focus:outline-none sm:w-44"
+          >
+            {DATE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         </div>
       </div>
 
-      {/* Filter bar */}
-      <div className="mb-6 rounded-2xl border border-border bg-card p-3 shadow-xs sm:p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              placeholder="Search events, artists, venues…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
-            />
-          </div>
+      {/* Category pills — horizontal scroll on phones, wrap on desktop */}
+      <div className="mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+        <FilterPill active={category === ""} onClick={() => setCategory("")}>
+          All
+        </FilterPill>
+        {CATEGORIES.map((c) => (
+          <FilterPill
+            key={c}
+            active={category === c}
+            onClick={() => setCategory(category === c ? "" : c)}
+          >
+            {c}
+          </FilterPill>
+        ))}
+      </div>
 
-          {/* Category */}
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
-            <label className="sr-only" htmlFor="filter-category">Category</label>
-            <select
-              id="filter-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
-            >
-              <option value="">All categories</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-
-            <label className="sr-only" htmlFor="filter-date">Date</label>
-            <select
-              id="filter-date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
-            >
-              {DATE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Active filter chips */}
+      {/* Result count + clear — single quiet line above results */}
+      <div className="mb-5 flex items-center justify-between text-xs text-muted-foreground sm:text-sm">
+        <span>
+          {loading
+            ? "Loading…"
+            : `${filtered.length} ${filtered.length === 1 ? "event" : "events"}`}
+        </span>
         {hasActiveFilters && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              {activeFilterCount} active
-            </span>
-            {search && (
-              <FilterChip label={`“${search}”`} onClear={() => setSearch("")} />
-            )}
-            {category && (
-              <FilterChip label={category} onClear={() => setCategory("")} />
-            )}
-            {dateFilter !== "all" && (
-              <FilterChip
-                label={DATE_OPTIONS.find((o) => o.value === dateFilter)?.label ?? dateFilter}
-                onClear={() => setDateFilter("all")}
-              />
-            )}
-            <button
-              type="button"
-              onClick={clearAll}
-              className="ml-auto text-xs font-medium text-primary hover:underline"
-            >
-              Clear all
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={clearAll}
+            className="font-medium text-primary hover:underline"
+          >
+            Clear all
+          </button>
         )}
       </div>
 
@@ -237,7 +231,7 @@ export default function EventsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState hasFilters={hasActiveFilters} onClear={clearAll} />
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
@@ -247,34 +241,44 @@ export default function EventsPage() {
   )
 }
 
-function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+function FilterPill({
+  active,
+  onClick,
+  subtle = false,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  subtle?: boolean
+  children: React.ReactNode
+}) {
   return (
-    <Badge variant="default" className="gap-1.5 pr-1.5">
-      <span className="truncate max-w-[160px]">{label}</span>
-      <button
-        type="button"
-        onClick={onClear}
-        aria-label={`Remove ${label}`}
-        className={cn(
-          "inline-flex h-4 w-4 items-center justify-center rounded-full",
-          "hover:bg-primary/20",
-        )}
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </Badge>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-9 items-center rounded-full px-4 text-sm font-medium transition-all duration-150",
+        active
+          ? subtle
+            ? "bg-foreground text-background shadow-sm"
+            : "bg-primary text-primary-foreground shadow-sm"
+          : "border border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary",
+      )}
+    >
+      {children}
+    </button>
   )
 }
 
 function LoadingGrid() {
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
-          className="overflow-hidden rounded-xl border border-border bg-card"
+          className="overflow-hidden rounded-2xl border border-border bg-card"
         >
-          <div className="aspect-16/10 animate-pulse bg-muted" />
+          <div className="aspect-3/4 animate-pulse bg-muted" />
           <div className="space-y-2 p-4">
             <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
             <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />

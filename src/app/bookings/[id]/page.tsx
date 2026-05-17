@@ -184,16 +184,16 @@ export default function BookingDetailPage() {
           </div>
 
           {/* Booking Reference */}
-          <div className="bg-gray-900 p-6 text-center">
+          <div className="bg-gray-900 p-4 sm:p-6 text-center">
             <p className="text-sm text-gray-400 mb-2">Booking Reference</p>
-            <p className="text-3xl font-bold font-mono tracking-wider text-red-400">
+            <p className="text-2xl sm:text-3xl font-bold font-mono tracking-wider text-red-400 break-all">
               {booking.bookingReference}
             </p>
-            <div className="mt-4 flex gap-2 justify-center">
-              <span className={`px-4 py-1.5 border rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
+            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+              <span className={`px-3 py-1 sm:px-4 sm:py-1.5 border rounded-full text-xs sm:text-sm font-medium ${getStatusColor(booking.status)}`}>
                 {booking.status}
               </span>
-              <span className={`px-4 py-1.5 border rounded-full text-sm font-medium ${
+              <span className={`px-3 py-1 sm:px-4 sm:py-1.5 border rounded-full text-xs sm:text-sm font-medium ${
                 booking.paymentStatus === 'Completed' ? 'bg-green-500/10 text-green-400 border-green-500' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500'
               }`}>
                 Payment: {booking.paymentStatus}
@@ -202,9 +202,9 @@ export default function BookingDetailPage() {
           </div>
 
           {/* Movie Details */}
-          <div className="p-6">
-            <div className="flex gap-6 mb-6">
-              <div className="w-32 h-48 bg-gray-900 rounded-lg overflow-hidden shrink-0">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-6">
+              <div className="w-24 h-36 sm:w-32 sm:h-48 bg-gray-900 rounded-lg overflow-hidden shrink-0 mx-auto sm:mx-0">
                 {booking.movie.poster ? (
                   <img
                     src={booking.movie.poster}
@@ -217,12 +217,12 @@ export default function BookingDetailPage() {
                   </div>
                 )}
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">{booking.movie.title}</h2>
-                <p className="text-gray-400 mb-4">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2">{booking.movie.title}</h2>
+                <p className="text-sm sm:text-base text-gray-400 mb-4">
                   {booking.movie.duration} • {booking.movie.language} • {booking.movie.rating}
                 </p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <p className="text-sm text-gray-400 mb-1">Theatre</p>
                     <p className="font-semibold">{booking.theatre.name}</p>
@@ -245,48 +245,48 @@ export default function BookingDetailPage() {
             </div>
 
             {/* Seats */}
-            <div className="bg-gray-900 rounded-lg p-4 mb-6">
+            <div className="bg-gray-900 rounded-lg p-3 sm:p-4 mb-6">
               <p className="text-sm text-gray-400 mb-3">Your Seats</p>
               <div className="flex flex-wrap gap-2">
                 {booking.seats.map((seat, idx) => (
                   <div
                     key={idx}
-                    className="px-4 py-2 bg-red-600 rounded-full font-semibold"
+                    className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 rounded-full text-sm sm:text-base font-semibold"
                   >
                     {seat.seatNumber}
-                    <span className="ml-2 text-sm text-red-200">({seat.type})</span>
+                    <span className="ml-1.5 sm:ml-2 text-xs sm:text-sm text-red-200">({seat.type})</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Price Breakdown */}
-            <div className="bg-gray-900 rounded-lg p-4 mb-6">
+            <div className="bg-gray-900 rounded-lg p-3 sm:p-4 mb-6">
               <p className="text-sm text-gray-400 mb-3">Price Breakdown</p>
               <div className="space-y-2">
                 {booking.seats.map((seat, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span>
+                  <div key={idx} className="flex justify-between gap-2 text-sm">
+                    <span className="truncate">
                       {seat.seatNumber} ({seat.type})
                     </span>
-                    <span className="font-semibold">Rs {seat.price.toLocaleString()}</span>
+                    <span className="font-semibold shrink-0">Rs {seat.price.toLocaleString()}</span>
                   </div>
                 ))}
                 <div className="border-t border-gray-700 pt-2 mt-2">
-                  <div className="flex justify-between text-lg font-bold">
+                  <div className="flex justify-between gap-2 text-base sm:text-lg font-bold">
                     <span>Total Amount</span>
-                    <span className="text-red-400">Rs {booking.totalAmount.toLocaleString()}</span>
+                    <span className="text-red-400 shrink-0">Rs {booking.totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Booking Info */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <p className="text-gray-400 mb-1">Booked By</p>
-                <p className="font-semibold">{booking.user.name}</p>
-                <p className="text-gray-400">{booking.user.email}</p>
+                <p className="font-semibold break-words">{booking.user.name}</p>
+                <p className="text-gray-400 break-all">{booking.user.email}</p>
               </div>
               <div>
                 <p className="text-gray-400 mb-1">Booking Date</p>
@@ -304,7 +304,7 @@ export default function BookingDetailPage() {
           </div>
 
           {/* Actions */}
-          <div className="border-t border-gray-700 p-6 flex gap-3 print:hidden">
+          <div className="border-t border-gray-700 p-4 sm:p-6 flex flex-col sm:flex-row gap-3 print:hidden">
             <button
               onClick={handlePrint}
               className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-all flex items-center justify-center gap-2"

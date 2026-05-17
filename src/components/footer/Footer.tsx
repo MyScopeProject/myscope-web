@@ -20,8 +20,10 @@ export default function Footer() {
       { label: 'Blog', href: '/blog' },
     ],
     features: [
-      { label: 'Events', href: '/events' },
-      { label: 'Movies', href: '/movies' },
+      { label: 'Concerts', href: '/events?category=Concerts' },
+      { label: 'Theatre', href: '/events?category=Theatre' },
+      { label: 'Sports', href: '/events?category=Sports' },
+      { label: 'Events', href: '/events?category=Events' },
     ],
     support: [
       { label: 'Help Center', href: '/help' },

@@ -165,7 +165,7 @@ export default function MoviesPage() {
           >
             <button
               onClick={() => setSelectedGenre('all')}
-              className="px-6 py-3 rounded-lg font-inter font-semibold transition-all duration-300"
+              className="px-4 py-2 sm:px-6 sm:py-3 text-sm sm:text-base rounded-lg font-inter font-semibold transition-all duration-300"
               style={{
                 background: selectedGenre === 'all' ? '#B794F6' : '#15121D',
                 color: selectedGenre === 'all' ? '#07060A' : '#9B95B5',
@@ -191,7 +191,7 @@ export default function MoviesPage() {
               <button
                 key={genre}
                 onClick={() => setSelectedGenre(genre)}
-                className="px-6 py-3 rounded-lg font-inter font-semibold transition-all duration-300"
+                className="px-4 py-2 sm:px-6 sm:py-3 text-sm sm:text-base rounded-lg font-inter font-semibold transition-all duration-300"
                 style={{
                   background: selectedGenre === genre ? '#B794F6' : '#15121D',
                   color: selectedGenre === genre ? '#07060A' : '#9B95B5',

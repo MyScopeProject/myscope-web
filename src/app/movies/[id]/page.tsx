@@ -119,10 +119,10 @@ export default function MovieDetailPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Movie Header */}
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
-          {/* Poster */}
+        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 mb-12">
+          {/* Poster — constrain width on phones so a tall poster doesn't dominate the fold */}
           <div className="md:col-span-1">
-            <div className="relative aspect-2/3 bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
+            <div className="relative aspect-2/3 max-w-xs mx-auto md:max-w-none bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
               {movie.poster ? (
                 <img
                   src={movie.poster}
@@ -135,7 +135,7 @@ export default function MovieDetailPage() {
                 </div>
               )}
               {movie.rating && (
-                <div className="absolute top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-lg text-lg font-bold">
+                <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-red-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-base sm:text-lg font-bold">
                   {movie.rating}
                 </div>
               )}
@@ -144,14 +144,14 @@ export default function MovieDetailPage() {
 
           {/* Movie Info */}
           <div className="md:col-span-2">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">{movie.title}</h1>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">{movie.title}</h1>
 
             {/* Genres */}
             <div className="flex gap-2 flex-wrap mb-6">
               {movie.genre.map((g, idx) => (
                 <span
                   key={idx}
-                  className="px-4 py-1.5 bg-red-600/20 text-red-400 border border-red-500/50 rounded-full text-sm font-medium"
+                  className="px-3 py-1 sm:px-4 sm:py-1.5 bg-red-600/20 text-red-400 border border-red-500/50 rounded-full text-xs sm:text-sm font-medium"
                 >
                   {g}
                 </span>
@@ -159,39 +159,39 @@ export default function MovieDetailPage() {
             </div>
 
             {/* Meta Info */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
               {movie.duration && (
                 <div>
-                  <p className="text-gray-500 text-sm mb-1">Duration</p>
-                  <p className="text-white font-medium">{movie.duration}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm mb-1">Duration</p>
+                  <p className="text-white font-medium text-sm sm:text-base">{movie.duration}</p>
                 </div>
               )}
               {movie.language && (
                 <div>
-                  <p className="text-gray-500 text-sm mb-1">Language</p>
-                  <p className="text-white font-medium">{movie.language}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm mb-1">Language</p>
+                  <p className="text-white font-medium text-sm sm:text-base">{movie.language}</p>
                 </div>
               )}
               {movie.rating && (
                 <div>
-                  <p className="text-gray-500 text-sm mb-1">Rating</p>
-                  <p className="text-white font-medium">{movie.rating}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm mb-1">Rating</p>
+                  <p className="text-white font-medium text-sm sm:text-base">{movie.rating}</p>
                 </div>
               )}
               <div>
-                <p className="text-gray-500 text-sm mb-1">Theaters</p>
-                <p className="text-white font-medium">{movie.theatres.length}</p>
+                <p className="text-gray-500 text-xs sm:text-sm mb-1">Theaters</p>
+                <p className="text-white font-medium text-sm sm:text-base">{movie.theatres.length}</p>
               </div>
             </div>
 
             {/* Description */}
             <div className="mb-6">
-              <h2 className="text-xl font-semibold mb-3">Synopsis</h2>
-              <p className="text-gray-300 leading-relaxed">{movie.description}</p>
+              <h2 className="text-lg sm:text-xl font-semibold mb-3">Synopsis</h2>
+              <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{movie.description}</p>
             </div>
 
             {/* Source & Last Updated */}
-            <div className="flex gap-6 text-sm text-gray-500">
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs sm:text-sm text-gray-500">
               {movie.source && <p>Source: {movie.source}</p>}
               <p>Updated: {new Date(movie.lastUpdated).toLocaleDateString()}</p>
             </div>
@@ -217,8 +217,8 @@ export default function MovieDetailPage() {
 
         {/* Showtimes */}
         <div>
-          <h2 className="text-2xl font-bold mb-6">Select Theater & Showtime</h2>
-          
+          <h2 className="text-xl sm:text-2xl font-bold mb-6">Select Theater & Showtime</h2>
+
           {movie.theatres.length === 0 ? (
             <div className="text-center py-12 bg-gray-800 rounded-xl border border-gray-700">
               <p className="text-gray-400">No showtimes available</p>
@@ -228,29 +228,29 @@ export default function MovieDetailPage() {
               {movie.theatres.map((theatre, idx) => (
                 <div
                   key={idx}
-                  className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-red-500 transition-colors"
+                  className="bg-gray-800 rounded-xl border border-gray-700 p-4 sm:p-6 hover:border-red-500 transition-colors"
                 >
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-1">{theatre.name}</h3>
-                      <p className="text-gray-400 flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                    <div className="min-w-0">
+                      <h3 className="text-lg sm:text-xl font-semibold mb-1">{theatre.name}</h3>
+                      <p className="text-sm sm:text-base text-gray-400 flex items-start gap-2">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        {theatre.location}
+                        <span className="min-w-0">{theatre.location}</span>
                       </p>
                     </div>
-                    <div className="mt-2 md:mt-0">
-                      <p className="text-2xl font-bold text-red-400">
+                    <div className="md:text-right">
+                      <p className="text-xl sm:text-2xl font-bold text-red-400">
                         Rs {theatre.price.toLocaleString()}
                       </p>
-                      <p className="text-sm text-gray-500">per ticket</p>
+                      <p className="text-xs sm:text-sm text-gray-500">per ticket</p>
                     </div>
                   </div>
 
                   {/* Date */}
-                  <p className="text-sm text-gray-400 mb-4">
+                  <p className="text-xs sm:text-sm text-gray-400 mb-4">
                     {new Date(theatre.date).toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
@@ -262,12 +262,12 @@ export default function MovieDetailPage() {
                   {/* Showtimes */}
                   <div>
                     <p className="text-sm font-medium text-gray-300 mb-3">Select Showtime:</p>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-2 sm:gap-3">
                       {theatre.showtimes.map((time, timeIdx) => (
                         <button
                           key={timeIdx}
                           onClick={() => handleBooking(theatre, time)}
-                          className="px-6 py-3 bg-gray-700 hover:bg-red-600 border border-gray-600 hover:border-red-500 rounded-lg font-medium transition-all hover:scale-105"
+                          className="px-4 py-2 sm:px-6 sm:py-3 text-sm sm:text-base bg-gray-700 hover:bg-red-600 border border-gray-600 hover:border-red-500 rounded-lg font-medium transition-all hover:scale-105"
                         >
                           {time}
                         </button>

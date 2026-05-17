@@ -7,18 +7,21 @@ import {
   AlertCircle,
   ArrowLeft,
   Calendar,
+  Check,
   Loader,
   Lock,
   MapPin,
   Minus,
   Plus,
   Ticket,
+  User as UserIcon,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { SeatMapPicker, type SelectedSeat } from "@/components/events/seat-map-picker"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -32,6 +35,8 @@ interface TicketType {
   per_order_limit: number
 }
 
+type SeatingMode = "none" | "free" | "zoned" | "reserved"
+
 interface EventDetail {
   id: string
   title: string
@@ -43,6 +48,7 @@ interface EventDetail {
   date: string | null
   banner_url: string | null
   approval_status: string
+  seating_mode?: SeatingMode | null
   ticket_types: TicketType[]
 }
 
@@ -69,6 +75,11 @@ export default function CheckoutPage() {
   const [selectedTtId, setSelectedTtId] = React.useState<string | null>(ttFromUrl)
   const [quantity, setQuantity] = React.useState(qtyFromUrl && qtyFromUrl > 0 ? qtyFromUrl : 1)
   const [attendee, setAttendee] = React.useState({ name: "", email: "", phone: "" })
+
+  // Reserved-mode state — seat picker manages its own list, parent just holds the result.
+  const [selectedSeats, setSelectedSeats] = React.useState<SelectedSeat[]>([])
+  const [seatTotal, setSeatTotal] = React.useState(0)
+  const isReserved = event?.seating_mode === "reserved"
 
   // Auth guard
   React.useEffect(() => {
@@ -148,17 +159,47 @@ export default function CheckoutPage() {
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitError("")
-    if (!selectedTt) {
-      setSubmitError("Pick a ticket type first.")
-      return
-    }
-    if (quantity < 1 || quantity > maxQty) {
-      setSubmitError(`Quantity must be between 1 and ${maxQty}.`)
-      return
-    }
+
     if (!attendee.email.trim()) {
       setSubmitError("Email is required.")
       return
+    }
+
+    let body: Record<string, unknown>
+
+    if (isReserved) {
+      if (selectedSeats.length === 0) {
+        setSubmitError("Pick at least one seat.")
+        return
+      }
+      body = {
+        event_id: event!.id,
+        seat_ids: selectedSeats.map((s) => s.id),
+        attendee_info: {
+          name: attendee.name.trim() || undefined,
+          email: attendee.email.trim() || undefined,
+          phone: attendee.phone.trim() || undefined,
+        },
+      }
+    } else {
+      if (!selectedTt) {
+        setSubmitError("Pick a ticket type first.")
+        return
+      }
+      if (quantity < 1 || quantity > maxQty) {
+        setSubmitError(`Quantity must be between 1 and ${maxQty}.`)
+        return
+      }
+      body = {
+        event_id: event!.id,
+        ticket_type_id: selectedTt.id,
+        quantity,
+        attendee_info: {
+          name: attendee.name.trim() || undefined,
+          email: attendee.email.trim() || undefined,
+          phone: attendee.phone.trim() || undefined,
+        },
+      }
     }
 
     setSubmitting(true)
@@ -167,16 +208,7 @@ export default function CheckoutPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event_id: event!.id,
-          ticket_type_id: selectedTt.id,
-          quantity,
-          attendee_info: {
-            name: attendee.name.trim() || undefined,
-            email: attendee.email.trim() || undefined,
-            phone: attendee.phone.trim() || undefined,
-          },
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!data?.success) {
@@ -284,17 +316,60 @@ export default function CheckoutPage() {
       <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: ticket selection + attendee form */}
         <div className="space-y-6 lg:col-span-2">
-          {/* Ticket type selection */}
-          <section className="rounded-xl border border-border bg-card p-6 shadow-xs">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-              <Ticket className="h-5 w-5 text-primary" />
-              Choose a ticket
-            </h2>
+          {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
+          {isReserved ? (
+            <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs">
+              <header className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Ticket className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-base font-semibold text-foreground">Pick your seats</h2>
+                </div>
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  {selectedSeats.length} selected
+                </span>
+              </header>
+              <SeatMapPicker
+                eventId={event.id}
+                maxPerOrder={8}
+                onSelectionChange={(seats, total) => {
+                  setSelectedSeats(seats)
+                  setSeatTotal(total)
+                }}
+              />
+            </section>
+          ) : (
+          /* Ticket type selection (with quantity in footer) */
+          (() => {
+            const isZoned = event.seating_mode === "zoned"
+            const isFree = event.seating_mode === "free"
+            const heading = isZoned ? "Choose a zone" : "Choose a ticket"
+            const unitLabel = (n: number) =>
+              isZoned ? (n === 1 ? "zone" : "zones") : (n === 1 ? "tier" : "tiers")
+            const emptyText = isZoned ? "No zones available." : "No tickets available."
+
+            return (
+          <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+            <header className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold text-foreground">{heading}</h2>
+              </div>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                {event.ticket_types.length} {unitLabel(event.ticket_types.length)}
+              </span>
+            </header>
+
+            {/* Open-seating notice — free mode means seats exist but aren't assigned */}
+            {isFree && (
+              <div className="border-b border-border bg-muted/30 px-5 py-2.5 text-xs text-muted-foreground">
+                Open seating — pick a seat on arrival, first come, first served.
+              </div>
+            )}
 
             {event.ticket_types.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No tickets available.</p>
+              <p className="px-5 py-6 text-sm text-muted-foreground">{emptyText}</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="divide-y divide-border">
                 {event.ticket_types.map((tt) => (
                   <TicketTypeOption
                     key={tt.id}
@@ -305,50 +380,77 @@ export default function CheckoutPage() {
                 ))}
               </ul>
             )}
-          </section>
 
-          {/* Quantity */}
-          {selectedTt && (
-            <section className="rounded-xl border border-border bg-card p-6 shadow-xs">
-              <h2 className="mb-3 text-lg font-semibold text-foreground">Quantity</h2>
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
-                  aria-label="Decrease quantity"
-                >
-                  <Minus />
-                </Button>
-                <span className="min-w-10 text-center text-xl font-semibold text-foreground">
-                  {quantity}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
-                  disabled={quantity >= maxQty}
-                  aria-label="Increase quantity"
-                >
-                  <Plus />
-                </Button>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  Max {maxQty} per order
-                </span>
+            {/* Quantity + subtotal footer */}
+            {selectedTt && (
+              <div className="border-t border-border bg-muted/30 px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-foreground">Qty</span>
+                    <div className="flex items-center rounded-lg border border-border bg-card">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        disabled={quantity <= 1}
+                        aria-label="Decrease quantity"
+                        className="flex h-9 w-9 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="min-w-10 text-center text-base font-semibold tabular-nums text-foreground">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
+                        disabled={quantity >= maxQty}
+                        aria-label="Increase quantity"
+                        className="flex h-9 w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      max {maxQty}/order
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Subtotal
+                    </div>
+                    <div className="text-lg font-bold text-foreground">{formatLkr(total)}</div>
+                  </div>
+                </div>
               </div>
-            </section>
+            )}
+          </section>
+            )
+          })()
           )}
 
           {/* Attendee details */}
-          <section className="rounded-xl border border-border bg-card p-6 shadow-xs">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Attendee details</h2>
+          <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+            <header className="flex items-center gap-2 border-b border-border px-5 py-4">
+              <UserIcon className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-base font-semibold text-foreground">Attendee details</h2>
+            </header>
+            <div className="px-5 py-5">
             <p className="mb-4 text-xs text-muted-foreground">
-              We&rsquo;ll email your tickets here. Phone is used by the venue if anything changes
-              on the day.
+              Phone is used by the venue if anything changes on the day.
             </p>
+
+            {/* Locked email — tied to the Google account, not editable */}
+            <div className="mb-4 flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Tickets will be sent to
+                </div>
+                <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
+                  {attendee.email || "—"}
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FieldGroup id="att-name" label="Name">
@@ -361,17 +463,6 @@ export default function CheckoutPage() {
                   placeholder="Akila Perera"
                 />
               </FieldGroup>
-              <FieldGroup id="att-email" label="Email" required>
-                <Input
-                  id="att-email"
-                  type="email"
-                  value={attendee.email}
-                  onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  required
-                />
-              </FieldGroup>
               <FieldGroup id="att-phone" label="Phone" helper="Optional, helpful for venue updates">
                 <Input
                   id="att-phone"
@@ -382,6 +473,7 @@ export default function CheckoutPage() {
                   placeholder="+94 77 123 4567"
                 />
               </FieldGroup>
+            </div>
             </div>
           </section>
 
@@ -450,47 +542,69 @@ function TicketTypeOption({
   const remaining = Math.max(0, ticket.quantity_total - ticket.quantity_sold)
   const soldOut = remaining <= 0
   const lowStock = !soldOut && remaining <= 10
+  const price = Number(ticket.price)
 
   return (
     <li>
-      <label
+      <button
+        type="button"
+        onClick={onSelect}
+        disabled={soldOut}
+        aria-pressed={selected ? "true" : "false"}
         className={cn(
-          "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors",
-          soldOut && "cursor-not-allowed opacity-60",
-          !soldOut && selected
-            ? "border-primary bg-primary/5"
-            : "border-border bg-background/40 hover:border-primary/40",
+          "group w-full px-5 py-4 text-left transition-colors",
+          soldOut ? "cursor-not-allowed opacity-55" : "cursor-pointer",
+          selected ? "bg-primary/5" : "hover:bg-muted/40",
         )}
       >
-        <input
-          type="radio"
-          name="ticket-type"
-          checked={selected}
-          onChange={onSelect}
-          disabled={soldOut}
-          className="mt-0.5 accent-primary"
-        />
-        <div className="flex flex-1 items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-semibold text-foreground">{ticket.name}</div>
-            {ticket.description && (
-              <div className="mt-0.5 text-sm text-muted-foreground">{ticket.description}</div>
+        <div className="flex items-center gap-4">
+          <span
+            className={cn(
+              "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+              selected
+                ? "border-primary bg-primary"
+                : "border-border bg-transparent group-hover:border-muted-foreground/40",
             )}
-            <div className="mt-1 text-xs text-muted-foreground">
-              {soldOut ? (
-                <span className="text-destructive">Sold out</span>
-              ) : lowStock ? (
-                <span className="text-amber-600 dark:text-amber-400">Only {remaining} left</span>
-              ) : (
-                <span>{remaining} available · max {ticket.per_order_limit}/order</span>
+          >
+            {selected && <Check className="h-3 w-3 text-primary-foreground" />}
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-foreground">{ticket.name}</span>
+              {soldOut && (
+                <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                  Sold out
+                </span>
+              )}
+              {lowStock && (
+                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                  Only {remaining} left
+                </span>
               )}
             </div>
+            {ticket.description && (
+              <p className="mt-1 text-sm text-muted-foreground">{ticket.description}</p>
+            )}
+            {!soldOut && !lowStock && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {remaining} available · max {ticket.per_order_limit}/order
+              </p>
+            )}
           </div>
+
           <div className="shrink-0 text-right">
-            <div className="text-base font-bold text-primary">{formatLkr(ticket.price)}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              LKR
+            </div>
+            <div className="text-xl font-bold leading-tight text-foreground">
+              {price === 0
+                ? "Free"
+                : price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </div>
         </div>
-      </label>
+      </button>
     </li>
   )
 }

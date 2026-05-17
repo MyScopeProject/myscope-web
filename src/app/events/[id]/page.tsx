@@ -6,18 +6,15 @@ import { useParams, useRouter } from "next/navigation"
 import {
   AlertCircle,
   ArrowLeft,
-  Apple,
+  BadgeCheck,
   CalendarPlus,
   CheckCircle2,
-  ChevronDown,
-  Clock,
-  Globe,
+  ExternalLink,
   ImageIcon,
+  Info,
   MapPin,
-  Minus,
-  Navigation,
-  Plus,
-  Share2,
+  ShieldCheck,
+  Tag,
   Ticket,
   User,
 } from "lucide-react"
@@ -40,6 +37,8 @@ interface TicketType {
   sale_end?: string | null
 }
 
+type SeatingMode = "none" | "free" | "zoned" | "reserved"
+
 interface Event {
   id?: string
   _id: string
@@ -51,6 +50,7 @@ interface Event {
   location: string
   venue_name?: string
   venue_address?: string | null
+  venue_location_url?: string | null
   banner_url?: string | null
   price: number
   tickets_available: number
@@ -61,15 +61,29 @@ interface Event {
     _id: string
     name: string
     email: string
+    profile_image?: string | null
+    // From organizer_profiles — preferred public-facing fields. Optional
+    // because legacy events created before onboarding may lack a profile.
+    business_name?: string | null
+    business_type?: string | null
+    phone?: string | null
+    profile_image_url?: string | null
+    verified?: boolean
+    // True when the organizer has resigned or been revoked by an admin. The
+    // event itself stays public; we just relabel the organizer card.
+    deactivated?: boolean
   }
   attendees: string[]
   status: string
   featured: boolean
+  seating_mode?: SeatingMode | null
   ticket_types?: TicketType[]
 }
 
 const formatLkr = (n: number) =>
-  n === 0 ? "Free" : `LKR ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  n === 0
+    ? "Free"
+    : `LKR ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const ticketRemaining = (t: TicketType) =>
   Math.max(0, (t.quantity_total ?? 0) - (t.quantity_sold ?? 0))
@@ -81,82 +95,6 @@ const ticketStatus = (t: TicketType): "soldout" | "not_started" | "ended" | "ava
   if (t.sale_end && new Date(t.sale_end).getTime() < now) return "ended"
   return "available"
 }
-
-// Calendar helpers — both Google Calendar and ICS expect a "floating" UTC string.
-const toCalDate = (d: Date) =>
-  d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")
-
-const DEFAULT_DURATION_MS = 3 * 60 * 60 * 1000
-
-interface CalendarEvent {
-  title: string
-  description: string
-  location: string
-  start: Date
-  end: Date
-}
-
-const buildCalendarEvent = (event: Event): CalendarEvent | null => {
-  const startIso = event.start_time || event.date
-  if (!startIso) return null
-  const start = new Date(startIso)
-  if (Number.isNaN(start.getTime())) return null
-  const end = event.end_time
-    ? new Date(event.end_time)
-    : new Date(start.getTime() + DEFAULT_DURATION_MS)
-  const location = [event.venue_name, event.venue_address || event.location]
-    .filter(Boolean)
-    .join(", ")
-  return {
-    title: event.title,
-    description: event.description || "",
-    location,
-    start,
-    end,
-  }
-}
-
-const googleCalendarUrl = (e: CalendarEvent) => {
-  const params = new URLSearchParams({
-    action: "TEMPLATE",
-    text: e.title,
-    dates: `${toCalDate(e.start)}/${toCalDate(e.end)}`,
-    details: e.description,
-    location: e.location,
-  })
-  return `https://calendar.google.com/calendar/render?${params.toString()}`
-}
-
-const downloadIcs = (e: CalendarEvent) => {
-  const ics = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//MyScope//EN",
-    "BEGIN:VEVENT",
-    `UID:${Date.now()}@myscope.lk`,
-    `DTSTAMP:${toCalDate(new Date())}`,
-    `DTSTART:${toCalDate(e.start)}`,
-    `DTEND:${toCalDate(e.end)}`,
-    `SUMMARY:${e.title.replace(/[,;]/g, (m) => `\\${m}`)}`,
-    `DESCRIPTION:${e.description.replace(/[\n,;]/g, (m) => (m === "\n" ? "\\n" : `\\${m}`))}`,
-    `LOCATION:${e.location.replace(/[,;]/g, (m) => `\\${m}`)}`,
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].join("\r\n")
-  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `${e.title.replace(/\s+/g, "-").toLowerCase()}.ics`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-const mapsSearchUrl = (query: string) =>
-  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
-
-const mapsEmbedUrl = (query: string) =>
-  `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`
 
 const formatLongDate = (d: Date) =>
   d.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
@@ -178,9 +116,6 @@ export default function EventDetailsPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
 
-  const [selectedTtId, setSelectedTtId] = React.useState<string | null>(null)
-  const [quantity, setQuantity] = React.useState(1)
-
   const fetchEvent = React.useCallback(async () => {
     if (!eventId) return
     try {
@@ -189,10 +124,7 @@ export default function EventDetailsPage() {
       const res = await fetch(`${API_URL}/api/events/${eventId}`)
       const data = await res.json()
       if (data?.success) {
-        const e = data.data.event as Event
-        setEvent(e)
-        const firstAvail = e.ticket_types?.find((t) => ticketStatus(t) === "available")
-        if (firstAvail) setSelectedTtId(firstAvail.id)
+        setEvent(data.data.event as Event)
       } else {
         setError(data?.message || "Event not found.")
       }
@@ -254,47 +186,13 @@ export default function EventDetailsPage() {
     }
   }
 
-  const handleShare = async () => {
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({
-          title: event?.title,
-          text: `Check out ${event?.title} on MyScope`,
-          url: window.location.href,
-        })
-        return
-      } catch {
-        // user cancelled
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      alert("Link copied to clipboard.")
-    } catch {
-      // ignore
-    }
-  }
-
-  const selectedTt = event?.ticket_types?.find((t) => t.id === selectedTtId) ?? null
-  const selectedAvailable = selectedTt ? ticketRemaining(selectedTt) : 0
-  const selectedMaxQty = selectedTt
-    ? Math.max(1, Math.min(selectedTt.per_order_limit ?? 10, selectedAvailable))
-    : 1
-  const selectedTotal = selectedTt ? Number(selectedTt.price) * quantity : 0
-
-  React.useEffect(() => {
-    if (selectedTt && quantity > selectedMaxQty) setQuantity(Math.max(1, selectedMaxQty))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTtId])
-
   const handleContinueToCheckout = () => {
-    if (!selectedTt) return
     if (!user) {
-      const redirect = `/events/${eventId}/checkout?tt=${selectedTt.id}&qty=${quantity}`
+      const redirect = `/events/${eventId}/checkout`
       router.push(`/auth/login?redirect=${encodeURIComponent(redirect)}`)
       return
     }
-    router.push(`/events/${eventId}/checkout?tt=${selectedTt.id}&qty=${quantity}`)
+    router.push(`/events/${eventId}/checkout`)
   }
 
   if (loading) return <DetailSkeleton />
@@ -329,6 +227,10 @@ export default function EventDetailsPage() {
   const minTierPrice = hasTicketTypes
     ? Math.min(...event.ticket_types!.map((t) => Number(t.price)))
     : event.price ?? 0
+  const maxTierPrice = hasTicketTypes
+    ? Math.max(...event.ticket_types!.map((t) => Number(t.price)))
+    : event.price ?? 0
+  const hasMultipleTiers = hasTicketTypes && event.ticket_types!.length > 1
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
@@ -341,278 +243,281 @@ export default function EventDetailsPage() {
         Back to events
       </Link>
 
-      {/* Hero banner — clean, no overlay chips */}
-      <div className="relative mb-8 overflow-hidden rounded-2xl border border-border bg-muted">
-        <div className="relative aspect-21/9">
-          {event.banner_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
+      {/* Hero — cinematic poster + info */}
+      <section className="relative mb-10 overflow-hidden rounded-3xl border border-border bg-muted">
+        {/* Blurred backdrop */}
+        {event.banner_url ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={event.banner_url}
-              alt={event.title}
-              className="h-full w-full object-cover"
-              onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl brightness-110 saturate-150"
             />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/20 via-primary/5 to-secondary text-muted-foreground">
-              <ImageIcon className="h-16 w-16" />
-            </div>
-          )}
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-muted" />
+        )}
 
-          {(event.featured || isSoldOut) && (
-            <div className="absolute right-4 top-4 flex flex-wrap gap-1.5">
-              {event.featured && <Badge variant="warning">Featured</Badge>}
-              {isSoldOut && <Badge variant="destructive">Sold out</Badge>}
+        {/* Floating badges (top-right) */}
+        {(event.featured || isSoldOut) && (
+          <div className="absolute right-4 top-4 z-10 flex flex-wrap gap-1.5">
+            {event.featured && <Badge variant="warning">Featured</Badge>}
+            {isSoldOut && <Badge variant="destructive">Sold out</Badge>}
+          </div>
+        )}
+
+        {/* Content grid */}
+        <div className="relative grid gap-6 p-5 sm:gap-6 sm:p-7 lg:grid-cols-[1fr_280px] lg:gap-8 lg:p-9 lg:min-h-[320px]">
+          {/* Info */}
+          <div className="order-2 flex flex-col justify-center text-white lg:order-1">
+            {event.category && (
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/40 bg-transparent px-4 py-1.5 text-sm font-medium capitalize text-white">
+                <Tag className="h-3 w-3" />
+                {event.category}
+              </span>
+            )}
+            <h1 className="mt-5 text-4xl font-bold leading-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
+              {event.title}
+            </h1>
+            <div className="mt-7 space-y-3">
+              {dateObj && (
+                <p className="flex items-center gap-2.5 text-base font-medium text-white/90 sm:text-lg">
+                  <CalendarPlus className="h-5 w-5 shrink-0 text-white/70" />
+                  {dateObj.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  <span className="text-white/50">·</span>
+                  {formatTimeRange(dateObj, endObj)}
+                </p>
+              )}
+              {venue && (
+                <div className="flex items-center gap-2.5 text-base text-white/80 sm:text-lg">
+                  <MapPin className="h-5 w-5 shrink-0 text-white/70" />
+                  <span>{venue}</span>
+                  {event.venue_location_url && (
+                    <a
+                      href={event.venue_location_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/90 hover:bg-white/20 transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Get directions
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Poster */}
+          <div className="order-1 relative aspect-3/4 w-full max-w-[300px] mx-auto overflow-hidden rounded-2xl bg-black/30 shadow-2xl ring-1 ring-white/10 lg:order-2 lg:mx-0 lg:max-w-none">
+            {event.banner_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={event.banner_url}
+                alt={event.title}
+                className="h-full w-full object-cover"
+                onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-white/40">
+                <ImageIcon className="h-20 w-20" />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Main grid */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="space-y-8 lg:col-span-2">
-          {/* Title block */}
-          <header className="space-y-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {event.category && (
-                <Badge variant="secondary" className="rounded-full capitalize">
-                  {event.category}
-                </Badge>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              {event.title}
-            </h1>
-
-            {/* Inline key facts (one row, no card clutter) */}
-            <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-1.5">
-              {dateObj && (
-                <div className="flex items-center gap-1.5">
-                  <CalendarPlus className="h-4 w-4 text-primary" />
-                  <span className="text-foreground">{formatLongDate(dateObj)}</span>
-                </div>
-              )}
-              {dateObj && (
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <span className="text-foreground">{formatTimeRange(dateObj, endObj)}</span>
-                </div>
-              )}
-              {venue && (
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  <span className="text-foreground">{venue}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Action row */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <AddToCalendarButton event={event} />
-              <Button variant="outline" size="sm" onClick={handleShare}>
-                <Share2 />
-                Share
-              </Button>
-            </div>
-          </header>
-
+        <div className="space-y-10 lg:col-span-2">
           {/* About */}
           <section>
-            <h2 className="text-lg font-semibold text-foreground">About this event</h2>
+            <SectionHeading icon={Info}>About this event</SectionHeading>
             <p className="mt-3 whitespace-pre-wrap leading-relaxed text-muted-foreground">
               {event.description || "No description provided."}
             </p>
           </section>
 
-          {/* Ticket picker */}
-          {hasTicketTypes && (
+          {/* Venue location */}
+          {(event.venue_address || event.venue_location_url) && (
             <section>
-              <div className="mb-4 flex items-end justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Tickets</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {event.ticket_types!.length} {event.ticket_types!.length === 1 ? "tier" : "tiers"} available
-                  </p>
-                </div>
+              <SectionHeading icon={MapPin}>Venue</SectionHeading>
+              <div className="mt-3 rounded-2xl border border-border bg-card p-4">
+                {event.venue_name && (
+                  <p className="font-semibold text-foreground">{event.venue_name}</p>
+                )}
+                {event.venue_address && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">{event.venue_address}</p>
+                )}
+                {event.venue_location_url && (
+                  <a
+                    href={event.venue_location_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    <MapPin className="h-4 w-4 text-primary" />
+                    Get directions
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                  </a>
+                )}
               </div>
+            </section>
+          )}
 
-              <ul className="space-y-2">
-                {event.ticket_types!.map((tt) => (
-                  <TicketTypeOption
-                    key={tt.id}
-                    ticket={tt}
-                    selected={selectedTtId === tt.id}
-                    onSelect={() => setSelectedTtId(tt.id)}
-                  />
-                ))}
-              </ul>
+          {/* Ticket prices (read-only — selection happens at checkout) */}
+          {hasTicketTypes && (() => {
+            const isZoned = event.seating_mode === "zoned"
+            const isFree = event.seating_mode === "free"
+            const sectionTitle = isZoned ? "Zone Prices" : "Ticket Prices"
+            const unitLabel = (n: number) =>
+              isZoned ? (n === 1 ? "zone" : "zones") : (n === 1 ? "tier" : "tiers")
+            const footerText = isFree
+              ? "Open seating — pick a seat on arrival, first come, first served."
+              : isZoned
+                ? "Pick your zone and quantity at checkout."
+                : "Pick your tier and quantity at checkout."
 
-              {selectedTt && (
-                <div className="mt-4 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Quantity
-                    </div>
-                    <div className="mt-0.5 truncate text-sm font-medium text-foreground">
-                      {selectedTt.name}
-                    </div>
-                  </div>
+            return (
+              <section className="rounded-2xl border border-border bg-card">
+                <div className="flex items-center justify-between border-b border-border px-5 py-4">
                   <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      disabled={quantity <= 1}
-                      aria-label="Decrease quantity"
-                    >
-                      <Minus />
-                    </Button>
-                    <span className="min-w-10 text-center text-lg font-semibold text-foreground">
-                      {quantity}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setQuantity((q) => Math.min(selectedMaxQty, q + 1))}
-                      disabled={quantity >= selectedMaxQty}
-                      aria-label="Increase quantity"
-                    >
-                      <Plus />
-                    </Button>
+                    <Ticket className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-semibold text-foreground">{sectionTitle}</h2>
                   </div>
-                  <span className="basis-full text-xs text-muted-foreground sm:basis-auto">
-                    Max {selectedMaxQty} per order
+                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                    {event.ticket_types!.length} {unitLabel(event.ticket_types!.length)}
                   </span>
                 </div>
-              )}
-            </section>
-          )}
 
-          {/* Location with map */}
-          <VenueMap event={event} />
+                <ul className="divide-y divide-border">
+                  {event.ticket_types!.map((tt) => (
+                    <TicketPriceRow key={tt.id} ticket={tt} />
+                  ))}
+                </ul>
 
-          {/* Organizer */}
-          {event.organizer && (
-            <section className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <User className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Organizer
+                <div className="border-t border-border bg-muted/30 px-5 py-3 text-xs text-muted-foreground">
+                  {footerText}
                 </div>
-                <div className="truncate font-semibold text-foreground">{event.organizer.name}</div>
-              </div>
-            </section>
-          )}
+              </section>
+            )
+          })()}
+
+          {/* Organizer — always labelled "Organizer" regardless of business
+              type. If the organizer has resigned or been revoked, label flips
+              to "Former organizer" and the verified mark is suppressed. */}
+          {event.organizer && (() => {
+            const o = event.organizer
+            const displayName = o.business_name?.trim() || o.name
+            const initial = (displayName || "?").charAt(0).toUpperCase()
+            const avatarSrc = o.profile_image_url || o.profile_image || null
+            const roleLabel = o.deactivated ? "Former organizer" : "Organizer"
+
+            return (
+              <section>
+                <SectionHeading icon={User}>Organized by</SectionHeading>
+                <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+                  <span
+                    className={cn(
+                      "inline-flex h-11 w-11 shrink-0 overflow-hidden rounded-full bg-muted font-semibold text-foreground",
+                      o.deactivated && "grayscale",
+                    )}
+                  >
+                    {avatarSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={avatarSrc}
+                        alt={displayName}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center">
+                        {initial}
+                      </span>
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate font-semibold text-foreground">{displayName}</span>
+                      {o.verified && (
+                        <BadgeCheck className="h-4 w-4 shrink-0 text-primary" aria-label="Verified organizer" />
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{roleLabel}</div>
+                  </div>
+                </div>
+              </section>
+            )
+          })()}
         </div>
 
         {/* Sticky ticket sidebar */}
         <aside className="lg:col-span-1">
-          <div className="sticky top-20 rounded-2xl border border-border bg-card p-6 shadow-xs">
-            {/* Price header */}
-            <div className="mb-5">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {hasTicketTypes ? "Starting from" : "Price"}
-              </div>
-              <div className="mt-1 text-3xl font-bold text-foreground">
-                {formatLkr(minTierPrice ?? 0)}
-              </div>
-            </div>
-
-            {/* Live order summary */}
-            {hasTicketTypes && selectedTt && (
-              <div className="mb-5 space-y-3 rounded-lg bg-muted/40 p-4">
-                <div className="flex items-baseline justify-between text-sm">
-                  <span className="min-w-0 truncate pr-2 text-muted-foreground">
-                    {selectedTt.name} × {quantity}
-                  </span>
-                  <span className="shrink-0 font-medium text-foreground">
-                    {formatLkr(Number(selectedTt.price) * quantity)}
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between border-t border-border pt-3">
-                  <span className="text-sm text-muted-foreground">Total</span>
-                  <span className="text-2xl font-bold text-foreground">
-                    {formatLkr(selectedTotal)}
-                  </span>
-                </div>
-              </div>
+          <div className="sticky top-20 space-y-4">
+            {/* Countdown to event */}
+            {dateObj && dateObj.getTime() > Date.now() && (
+              <CountdownCard target={dateObj} />
             )}
 
-            {/* Capacity (only when no tiers) */}
-            {!hasTicketTypes && ticketsAvailable > 0 && (
-              <div className="mb-5 text-sm">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-muted-foreground">Remaining</span>
-                  <span
-                    className={cn(
-                      "font-semibold",
-                      isSoldOut
-                        ? "text-destructive"
-                        : ticketsRemaining <= 10
-                          ? "text-amber-600 dark:text-amber-400"
-                          : "text-emerald-600 dark:text-emerald-400",
-                    )}
+            {/* Price + CTA */}
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
+              <div className="mb-5">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {hasMultipleTiers ? "Starting from" : "Price"}
+                </div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-foreground">
+                    {formatLkr(minTierPrice ?? 0)}
+                  </span>
+                  {hasMultipleTiers && maxTierPrice !== minTierPrice && (
+                    <span className="text-xs text-muted-foreground">
+                      up to {formatLkr(maxTierPrice)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* CTAs */}
+              <div className="space-y-2">
+                {isRegistered ? (
+                  <>
+                    <div className="flex items-start gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>You&rsquo;re registered for this event.</span>
+                    </div>
+                    <Button variant="outline" className="w-full" onClick={handleUnregister} disabled={busy}>
+                      {busy ? "Working…" : "Unregister"}
+                    </Button>
+                  </>
+                ) : hasTicketTypes ? (
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    disabled={isSoldOut}
+                    onClick={handleContinueToCheckout}
                   >
-                    {Math.max(0, ticketsRemaining).toLocaleString()} / {ticketsAvailable.toLocaleString()}
-                  </span>
-                </div>
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      isSoldOut
-                        ? "bg-destructive"
-                        : ticketsRemaining <= 10
-                          ? "bg-amber-500"
-                          : "bg-emerald-500",
-                    )}
-                    style={{
-                      width: `${ticketsAvailable > 0 ? Math.min(100, (ticketsSold / ticketsAvailable) * 100) : 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* CTAs */}
-            <div className="space-y-2">
-              {isRegistered ? (
-                <>
-                  <div className="flex items-start gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>You&rsquo;re registered for this event.</span>
-                  </div>
-                  <Button variant="outline" className="w-full" onClick={handleUnregister} disabled={busy}>
-                    {busy ? "Working…" : "Unregister"}
+                    <Ticket /> {isSoldOut ? "Sold out" : "Buy Tickets"}
                   </Button>
-                </>
-              ) : hasTicketTypes ? (
-                <Button
-                  className="w-full"
-                  size="lg"
-                  disabled={!selectedTt || isSoldOut}
-                  onClick={handleContinueToCheckout}
-                >
-                  <Ticket /> {isSoldOut ? "Sold out" : "Continue to checkout"}
-                </Button>
-              ) : (
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={handleRegister}
-                  disabled={isSoldOut || busy}
-                >
-                  <Ticket /> {busy ? "Processing…" : isSoldOut ? "Sold out" : "Register (Free RSVP)"}
-                </Button>
-              )}
-            </div>
+                ) : (
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={handleRegister}
+                    disabled={isSoldOut || busy}
+                  >
+                    <Ticket /> {busy ? "Processing…" : isSoldOut ? "Sold out" : "Register (Free RSVP)"}
+                  </Button>
+                )}
+              </div>
 
-            <p className="mt-4 text-center text-[11px] text-muted-foreground">
-              Secure checkout · Instant e-ticket
-            </p>
+              {/* Reassurance */}
+              <div className="mt-5 flex items-start gap-2 border-t border-border pt-4 text-[11px] text-muted-foreground">
+                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>Secure checkout · Instant e-ticket · QR-coded entry</span>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
@@ -620,171 +525,113 @@ export default function EventDetailsPage() {
   )
 }
 
-function TicketTypeOption({
-  ticket,
-  selected,
-  onSelect,
+function SectionHeading({
+  icon: Icon,
+  children,
 }: {
-  ticket: TicketType
-  selected: boolean
-  onSelect: () => void
+  icon: React.ComponentType<{ className?: string }>
+  children: React.ReactNode
 }) {
-  const remaining = ticketRemaining(ticket)
-  const status = ticketStatus(ticket)
-  const disabled = status !== "available"
-  const lowStock = status === "available" && remaining <= 10
-  const price = Number(ticket.price)
-
   return (
-    <li>
-      <label
-        className={cn(
-          "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors",
-          disabled && "cursor-not-allowed opacity-60",
-          !disabled && selected
-            ? "border-primary bg-primary/5"
-            : "border-border bg-card hover:border-primary/40",
-        )}
-      >
-        <input
-          type="radio"
-          name="ticket-type-picker"
-          checked={selected}
-          onChange={onSelect}
-          disabled={disabled}
-          className="mt-1 accent-primary"
-        />
-        <div className="flex flex-1 items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-semibold text-foreground">{ticket.name}</div>
-            {ticket.description && (
-              <div className="mt-0.5 text-sm text-muted-foreground">{ticket.description}</div>
-            )}
-            <div className="mt-1 text-xs text-muted-foreground">
-              {status === "soldout" ? (
-                <span className="text-destructive">Sold out</span>
-              ) : status === "not_started" ? (
-                <span>Sales open {new Date(ticket.sale_start!).toLocaleDateString()}</span>
-              ) : status === "ended" ? (
-                <span className="text-destructive">Sales ended</span>
-              ) : lowStock ? (
-                <span className="text-amber-600 dark:text-amber-400">Only {remaining} left</span>
-              ) : (
-                <span>{remaining} available</span>
-              )}
-            </div>
-          </div>
-          <div className="shrink-0 text-right">
-            <div className="text-base font-bold text-primary">{formatLkr(price)}</div>
-          </div>
-        </div>
-      </label>
-    </li>
+    <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <Icon className="h-4 w-4" />
+      </span>
+      {children}
+    </h2>
   )
 }
 
-function AddToCalendarButton({ event }: { event: Event }) {
-  const [open, setOpen] = React.useState(false)
-  const ref = React.useRef<HTMLDivElement>(null)
-  const calEvent = React.useMemo(() => buildCalendarEvent(event), [event])
+function CountdownCard({ target }: { target: Date }) {
+  const [now, setNow] = React.useState(() => Date.now())
 
   React.useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [open])
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
-  if (!calEvent) return null
+  const diff = Math.max(0, target.getTime() - now)
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
+  const minutes = Math.floor((diff / (1000 * 60)) % 60)
+  const seconds = Math.floor((diff / 1000) % 60)
 
   return (
-    <div ref={ref} className="relative">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open ? "true" : "false"}
-      >
-        <CalendarPlus />
-        Add to calendar
-        <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-      </Button>
-
-      {open && (
-        <div
-          role="menu"
-          className="absolute left-0 top-full z-40 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
-        >
-          <a
-            href={googleCalendarUrl(calEvent)}
-            target="_blank"
-            rel="noreferrer"
-            role="menuitem"
-            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted"
-            onClick={() => setOpen(false)}
-          >
-            <Globe className="h-4 w-4 text-muted-foreground" />
-            Google Calendar
-          </a>
-          <button
-            type="button"
-            role="menuitem"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
-            onClick={() => {
-              downloadIcs(calEvent)
-              setOpen(false)
-            }}
-          >
-            <Apple className="h-4 w-4 text-muted-foreground" />
-            Apple / Outlook (.ics)
-          </button>
-        </div>
-      )}
+    <div className="overflow-hidden rounded-2xl border border-border bg-card p-5">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Event starts in
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        <CountdownUnit value={days} label="Days" />
+        <CountdownUnit value={hours} label="Hrs" />
+        <CountdownUnit value={minutes} label="Min" />
+        <CountdownUnit value={seconds} label="Sec" />
+      </div>
     </div>
   )
 }
 
-function VenueMap({ event }: { event: Event }) {
-  const venue = event.venue_name
-  const address = event.venue_address || event.location
-  const query = [venue, address].filter(Boolean).join(", ")
-  if (!query) return null
+function CountdownUnit({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex flex-col items-center rounded-xl bg-background py-2.5">
+      <span className="text-2xl font-bold tabular-nums text-foreground">
+        {String(value).padStart(2, "0")}
+      </span>
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function TicketPriceRow({ ticket }: { ticket: TicketType }) {
+  const remaining = ticketRemaining(ticket)
+  const status = ticketStatus(ticket)
+  const lowStock = status === "available" && remaining <= 10
+  const price = Number(ticket.price)
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="p-5">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <MapPin className="h-5 w-5 text-primary" />
-          Location
-        </h2>
-        <div className="mt-2">
-          {venue && <div className="font-semibold text-foreground">{venue}</div>}
-          {address && address !== venue && (
-            <div className="text-sm text-muted-foreground">{address}</div>
+    <li className="px-5 py-4">
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-foreground">{ticket.name}</span>
+            {status === "soldout" && (
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                Sold out
+              </span>
+            )}
+            {status === "ended" && (
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                Sales ended
+              </span>
+            )}
+            {status === "not_started" && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                Opens {new Date(ticket.sale_start!).toLocaleDateString()}
+              </span>
+            )}
+            {lowStock && (
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                Only {remaining} left
+              </span>
+            )}
+          </div>
+          {ticket.description && (
+            <p className="mt-1 text-sm text-muted-foreground">{ticket.description}</p>
           )}
         </div>
-        <div className="mt-3">
-          <Button asChild variant="outline" size="sm">
-            <a href={mapsSearchUrl(query)} target="_blank" rel="noreferrer">
-              <Navigation />
-              Get directions
-            </a>
-          </Button>
+
+        <div className="shrink-0 text-right">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">LKR</div>
+          <div className="text-xl font-bold leading-tight text-foreground">
+            {price === 0
+              ? "Free"
+              : price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
         </div>
       </div>
-      <div className="aspect-16/9 w-full border-t border-border bg-muted">
-        <iframe
-          title={`Map of ${venue ?? "venue"}`}
-          src={mapsEmbedUrl(query)}
-          className="h-full w-full border-0"
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
-      </div>
-    </section>
+    </li>
   )
 }
 
@@ -792,14 +639,16 @@ function DetailSkeleton() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="mb-6 h-4 w-32 animate-pulse rounded bg-muted" />
-      <div className="mb-8 aspect-21/9 w-full animate-pulse rounded-2xl bg-muted" />
+      <div className="mb-10 h-[420px] w-full animate-pulse rounded-3xl bg-muted" />
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <div className="h-10 w-3/4 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
           <div className="h-40 animate-pulse rounded-xl bg-muted" />
+          <div className="h-60 animate-pulse rounded-2xl bg-muted" />
         </div>
-        <div className="h-72 animate-pulse rounded-2xl bg-muted lg:col-span-1" />
+        <div className="space-y-4 lg:col-span-1">
+          <div className="h-32 animate-pulse rounded-2xl bg-muted" />
+          <div className="h-72 animate-pulse rounded-2xl bg-muted" />
+        </div>
       </div>
     </div>
   )

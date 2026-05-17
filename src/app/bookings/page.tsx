@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, Clock, MapPin, X, AlertCircle, CheckCircle, XCircle, Film, Loader } from 'lucide-react';
+import { Ticket, Calendar, MapPin, AlertCircle, CheckCircle, XCircle, Film, Loader } from 'lucide-react';
 
 interface Booking {
   _id: string;
@@ -149,31 +149,33 @@ export default function MyBookingsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  // Theme-aware status classes. Same colour family (emerald/amber/blue/etc.)
+  // but uses Tailwind utilities with dark: variants so the chips adapt to mode.
+  const getStatusMeta = (status: string) => {
     switch (status) {
       case 'Confirmed':
-        return { bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)', text: '#10B981', icon: CheckCircle };
+        return { className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', icon: CheckCircle };
       case 'Cancelled':
-        return { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#EF4444', icon: XCircle };
+        return { className: 'border-destructive/30 bg-destructive/10 text-destructive', icon: XCircle };
       case 'Completed':
-        return { bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)', text: '#3B82F6', icon: CheckCircle };
+        return { className: 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400', icon: CheckCircle };
       default:
-        return { bg: 'rgba(156, 163, 175, 0.1)', border: 'rgba(156, 163, 175, 0.3)', text: '#9CA3AF', icon: AlertCircle };
+        return { className: 'border-border bg-muted text-muted-foreground', icon: AlertCircle };
     }
   };
 
-  const getPaymentStatusColor = (status: string) => {
+  const getPaymentStatusMeta = (status: string) => {
     switch (status) {
       case 'Completed':
-        return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10B981', label: 'Paid' };
+        return { className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: 'Paid' };
       case 'Pending':
-        return { bg: 'rgba(245, 158, 11, 0.1)', text: '#F59E0B', label: 'Pending' };
+        return { className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', label: 'Pending' };
       case 'Failed':
-        return { bg: 'rgba(239, 68, 68, 0.1)', text: '#EF4444', label: 'Failed' };
+        return { className: 'bg-destructive/10 text-destructive', label: 'Failed' };
       case 'Refunded':
-        return { bg: 'rgba(59, 130, 246, 0.1)', text: '#3B82F6', label: 'Refunded' };
+        return { className: 'bg-sky-500/10 text-sky-600 dark:text-sky-400', label: 'Refunded' };
       default:
-        return { bg: 'rgba(156, 163, 175, 0.1)', text: '#9CA3AF', label: status };
+        return { className: 'bg-muted text-muted-foreground', label: status };
     }
   };
 
@@ -193,14 +195,11 @@ export default function MyBookingsPage() {
 
   if (loading) {
     return (
-      <div className="pt-16 min-h-screen pb-24" style={{ backgroundColor: '#07060A' }}>
+      <div className="pt-16 min-h-screen pb-24 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{
-              borderColor: 'rgba(183, 148, 246, 0.3)',
-              borderTopColor: '#B794F6',
-            }} />
-            <p className="font-inter" style={{ color: '#9B95B5' }}>Loading your bookings...</p>
+            <Loader className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+            <p className="font-inter text-muted-foreground">Loading your bookings...</p>
           </div>
         </div>
       </div>
@@ -208,7 +207,7 @@ export default function MyBookingsPage() {
   }
 
   return (
-    <div className="pt-16 min-h-screen pb-24" style={{ backgroundColor: '#07060A' }}>
+    <div className="pt-16 min-h-screen pb-24 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <motion.div
@@ -216,16 +215,10 @@ export default function MyBookingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-12"
         >
-          <h1 className="text-5xl md:text-6xl font-outfit font-bold mb-4" style={{
-            background: 'linear-gradient(110deg, #B794F6, #C4B5FD)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            letterSpacing: '-0.04em',
-          }}>
+          <h1 className="text-5xl md:text-6xl font-outfit font-bold mb-4 tracking-tight text-foreground">
             My Bookings
           </h1>
-          <p className="text-lg font-inter" style={{ color: '#9B95B5' }}>
+          <p className="text-lg font-inter text-muted-foreground">
             Manage your movie tickets and event bookings
           </p>
         </motion.div>
@@ -235,12 +228,7 @@ export default function MyBookingsPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8 p-4 rounded-lg border font-inter flex items-center gap-3"
-            style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              borderColor: 'rgba(239, 68, 68, 0.3)',
-              color: '#EF4444',
-            }}
+            className="mb-8 p-4 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive font-inter flex items-center gap-3"
           >
             <AlertCircle size={20} />
             <span>{error}</span>
@@ -248,17 +236,17 @@ export default function MyBookingsPage() {
         )}
 
         {/* Movies / Events selector */}
-        <div className="mb-6 flex gap-2 p-1 rounded-xl w-fit" style={{ background: '#15121D', border: '1px solid rgba(196,181,253,0.1)' }}>
+        <div className="mb-6 flex gap-2 p-1 rounded-xl w-fit bg-card border border-border">
           {(['movies', 'events'] as const).map(k => (
             <button
               key={k}
               type="button"
               onClick={() => setKind(k)}
-              className="px-5 py-2 rounded-lg font-inter font-semibold text-sm inline-flex items-center gap-2 transition-colors"
-              style={{
-                background: kind === k ? '#A78BFA' : 'transparent',
-                color: kind === k ? '#07060A' : '#9B95B5',
-              }}
+              className={`px-5 py-2 rounded-lg font-inter font-semibold text-sm inline-flex items-center gap-2 transition-colors ${
+                kind === k
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               {k === 'movies' ? <Film className="w-4 h-4" /> : <Ticket className="w-4 h-4" />}
               {k === 'movies' ? `Movies (${bookings.length})` : `Events (${eventBookings.length})`}
@@ -277,24 +265,11 @@ export default function MyBookingsPage() {
             <button
               key={filterOption}
               onClick={() => setFilter(filterOption as any)}
-              className="px-6 py-3 rounded-lg font-inter font-semibold transition-all duration-300"
-              style={{
-                background: filter === filterOption ? '#B794F6' : '#15121D',
-                color: filter === filterOption ? '#07060A' : '#9B95B5',
-                border: `1px solid ${filter === filterOption ? '#B794F6' : 'rgba(196, 181, 253, 0.1)'}`,
-              }}
-              onMouseEnter={(e) => {
-                if (filter !== filterOption) {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.3)';
-                  e.currentTarget.style.background = '#1E1A2B';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (filter !== filterOption) {
-                  e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                  e.currentTarget.style.background = '#15121D';
-                }
-              }}
+              className={`px-6 py-3 rounded-lg font-inter font-semibold transition-colors border ${
+                filter === filterOption
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground hover:bg-muted'
+              }`}
             >
               {filterOption === 'all' ? 'All Bookings' : filterOption}
             </button>
@@ -307,28 +282,18 @@ export default function MyBookingsPage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="rounded-xl border p-12 text-center"
-            style={{
-              background: '#15121D',
-              borderColor: 'rgba(196, 181, 253, 0.1)',
-            }}
+            className="rounded-xl border border-border bg-card p-12 text-center"
           >
             <div className="text-6xl mb-4">🎫</div>
-            <p className="text-xl font-outfit mb-2" style={{ color: '#F5F3FA' }}>
+            <p className="text-xl font-outfit mb-2 text-foreground">
               No {filter !== 'all' ? filter.toLowerCase() : ''} bookings
             </p>
-            <p className="font-inter mb-6" style={{ color: '#9B95B5' }}>
+            <p className="font-inter mb-6 text-muted-foreground">
               {filter === 'all' ? 'Book tickets for your favorite movies and events!' : 'No bookings with this status yet'}
             </p>
             <button
               onClick={() => router.push('/movies')}
-              className="px-6 py-3 rounded-lg font-inter font-semibold"
-              style={{
-                background: '#A78BFA',
-                color: '#07060A',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#B794F6')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#A78BFA')}
+              className="px-6 py-3 rounded-lg font-inter font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               Browse Movies
             </button>
@@ -344,11 +309,11 @@ export default function MyBookingsPage() {
               },
             }}
           >
-            {filteredBookings.map((booking, idx) => {
-              const statusColor = getStatusColor(booking.status);
-              const paymentColor = getPaymentStatusColor(booking.paymentStatus);
+            {filteredBookings.map((booking) => {
+              const statusMeta = getStatusMeta(booking.status);
+              const paymentMeta = getPaymentStatusMeta(booking.paymentStatus);
               const isPast = isPastShowtime(booking.showtime.date);
-              const StatusIcon = statusColor.icon;
+              const StatusIcon = statusMeta.icon;
 
               return (
                 <motion.div
@@ -357,33 +322,21 @@ export default function MyBookingsPage() {
                     hidden: { opacity: 0, y: 20 },
                     visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
                   }}
-                  className="rounded-xl border overflow-hidden transition-all duration-300"
-                  style={{
-                    background: '#15121D',
-                    borderColor: 'rgba(196, 181, 253, 0.1)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.3)';
-                    e.currentTarget.style.boxShadow = '0 24px 50px rgba(167, 139, 250, 0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
+                  className="rounded-xl border border-border bg-card overflow-hidden transition-colors hover:border-primary/40"
                 >
                   <div className="p-6 md:p-8">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                       {/* Movie Info */}
                       <div className="md:col-span-2">
-                        <h3 className="text-xl font-outfit font-bold mb-3" style={{ color: '#F5F3FA' }}>
+                        <h3 className="text-xl font-outfit font-bold mb-3 text-foreground">
                           {booking.movie.title}
                         </h3>
                         <div className="space-y-2 font-inter text-sm">
-                          <div className="flex items-center gap-2" style={{ color: '#9B95B5' }}>
+                          <div className="flex items-center gap-2 text-muted-foreground">
                             <MapPin size={16} />
                             <span>{booking.theatre.name}</span>
                           </div>
-                          <div className="flex items-center gap-2" style={{ color: '#9B95B5' }}>
+                          <div className="flex items-center gap-2 text-muted-foreground">
                             <MapPin size={16} />
                             <span className="line-clamp-1">{booking.theatre.location}</span>
                           </div>
@@ -392,26 +345,19 @@ export default function MyBookingsPage() {
 
                       {/* Showtime */}
                       <div>
-                        <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Showtime</p>
-                        <p className="text-lg font-outfit font-bold mb-1" style={{ color: '#B794F6' }}>
+                        <p className="text-xs font-inter uppercase mb-2 text-muted-foreground">Showtime</p>
+                        <p className="text-lg font-outfit font-bold mb-1 text-primary">
                           {formatDate(booking.showtime.date)}
                         </p>
-                        <p className="font-inter" style={{ color: '#9B95B5' }}>
+                        <p className="font-inter text-muted-foreground">
                           {formatTime(booking.showtime.time)}
                         </p>
                       </div>
 
                       {/* Status */}
                       <div>
-                        <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Status</p>
-                        <div
-                          className="px-3 py-2 rounded-lg border flex items-center gap-2 font-inter font-semibold text-sm w-fit"
-                          style={{
-                            background: statusColor.bg,
-                            borderColor: statusColor.border,
-                            color: statusColor.text,
-                          }}
-                        >
+                        <p className="text-xs font-inter uppercase mb-2 text-muted-foreground">Status</p>
+                        <div className={`px-3 py-2 rounded-lg border flex items-center gap-2 font-inter font-semibold text-sm w-fit ${statusMeta.className}`}>
                           <StatusIcon size={16} />
                           {booking.status}
                         </div>
@@ -419,37 +365,31 @@ export default function MyBookingsPage() {
                     </div>
 
                     {/* Divider */}
-                    <div style={{ borderTop: '1px solid rgba(196, 181, 253, 0.1)', margin: '16px 0' }} />
+                    <div className="border-t border-border my-4" />
 
                     {/* Booking Details */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                       {/* Seats */}
                       <div>
-                        <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Seats</p>
-                        <p className="font-outfit text-lg font-bold" style={{ color: '#F5F3FA' }}>
+                        <p className="text-xs font-inter uppercase mb-2 text-muted-foreground">Seats</p>
+                        <p className="font-outfit text-lg font-bold text-foreground">
                           {booking.seats.map(s => s.seatNumber).join(', ')}
                         </p>
                       </div>
 
                       {/* Booking Reference */}
                       <div>
-                        <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Booking Reference</p>
-                        <p className="font-mono text-sm font-bold" style={{ color: '#A78BFA' }}>
+                        <p className="text-xs font-inter uppercase mb-2 text-muted-foreground">Booking Reference</p>
+                        <p className="font-mono text-sm font-bold text-primary">
                           {booking.bookingReference}
                         </p>
                       </div>
 
                       {/* Payment Status */}
                       <div>
-                        <p className="text-xs font-inter uppercase mb-2" style={{ color: '#9B95B5' }}>Payment</p>
-                        <div
-                          className="px-3 py-2 rounded-lg font-inter font-semibold text-sm w-fit"
-                          style={{
-                            background: paymentColor.bg,
-                            color: paymentColor.text,
-                          }}
-                        >
-                          {paymentColor.label}
+                        <p className="text-xs font-inter uppercase mb-2 text-muted-foreground">Payment</p>
+                        <div className={`px-3 py-2 rounded-lg font-inter font-semibold text-sm w-fit ${paymentMeta.className}`}>
+                          {paymentMeta.label}
                         </div>
                       </div>
                     </div>
@@ -457,8 +397,8 @@ export default function MyBookingsPage() {
                     {/* Total & Actions */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-inter uppercase mb-1" style={{ color: '#9B95B5' }}>Total Amount</p>
-                        <p className="text-2xl font-outfit font-bold" style={{ color: '#B794F6' }}>
+                        <p className="text-xs font-inter uppercase mb-1 text-muted-foreground">Total Amount</p>
+                        <p className="text-2xl font-outfit font-bold text-primary">
                           ₹{booking.totalAmount.toLocaleString()}
                         </p>
                       </div>
@@ -467,20 +407,7 @@ export default function MyBookingsPage() {
                       <div className="flex gap-3">
                         <button
                           onClick={() => router.push(`/bookings/${booking._id}`)}
-                          className="px-6 py-2 rounded-lg font-inter font-semibold transition-all duration-300"
-                          style={{
-                            background: '#1E1A2B',
-                            border: '1px solid rgba(196, 181, 253, 0.1)',
-                            color: '#B794F6',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.3)';
-                            e.currentTarget.style.background = '#2A2636';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = 'rgba(196, 181, 253, 0.1)';
-                            e.currentTarget.style.background = '#1E1A2B';
-                          }}
+                          className="px-6 py-2 rounded-lg font-inter font-semibold border border-border bg-muted text-foreground hover:bg-muted/70 hover:border-primary/40 transition-colors"
                         >
                           View Details
                         </button>
@@ -488,18 +415,7 @@ export default function MyBookingsPage() {
                         {!isPast && booking.status === 'Confirmed' && (
                           <button
                             onClick={() => handleCancelBooking(booking._id)}
-                            className="px-6 py-2 rounded-lg font-inter font-semibold transition-all duration-300"
-                            style={{
-                              background: 'rgba(239, 68, 68, 0.1)',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
-                              color: '#EF4444',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                            }}
+                            className="px-6 py-2 rounded-lg font-inter font-semibold border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/15 transition-colors"
                           >
                             Cancel Booking
                           </button>
@@ -516,17 +432,16 @@ export default function MyBookingsPage() {
         {/* Events list */}
         {kind === 'events' && (
           eventLoading ? (
-            <div className="flex justify-center py-16"><Loader className="w-8 h-8 animate-spin text-purple-400" /></div>
+            <div className="flex justify-center py-16"><Loader className="w-8 h-8 animate-spin text-primary" /></div>
           ) : eventBookings.length === 0 ? (
-            <div className="rounded-xl border p-12 text-center" style={{ background: '#15121D', borderColor: 'rgba(196, 181, 253, 0.1)' }}>
+            <div className="rounded-xl border border-border bg-card p-12 text-center">
               <div className="text-6xl mb-4">🎟️</div>
-              <p className="text-xl font-outfit mb-2" style={{ color: '#F5F3FA' }}>No event bookings yet</p>
-              <p className="font-inter mb-6" style={{ color: '#9B95B5' }}>Discover events happening near you.</p>
+              <p className="text-xl font-outfit mb-2 text-foreground">No event bookings yet</p>
+              <p className="font-inter mb-6 text-muted-foreground">Discover events happening near you.</p>
               <button
                 type="button"
                 onClick={() => router.push('/events')}
-                className="px-6 py-3 rounded-lg font-inter font-semibold"
-                style={{ background: '#A78BFA', color: '#07060A' }}
+                className="px-6 py-3 rounded-lg font-inter font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 Browse Events
               </button>
@@ -535,13 +450,14 @@ export default function MyBookingsPage() {
             <div className="space-y-4">
               {eventBookings.map(eb => {
                 const total = Number(eb.total_amount) || 0;
+                // Mirrors getStatusMeta but with event-specific labels.
                 const statusMeta = (() => {
                   switch (eb.status) {
-                    case 'Confirmed': return { bg: 'rgba(16,185,129,0.1)', color: '#10B981', label: eb.checked_in_at ? 'Checked in' : 'Confirmed' };
-                    case 'Pending':   return { bg: 'rgba(245,158,11,0.1)', color: '#F59E0B', label: 'Pending payment' };
-                    case 'Cancelled': return { bg: 'rgba(239,68,68,0.1)',  color: '#EF4444', label: 'Cancelled' };
-                    case 'Refunded':  return { bg: 'rgba(59,130,246,0.1)', color: '#3B82F6', label: 'Refunded' };
-                    default:          return { bg: 'rgba(156,163,175,0.1)', color: '#9CA3AF', label: eb.status };
+                    case 'Confirmed': return { className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: eb.checked_in_at ? 'Checked in' : 'Confirmed' };
+                    case 'Pending':   return { className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', label: 'Pending payment' };
+                    case 'Cancelled': return { className: 'bg-destructive/10 text-destructive', label: 'Cancelled' };
+                    case 'Refunded':  return { className: 'bg-sky-500/10 text-sky-600 dark:text-sky-400', label: 'Refunded' };
+                    default:          return { className: 'bg-muted text-muted-foreground', label: eb.status };
                   }
                 })();
 
@@ -549,15 +465,18 @@ export default function MyBookingsPage() {
                   <Link
                     key={eb.id}
                     href={`/bookings/event/${eb.id}`}
-                    className="block rounded-xl border p-6 transition-colors"
-                    style={{ background: '#15121D', borderColor: 'rgba(196, 181, 253, 0.1)' }}
+                    className="block rounded-xl border border-border bg-card p-4 sm:p-6 transition-colors hover:border-primary/40"
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                    {/* On mobile: event info stacks above a 3-col mini-grid of meta.
+                        On md+: everything is a single 12-col row. The `md:contents`
+                        trick lets the mobile wrapper "vanish" at desktop so its
+                        children become direct grid items of the parent. */}
+                    <div className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center">
                       <div className="md:col-span-5">
-                        <h3 className="text-lg font-outfit font-bold" style={{ color: '#F5F3FA' }}>
+                        <h3 className="text-base sm:text-lg font-outfit font-bold text-foreground line-clamp-2">
                           {eb.event?.title ?? '(deleted event)'}
                         </h3>
-                        <div className="flex items-center gap-3 mt-1 text-xs font-inter" style={{ color: '#9B95B5' }}>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs font-inter text-muted-foreground">
                           {eb.event?.date && (
                             <span className="inline-flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5" />
@@ -565,32 +484,33 @@ export default function MyBookingsPage() {
                             </span>
                           )}
                           {eb.event?.location && (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5" />
+                            <span className="inline-flex items-center gap-1 min-w-0">
+                              <MapPin className="w-3.5 h-3.5 shrink-0" />
                               <span className="line-clamp-1">{eb.event.location}</span>
                             </span>
                           )}
                         </div>
-                        <p className="font-mono text-xs mt-2" style={{ color: '#A78BFA' }}>{eb.booking_reference}</p>
+                        <p className="font-mono text-xs mt-2 text-primary">{eb.booking_reference}</p>
                       </div>
 
-                      <div className="md:col-span-2">
-                        <p className="text-[10px] uppercase font-inter" style={{ color: '#9B95B5' }}>Tickets</p>
-                        <p className="font-outfit text-lg font-bold" style={{ color: '#F5F3FA' }}>{eb.number_of_tickets}</p>
-                      </div>
+                      <div className="grid grid-cols-3 gap-3 md:contents">
+                        <div className="md:col-span-2">
+                          <p className="text-[10px] uppercase font-inter text-muted-foreground">Tickets</p>
+                          <p className="font-outfit text-base sm:text-lg font-bold text-foreground">{eb.number_of_tickets}</p>
+                        </div>
 
-                      <div className="md:col-span-2">
-                        <p className="text-[10px] uppercase font-inter" style={{ color: '#9B95B5' }}>Total</p>
-                        <p className="font-outfit text-lg font-bold" style={{ color: '#B794F6' }}>LKR {total.toLocaleString()}</p>
-                      </div>
+                        <div className="md:col-span-2">
+                          <p className="text-[10px] uppercase font-inter text-muted-foreground">Total</p>
+                          <p className="font-outfit text-base sm:text-lg font-bold text-primary whitespace-nowrap">
+                            LKR {total.toLocaleString()}
+                          </p>
+                        </div>
 
-                      <div className="md:col-span-3">
-                        <span
-                          className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-inter font-semibold"
-                          style={{ background: statusMeta.bg, color: statusMeta.color }}
-                        >
-                          {statusMeta.label}
-                        </span>
+                        <div className="md:col-span-3 flex md:block">
+                          <span className={`inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-inter font-semibold ${statusMeta.className}`}>
+                            {statusMeta.label}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </Link>

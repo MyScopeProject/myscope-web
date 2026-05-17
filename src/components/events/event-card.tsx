@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ImageIcon, MapPin } from "lucide-react"
+import { Clock, ImageIcon, MapPin, Ticket } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -25,33 +25,43 @@ interface EventCardProps {
   className?: string
 }
 
-function formatDateTime(when: string) {
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
+function formatTime(when: string) {
   const d = new Date(when)
-  const date = d.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric" })
-  const raw = d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
-  const time = raw.replace(":", ".")
-  return `${date} · ${time}`
+  return d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+}
+
+function formatPrice(n: number) {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export function EventCard({ event, className }: EventCardProps) {
   const when = event.start_time || event.date
   const venue = event.venue_name || event.location
-  const available = event.tickets_available ?? 0
-  const sold = event.tickets_sold ?? 0
-  const isSoldOut = available > 0 && available - sold <= 0
-  const hasPrice = typeof event.price === "number"
+  const available = Number(event.tickets_available ?? 0)
+  const sold = Number(event.tickets_sold ?? 0)
+  const remaining = Math.max(0, available - sold)
+  const isSoldOut = available > 0 && remaining <= 0
+  // Low-stock cue: ≤10% remaining or ≤25 tickets left.
+  const lowStock =
+    !isSoldOut && available > 0 && (remaining / available <= 0.1 || remaining <= 25)
+  const priceNum = event.price != null ? Number(event.price) : null
+  const hasPrice = priceNum !== null && Number.isFinite(priceNum)
+  const dateObj = when ? new Date(when) : null
 
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md",
+        "group relative flex flex-col overflow-hidden rounded-2xl bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200",
+        "hover:shadow-md hover:ring-primary/25",
         className,
       )}
     >
-      {/* Banner */}
+      {/* Poster image — portrait orientation, the visual hero of the card */}
       <Link
         href={`/events/${event.id}`}
-        className="relative block aspect-16/10 overflow-hidden bg-muted"
+        className="relative block aspect-3/4 overflow-hidden bg-muted"
         aria-label={event.title}
       >
         {event.banner_url ? (
@@ -59,77 +69,113 @@ export function EventCard({ event, className }: EventCardProps) {
           <img
             src={event.banner_url}
             alt={event.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/15 via-primary/5 to-secondary text-muted-foreground">
-            <ImageIcon className="h-10 w-10" />
+          <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+            <ImageIcon className="h-12 w-12" />
           </div>
         )}
 
+        {/* Date stub — clean white tile, instant calendar recognition.
+            Slightly smaller on phones since the whole card is now half-width. */}
+        {dateObj && (
+          <div className="absolute left-2 top-2 flex w-11 flex-col items-center overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-black/5 sm:left-3 sm:top-3 sm:w-14 sm:rounded-xl">
+            <span className="w-full bg-primary py-0.5 text-center text-[9px] font-bold uppercase tracking-wider text-primary-foreground sm:py-1 sm:text-[10px]">
+              {MONTHS[dateObj.getMonth()]}
+            </span>
+            <span className="py-1 text-lg font-bold leading-none text-gray-900 sm:py-1.5 sm:text-2xl">
+              {dateObj.getDate()}
+            </span>
+          </div>
+        )}
+
+        {/* Top-right floating badges */}
         {(event.featured || isSoldOut) && (
-          <div className="absolute right-3 top-3 flex gap-1.5">
+          <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
             {event.featured && <Badge variant="warning">Featured</Badge>}
             {isSoldOut && <Badge variant="destructive">Sold out</Badge>}
           </div>
         )}
+
+        {/* Soft bottom shading — lifts banner against any background */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
       </Link>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <div className="space-y-2">
-          <Link href={`/events/${event.id}`}>
-            <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
-              {event.title}
-            </h3>
-          </Link>
-
+      {/* Info block — tighter on phones since the card is now half-width */}
+      <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">
+        {/* Meta row: category + low-stock cue */}
+        <div className="flex flex-wrap items-center gap-1.5">
           {event.category && (
-            <Badge variant="secondary" className="rounded-full text-[11px] font-medium capitalize">
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary sm:px-2.5 sm:text-[10px]">
               {event.category}
-            </Badge>
+            </span>
+          )}
+          {lowStock && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-400 sm:px-2.5 sm:text-[10px]">
+              <Ticket className="h-2.5 w-2.5" />
+              {remaining} left
+            </span>
           )}
         </div>
 
-        <div className="space-y-1 text-xs text-muted-foreground">
-          {when && <p className="font-medium text-foreground/80">{formatDateTime(when)}</p>}
+        {/* Title */}
+        <Link href={`/events/${event.id}`} className="-mt-1">
+          <h3 className="line-clamp-2 text-sm font-bold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary sm:text-base">
+            {event.title}
+          </h3>
+        </Link>
+
+        {/* Compact meta — hide time on phones (date is on the poster stub anyway) */}
+        <div className="space-y-1 text-[11px] text-muted-foreground sm:text-xs">
+          {when && (
+            <div className="hidden items-center gap-1.5 sm:flex">
+              <Clock className="h-3 w-3 shrink-0" />
+              <span>{formatTime(when)}</span>
+            </div>
+          )}
           {venue && (
             <div className="flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <MapPin className="h-3 w-3 shrink-0" />
               <span className="line-clamp-1">{venue}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-3">
-          <div className="min-w-0">
-            {hasPrice && event.price! > 0 ? (
-              <>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    LKR
-                  </span>
-                  <span className="text-xl font-bold leading-none text-foreground">
-                    {event.price!.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </span>
+        {/* Price + CTA row */}
+        <div className="mt-auto space-y-2 border-t border-border pt-2 sm:space-y-3 sm:pt-3">
+          <div>
+            {hasPrice && priceNum! > 0 ? (
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">LKR</div>
+                <div className="truncate text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
+                  {formatPrice(priceNum!)}
                 </div>
                 {event.has_multiple_tiers && (
-                  <span className="mt-0.5 block text-[10px] text-muted-foreground">Upwards</span>
+                  <div className="text-[10px] font-medium text-muted-foreground sm:text-xs">Upwards</div>
                 )}
-              </>
-            ) : hasPrice && event.price === 0 ? (
-              <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">Free</span>
+              </div>
+            ) : hasPrice && priceNum === 0 ? (
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">Entry</div>
+                <div className="text-base font-bold leading-tight text-emerald-600 dark:text-emerald-400 sm:text-xl">Free</div>
+              </div>
             ) : (
               <span className="text-sm text-muted-foreground">—</span>
             )}
           </div>
 
-          <Button asChild size="sm" className="shrink-0 rounded-full" disabled={isSoldOut}>
-            <Link href={`/events/${event.id}`}>{isSoldOut ? "Sold out" : "Buy Now"}</Link>
+          <Button
+            asChild
+            size="sm"
+            variant={isSoldOut ? "outline" : "default"}
+            className="w-full rounded-lg text-xs sm:text-sm"
+            disabled={isSoldOut}
+          >
+            <Link href={`/events/${event.id}`}>
+              {isSoldOut ? "Sold out" : "Get tickets"}
+            </Link>
           </Button>
         </div>
       </div>

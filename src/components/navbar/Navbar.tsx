@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter, usePathname } from 'next/navigation';
-import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Film, ScanLine, ChevronDown, CalendarDays, Banknote, Briefcase, ClipboardList } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Music2, Drama, Trophy, ChevronDown, CalendarDays, Banknote, Briefcase, ClipboardList } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,26 +14,16 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const SCANNER_ROLES = new Set(['scanner', 'organizer', 'superadmin', 'moderator', 'event-manager']);
-
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
+    { href: '/events?category=Concerts', label: 'Concerts', icon: Music2 },
+    { href: '/events?category=Theatre', label: 'Theatre', icon: Drama },
+    { href: '/events?category=Sports', label: 'Sports', icon: Trophy },
     { href: '/events', label: 'Events', icon: Ticket },
-    { href: '/movies', label: 'Movies', icon: Film },
-    ...(user && SCANNER_ROLES.has(user.role)
-      ? [{ href: '/scanner', label: 'Scanner', icon: ScanLine }]
-      : []),
   ];
-
-  // Determine active link
-  const isActive = (href: string) => {
-    if (href === '/') return pathname === '/';
-    return pathname.startsWith(href);
-  };
 
   const handleLogout = () => {
     logout();
@@ -180,7 +170,9 @@ export default function Navbar() {
                 {userMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 mt-2 w-60 rounded-xl border shadow-2xl overflow-hidden z-50"
+                    // max-w guard keeps the dropdown inside the viewport on <360px
+                    // devices where w-60 (240px) plus right-edge offset would clip.
+                    className="absolute right-0 mt-2 w-60 max-w-[calc(100vw-1rem)] rounded-xl border shadow-2xl overflow-hidden z-50"
                     style={{ background: '#15121D', borderColor: 'rgba(196, 181, 253, 0.15)' }}
                   >
                     <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(196,181,253,0.08)' }}>
@@ -227,34 +219,23 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <>
-                <Link
-                  href="/auth/login"
-                  className="px-5 py-2 transition-colors duration-300 font-inter font-medium text-sm"
-                  style={{ color: '#A78BFA' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#C4B5FD')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#A78BFA')}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/auth/register"
-                  className="px-6 py-2 rounded-full font-inter font-medium text-sm transition-all duration-300"
-                  style={{
-                    background: '#A78BFA',
-                    color: '#07060A',
-                    boxShadow: '0 0 18px rgba(167, 139, 250, 0.45)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#C4B5FD';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#A78BFA';
-                  }}
-                >
-                  Sign Up
-                </Link>
-              </>
+              <Link
+                href="/auth/login"
+                className="px-6 py-2 rounded-full font-inter font-medium text-sm transition-all duration-300"
+                style={{
+                  background: '#A78BFA',
+                  color: '#07060A',
+                  boxShadow: '0 0 18px rgba(167, 139, 250, 0.45)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#C4B5FD';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#A78BFA';
+                }}
+              >
+                Sign In
+              </Link>
             )}
           </div>
 
@@ -391,31 +372,19 @@ export default function Navbar() {
                   </button>
                 </>
               ) : (
-                <>
-                  <Link
-                    href="/auth/login"
-                    className="block font-inter font-medium text-sm transition-colors duration-300"
-                    style={{ color: '#A78BFA' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#C4B5FD')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#A78BFA')}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    href="/auth/register"
-                    className="block w-full text-center px-4 py-2 rounded-full font-inter font-medium text-sm transition-all duration-300"
-                    style={{
-                      background: '#A78BFA',
-                      color: '#07060A',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#C4B5FD')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = '#A78BFA')}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Sign Up
-                  </Link>
-                </>
+                <Link
+                  href="/auth/login"
+                  className="block w-full text-center px-4 py-2 rounded-full font-inter font-medium text-sm transition-all duration-300"
+                  style={{
+                    background: '#A78BFA',
+                    color: '#07060A',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#C4B5FD')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#A78BFA')}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign In
+                </Link>
               )}
             </div>
           </div>
