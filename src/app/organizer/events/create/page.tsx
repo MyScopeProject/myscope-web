@@ -203,7 +203,7 @@ export default function CreateEventPage() {
   const [layoutDetail, setLayoutDetail] = React.useState<LayoutDetail | null>(null)
   const [sectionTicketMap, setSectionTicketMap] = React.useState<SectionTicketMap>({})
   const [error, setError] = React.useState("")
-  const [busy, setBusy] = React.useState<null | "submit">(null)
+  const [busy, setBusy] = React.useState<null | "submit" | "draft">(null)
 
   const steps = stepsForMode(details.seating_mode)
   const lastStep = steps.length - 1
