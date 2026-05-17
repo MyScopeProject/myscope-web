@@ -55,7 +55,16 @@ interface EventDetail {
 const formatLkr = (n: number) =>
   n === 0 ? "Free" : `LKR ${n.toLocaleString()}`
 
+// Suspense wrapper — useSearchParams() bails Next 16 prerender otherwise.
 export default function CheckoutPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-[60vh]" aria-hidden />}>
+      <CheckoutPageInner />
+    </React.Suspense>
+  )
+}
+
+function CheckoutPageInner() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()

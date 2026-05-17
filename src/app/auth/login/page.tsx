@@ -19,7 +19,17 @@ function GoogleIcon() {
   )
 }
 
+// Suspense wrapper — Next 16 fails prerender when useSearchParams() is read
+// outside a Suspense boundary. Move the page body into an inner component.
 export default function LoginPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-[60vh]" aria-hidden />}>
+      <LoginPageInner />
+    </React.Suspense>
+  )
+}
+
+function LoginPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams?.get("redirect") || "/"

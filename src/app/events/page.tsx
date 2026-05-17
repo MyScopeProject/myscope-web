@@ -36,7 +36,16 @@ interface EventRow extends EventCardData {
   description?: string
 }
 
+// Suspense wrapper — useSearchParams() bails Next 16 prerender otherwise.
 export default function EventsPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-[60vh]" aria-hidden />}>
+      <EventsPageInner />
+    </React.Suspense>
+  )
+}
+
+function EventsPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
