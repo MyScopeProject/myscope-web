@@ -162,8 +162,12 @@ export default function EditEventPage() {
     }
   }, [user, id])
 
+  // Editable statuses match the backend's PATCH gate
+  // (organizerEvents.js — `['draft', 'pending', 'approved', 'rejected']`).
+  // Pending: organizer fixes typos before admin review.
+  // Approved: organizer adjusts date/venue/price on a live event.
   const canEdit =
-    event?.approval_status === "draft" || event?.approval_status === "rejected"
+    !!event && ["draft", "pending", "approved", "rejected"].includes(event.approval_status)
 
   const handleSave = async (): Promise<boolean> => {
     if (!event) return false
@@ -820,7 +824,7 @@ function TicketTypesEditor({
 
       {!canEdit && (
         <p className="mt-3 text-xs text-muted-foreground">
-          Ticket types are read-only while the event is not in draft/rejected state.
+          Ticket types are read-only for this event&rsquo;s current status.
         </p>
       )}
     </div>

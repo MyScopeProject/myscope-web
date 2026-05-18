@@ -15,12 +15,15 @@ import {
   Loader,
   Mail,
   MapPin,
+  PauseCircle,
+  PlayCircle,
   RefreshCw,
   Send,
   Tag,
   Ticket,
   Trash2,
   Users as UsersIcon,
+  XCircle,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -167,9 +170,15 @@ export default function OrganizerEventControlPage() {
   const { user, loading: authLoading } = useAuth()
 
   const [event, setEvent] = React.useState<EventDetail | null>(null)
+  // Ticket types are loaded at the parent because the header needs them to
+  // derive sales-paused state, and the Tickets tab consumes them too.
+  const [tickets, setTickets] = React.useState<TicketType[] | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
   const [tab, setTab] = React.useState<Tab>("overview")
+  // Header-action busy flags (one at a time is fine).
+  const [headerBusy, setHeaderBusy] = React.useState<null | "pause" | "resume" | "cancel">(null)
+  const [headerMsg, setHeaderMsg] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
 
   // Auth + role guard.
   React.useEffect(() => {
@@ -187,10 +196,14 @@ export default function OrganizerEventControlPage() {
     if (!eventId) return
     try {
       setLoading(true)
+      // Parallel: event + ticket types. The /:id endpoint returns both today
+      // but we keep ticket types in their own state so refresh-after-edit
+      // doesn't reload the whole event payload.
       const res = await fetch(`${API_URL}/api/organizer/events/${eventId}`, { credentials: "include" })
       const data = await res.json()
       if (data?.success) {
         setEvent(data.data?.event ?? null)
+        setTickets((data.data?.ticket_types ?? []) as TicketType[])
       } else {
         setError(data?.message || "Couldn't load event.")
       }
@@ -200,6 +213,71 @@ export default function OrganizerEventControlPage() {
       setLoading(false)
     }
   }, [eventId])
+
+  const refreshTickets = React.useCallback(async () => {
+    if (!eventId) return
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/ticket-types`, { credentials: "include" })
+      const body = await res.json()
+      if (body?.success) setTickets((body.data?.ticket_types ?? []) as TicketType[])
+    } catch { /* tickets stay stale, header just shows wrong state for a tick */ }
+  }, [eventId])
+
+  // Sales are "paused" only when EVERY ticket type is inactive. If even one
+  // tier is selling, we're live. Empty list = not paused (defensive default).
+  const salesPaused = !!tickets && tickets.length > 0 && tickets.every(t => t.is_active === false)
+
+  const toggleSales = async (resume: boolean) => {
+    if (!eventId) return
+    setHeaderBusy(resume ? "resume" : "pause")
+    setHeaderMsg(null)
+    try {
+      const path = resume ? "resume-sales" : "pause-sales"
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/${path}`, {
+        method: "POST",
+        credentials: "include",
+      })
+      const body = await res.json()
+      setHeaderMsg({
+        text: body?.message || (body?.success ? "Updated." : "Failed."),
+        tone: body?.success ? "ok" : "err",
+      })
+      if (body?.success) await refreshTickets()
+    } catch {
+      setHeaderMsg({ text: "Network error.", tone: "err" })
+    } finally {
+      setHeaderBusy(null)
+    }
+  }
+
+  const cancelEvent = async () => {
+    if (!eventId) return
+    const reason = window.prompt(
+      "Cancel this event?\n\nAll confirmed bookings will be queued for refund and attendees will receive a cancellation email.\n\nOptional reason:",
+      "",
+    )
+    if (reason === null) return
+    setHeaderBusy("cancel")
+    setHeaderMsg(null)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/cancel`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() || undefined }),
+      })
+      const body = await res.json()
+      setHeaderMsg({
+        text: body?.message || (body?.success ? "Cancelled." : "Failed."),
+        tone: body?.success ? "ok" : "err",
+      })
+      if (body?.success) await fetchEvent()
+    } catch {
+      setHeaderMsg({ text: "Network error.", tone: "err" })
+    } finally {
+      setHeaderBusy(null)
+    }
+  }
 
   React.useEffect(() => {
     if (user && ["organizer", "superadmin"].includes(user.role || "")) {
@@ -233,7 +311,8 @@ export default function OrganizerEventControlPage() {
   }
 
   const when = event.start_time || event.date
-  const canEdit = ["draft", "pending", "rejected"].includes(event.approval_status)
+  // Edit gate matches the backend's widened PATCH gate.
+  const canEdit = ["draft", "pending", "approved", "rejected"].includes(event.approval_status)
 
   return (
     <div className="space-y-6">
@@ -271,14 +350,65 @@ export default function OrganizerEventControlPage() {
             )}
           </div>
         </div>
-        {canEdit && (
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/organizer/events/${eventId}/edit`}>
-              <Edit3 /> Edit event
-            </Link>
-          </Button>
-        )}
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {canEdit && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/organizer/events/${eventId}/edit`}>
+                <Edit3 /> Edit event
+              </Link>
+            </Button>
+          )}
+          {/* Live-event controls — pause/resume sales + cancel. Only visible
+              for approved events; everything else is too early or too late
+              for these actions to make sense. */}
+          {event.approval_status === "approved" && (
+            <>
+              {salesPaused ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleSales(true)}
+                  disabled={headerBusy !== null}
+                >
+                  {headerBusy === "resume" ? <Loader className="animate-spin" /> : <PlayCircle />}
+                  Resume sales
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleSales(false)}
+                  disabled={headerBusy !== null}
+                >
+                  {headerBusy === "pause" ? <Loader className="animate-spin" /> : <PauseCircle />}
+                  Pause sales
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={cancelEvent}
+                disabled={headerBusy !== null}
+                className="hover:bg-destructive/10 hover:text-destructive"
+              >
+                {headerBusy === "cancel" ? <Loader className="animate-spin" /> : <XCircle />}
+                Cancel event
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+
+      {headerMsg && (
+        <div className={cn(
+          "rounded-md border px-3 py-2 text-sm",
+          headerMsg.tone === "ok"
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+            : "border-destructive/30 bg-destructive/10 text-destructive",
+        )}>
+          {headerMsg.text}
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1 shadow-xs">
@@ -308,7 +438,7 @@ export default function OrganizerEventControlPage() {
           first mount so we don't load all 7 datasets up front. */}
       <div>
         {tab === "overview"  && <OverviewTab  eventId={eventId!} />}
-        {tab === "tickets"   && <TicketsTab   eventId={eventId!} />}
+        {tab === "tickets"   && <TicketsTab   tickets={tickets} />}
         {tab === "attendees" && <AttendeesTab eventId={eventId!} />}
         {tab === "checkin"   && <CheckinTab   eventId={eventId!} />}
         {tab === "promo"     && <PromoTab     eventId={eventId!} />}
@@ -379,26 +509,7 @@ function OverviewTab({ eventId }: { eventId: string }) {
 // Tickets — shows ticket types + sold/total. Edit lives on the /edit page.
 // ===========================================================================
 
-function TicketsTab({ eventId }: { eventId: string }) {
-  const [tickets, setTickets] = React.useState<TicketType[] | null>(null)
-  const [err, setErr] = React.useState("")
-  React.useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/ticket-types`, { credentials: "include" })
-        const body = await res.json()
-        if (cancelled) return
-        if (body?.success) setTickets((body.data?.ticket_types ?? []) as TicketType[])
-        else setErr(body?.message || "Couldn't load tickets.")
-      } catch {
-        if (!cancelled) setErr("Network error.")
-      }
-    })()
-    return () => { cancelled = true }
-  }, [eventId])
-
-  if (err) return <ErrorBanner message={err} />
+function TicketsTab({ tickets }: { tickets: TicketType[] | null }) {
   if (!tickets) return <CardSkeleton />
   if (tickets.length === 0) {
     return <EmptyHint icon={Ticket} text="No ticket types yet. Add some on the edit page." />
@@ -846,18 +957,85 @@ function WaitlistTab({ eventId }: { eventId: string }) {
 // ===========================================================================
 
 function CommsTab({ eventId }: { eventId: string }) {
-  void eventId
+  const [subject, setSubject] = React.useState("")
+  const [message, setMessage] = React.useState("")
+  const [sending, setSending] = React.useState(false)
+  const [result, setResult] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!subject.trim() || !message.trim()) {
+      setResult({ text: "Subject and message are both required.", tone: "err" })
+      return
+    }
+    if (!window.confirm(`Send this announcement to every confirmed attendee?`)) return
+    setSending(true)
+    setResult(null)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/announce`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: subject.trim(), message: message.trim() }),
+      })
+      const body = await res.json()
+      setResult({
+        text: body?.message || (body?.success ? "Sent." : "Failed."),
+        tone: body?.success ? "ok" : "err",
+      })
+      if (body?.success) {
+        setSubject("")
+        setMessage("")
+      }
+    } catch {
+      setResult({ text: "Network error.", tone: "err" })
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
-    <div className="space-y-3 rounded-xl border border-dashed border-border bg-card/40 p-8 text-center">
-      <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Mail className="h-5 w-5" />
-      </span>
-      <h3 className="text-base font-semibold text-foreground">Bulk announcements — coming next</h3>
-      <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-        We&rsquo;re building send-to-all-attendees so you can ping everyone with parking info, schedule updates, or cancellation notices.
-        For now, you can resend an individual ticket from the Attendees tab.
+    <form onSubmit={send} className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <h3 className="text-sm font-semibold text-foreground">Send announcement to attendees</h3>
+      <p className="text-xs text-muted-foreground">
+        Goes to every confirmed attendee&rsquo;s email — perfect for parking info, schedule
+        updates, weather notes, or any other heads-up. Deduplicated by email.
       </p>
-    </div>
+      <Input
+        type="text"
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
+        placeholder="Subject (e.g. Parking update for tomorrow)"
+        maxLength={200}
+        required
+      />
+      <textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Write your message…"
+        rows={6}
+        maxLength={5000}
+        required
+        className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+      />
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] text-muted-foreground">
+          {message.length}/5000
+        </span>
+        <Button type="submit" size="sm" disabled={sending}>
+          {sending ? <Loader className="animate-spin" /> : <Send />}
+          {sending ? "Sending…" : "Send to all attendees"}
+        </Button>
+      </div>
+      {result && (
+        <p className={cn(
+          "text-xs",
+          result.tone === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
+        )}>
+          {result.text}
+        </p>
+      )}
+    </form>
   )
 }
 
