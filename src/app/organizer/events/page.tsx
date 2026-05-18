@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertCircle,
+  Archive,
   BarChart2,
   Calendar,
   CheckCircle,
@@ -64,13 +65,17 @@ const STATUS_META: Record<
   cancelled: { label: "Cancelled", variant: "outline", icon: XCircle },
 }
 
+// "Drafts" omitted — the draft flow has been removed from the product.
+// STATUS_META.draft is kept around as a fallback for any legacy draft rows
+// that may still exist in the DB (the row filter below hides them from the UI).
 const STATUS_FILTERS: Array<{ value: "all" | ApprovalStatus; label: string }> = [
   { value: "all", label: "All" },
-  { value: "draft", label: "Drafts" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Live" },
   { value: "rejected", label: "Rejected" },
 ]
+
+type ViewMode = "upcoming" | "past"
 
 export default function OrganizerEventsPage() {
   const router = useRouter()
@@ -81,6 +86,12 @@ export default function OrganizerEventsPage() {
   const [error, setError] = React.useState("")
   const [search, setSearch] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState<"all" | ApprovalStatus>("all")
+  // Upcoming vs Past split — drives both the API `when=` query and which
+  // status filter chips actually make sense (drafts can't be "past" etc.).
+  const [viewMode, setViewMode] = React.useState<ViewMode>("upcoming")
+  // Background count of past events so the "Past" tab has a number badge even
+  // before the user clicks it. Fetched on mount alongside the upcoming list.
+  const [pastCount, setPastCount] = React.useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<EventRow | null>(null)
   const [deleting, setDeleting] = React.useState(false)
   const [deleteError, setDeleteError] = React.useState("")
@@ -97,11 +108,11 @@ export default function OrganizerEventsPage() {
     }
   }, [authLoading, user, router])
 
-  const fetchEvents = React.useCallback(async () => {
+  const fetchEvents = React.useCallback(async (when: ViewMode) => {
     try {
       setLoading(true)
       setError("")
-      const res = await fetch(`${API_URL}/api/organizer/events`, { credentials: "include" })
+      const res = await fetch(`${API_URL}/api/organizer/events?when=${when}`, { credentials: "include" })
       const data = await res.json()
       if (data?.success) {
         setEvents(data.data?.events ?? [])
@@ -115,11 +126,28 @@ export default function OrganizerEventsPage() {
     }
   }, [])
 
+  // Refetch whenever the user toggles between Upcoming and Past.
   React.useEffect(() => {
     if (user && ["organizer", "superadmin"].includes(user.role || "")) {
-      fetchEvents()
+      fetchEvents(viewMode)
     }
-  }, [user, fetchEvents])
+  }, [user, fetchEvents, viewMode])
+
+  // Background count for the "Past" badge so it's never blank on first visit.
+  React.useEffect(() => {
+    if (!user || !["organizer", "superadmin"].includes(user.role || "")) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/organizer/events?when=past`, { credentials: "include" })
+        const data = await res.json()
+        if (!cancelled && data?.success) {
+          setPastCount((data.data?.events ?? []).length)
+        }
+      } catch { /* badge is best-effort */ }
+    })()
+    return () => { cancelled = true }
+  }, [user])
 
   const handleSubmit = async (id: string) => {
     if (!confirm("Submit this event for admin review? You won't be able to edit it while pending.")) return
@@ -131,7 +159,7 @@ export default function OrganizerEventsPage() {
       })
       const data = await res.json()
       if (data?.success) {
-        await fetchEvents()
+        await fetchEvents(viewMode)
       } else {
         alert(data?.message || "Failed to submit.")
       }
@@ -152,7 +180,7 @@ export default function OrganizerEventsPage() {
       const data = await res.json()
       if (data?.success) {
         setDeleteTarget(null)
-        await fetchEvents()
+        await fetchEvents(viewMode)
       } else {
         setDeleteError(data?.message || "Couldn't delete this event.")
       }
@@ -163,8 +191,15 @@ export default function OrganizerEventsPage() {
     }
   }
 
+  // Hide legacy draft rows — the draft feature is gone, so showing them in
+  // the list would be confusing (they aren't editable through the new flow).
+  const visibleEvents = React.useMemo(
+    () => events.filter((e) => e.approval_status !== "draft"),
+    [events],
+  )
+
   const filtered = React.useMemo(() => {
-    return events.filter((e) => {
+    return visibleEvents.filter((e) => {
       if (statusFilter !== "all" && e.approval_status !== statusFilter) return false
       if (search.trim()) {
         const q = search.toLowerCase()
@@ -176,14 +211,15 @@ export default function OrganizerEventsPage() {
       }
       return true
     })
-  }, [events, statusFilter, search])
+  }, [visibleEvents, statusFilter, search])
 
-  // Counts per status for the filter tabs
+  // Counts per status for the filter tabs — sourced from the post-draft-filter
+  // list so "All" doesn't include hidden drafts.
   const counts = React.useMemo(() => {
-    const c: Record<string, number> = { all: events.length }
-    for (const e of events) c[e.approval_status] = (c[e.approval_status] ?? 0) + 1
+    const c: Record<string, number> = { all: visibleEvents.length }
+    for (const e of visibleEvents) c[e.approval_status] = (c[e.approval_status] ?? 0) + 1
     return c
-  }, [events])
+  }, [visibleEvents])
 
   if (authLoading || loading) {
     return (
@@ -200,7 +236,9 @@ export default function OrganizerEventsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">My events</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Drafts stay private. Live events show up on MyScope.
+            {viewMode === "past"
+              ? "Events that have already happened. Hidden from public listings but available here for analytics and reuse."
+              : "Submitted events go to admin review. Approved events show up on MyScope."}
           </p>
         </div>
         <Button asChild>
@@ -210,7 +248,58 @@ export default function OrganizerEventsPage() {
         </Button>
       </div>
 
-      {/* Status tabs */}
+      {/* Upcoming / Past toggle — drives the API call. "Past" hides events
+          that have already happened from public listings but keeps them here
+          so organizers can pull analytics, reuse templates, or re-list. */}
+      <div className="inline-flex rounded-lg border border-border bg-card p-1 shadow-xs">
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode("upcoming")
+            setStatusFilter("all")
+          }}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            viewMode === "upcoming"
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          <Calendar className="h-3.5 w-3.5" />
+          Upcoming
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode("past")
+            setStatusFilter("all")
+          }}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            viewMode === "past"
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          <Archive className="h-3.5 w-3.5" />
+          Past events
+          {pastCount !== null && pastCount > 0 && (
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                viewMode === "past" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {pastCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Status tabs — only meaningful for upcoming events. For past events
+          everything is by definition "Live" (otherwise it wouldn't have run),
+          so the filter row would just be noise. */}
+      {viewMode === "upcoming" && (
       <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-card p-1.5 shadow-xs">
         {STATUS_FILTERS.map((f) => {
           const active = statusFilter === f.value
@@ -240,6 +329,7 @@ export default function OrganizerEventsPage() {
           )
         })}
       </div>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -263,7 +353,7 @@ export default function OrganizerEventsPage() {
 
       {/* List */}
       {filtered.length === 0 ? (
-        <EmptyState hasFilters={statusFilter !== "all" || !!search} />
+        <EmptyState hasFilters={statusFilter !== "all" || !!search} viewMode={viewMode} />
       ) : (
         <ul className="space-y-3">
           {filtered.map((event) => (
@@ -434,10 +524,14 @@ function OrganizerEventRow({
           )}
 
           <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-1">
-            {event.approval_status === "approved" && (
+            {/* "Manage" opens the per-event control page (analytics + tickets +
+                attendees + promo + waitlist + comms in one). Shown for any
+                non-draft event since organizers need to monitor pending events
+                too (waitlist sign-ups, promo setup, etc.). */}
+            {event.approval_status !== "draft" && (
               <Button asChild variant="outline" size="sm">
-                <Link href={`/organizer/events/${event.id}/analytics`}>
-                  <BarChart2 /> Analytics
+                <Link href={`/organizer/events/${event.id}`}>
+                  <BarChart2 /> Manage
                 </Link>
               </Button>
             )}
@@ -469,7 +563,24 @@ function OrganizerEventRow({
   )
 }
 
-function EmptyState({ hasFilters }: { hasFilters: boolean }) {
+function EmptyState({ hasFilters, viewMode }: { hasFilters: boolean; viewMode: ViewMode }) {
+  if (viewMode === "past") {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Archive className="h-5 w-5" />
+        </span>
+        <h3 className="text-base font-semibold text-foreground">
+          {hasFilters ? "No past events match your search" : "No past events yet"}
+        </h3>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          {hasFilters
+            ? "Try clearing the search."
+            : "Events you've hosted will land here once their date passes."}
+        </p>
+      </div>
+    )
+  }
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
       <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -481,7 +592,7 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
       <p className="max-w-sm text-sm text-muted-foreground">
         {hasFilters
           ? "Try clearing the search or switching tabs."
-          : "Spin up your first draft and submit it for review when ready."}
+          : "Create your first event and submit it for review."}
       </p>
       <Button asChild className="mt-2">
         <Link href="/organizer/events/create">

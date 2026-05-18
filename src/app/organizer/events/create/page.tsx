@@ -203,7 +203,7 @@ export default function CreateEventPage() {
   const [layoutDetail, setLayoutDetail] = React.useState<LayoutDetail | null>(null)
   const [sectionTicketMap, setSectionTicketMap] = React.useState<SectionTicketMap>({})
   const [error, setError] = React.useState("")
-  const [busy, setBusy] = React.useState<null | "submit" | "draft">(null)
+  const [busy, setBusy] = React.useState<null | "submit">(null)
 
   const steps = stepsForMode(details.seating_mode)
   const lastStep = steps.length - 1
@@ -311,7 +311,9 @@ export default function CreateEventPage() {
     setStep(Math.max(0, step - 1))
   }
 
-  const persist = async (intent: "draft" | "submit") => {
+  // Single-step create: POST /api/organizer/events now lands the event
+  // directly in `pending` (the legacy two-step draft → submit flow is gone).
+  const persist = async () => {
     // Validate every required step regardless of where the user is.
     // Reserved mode adds Step 2 (Seats); skipped for other modes.
     const stepsToCheck: Step[] = isReserved
@@ -326,7 +328,7 @@ export default function CreateEventPage() {
       }
     }
     setError("")
-    setBusy(intent)
+    setBusy("submit")
 
     try {
       const payload = buildPayload(details, tickets, media)
@@ -380,19 +382,6 @@ export default function CreateEventPage() {
         }
       }
 
-      if (intent === "submit") {
-        const submitRes = await fetch(
-          `${API_URL}/api/organizer/events/${eventId}/submit`,
-          { method: "POST", credentials: "include" },
-        )
-        const submitData = await submitRes.json()
-        if (!submitData?.success) {
-          // Saved as draft but submit failed — still send them to the list to retry.
-          setError(submitData?.message || "Saved as draft but submit failed.")
-          router.push("/organizer/events")
-          return
-        }
-      }
       router.push("/organizer/events")
     } catch {
       setError("Network error. Please try again.")
@@ -495,7 +484,7 @@ export default function CreateEventPage() {
         ) : (
           <Button
             type="button"
-            onClick={() => persist("submit")}
+            onClick={persist}
             disabled={busy !== null}
             className="min-w-36"
           >

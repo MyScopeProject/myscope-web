@@ -9,7 +9,6 @@ import {
   Banknote,
   CheckCircle,
   Clock,
-  FileText,
   Loader,
   LogOut,
   Plus,
@@ -59,11 +58,13 @@ interface Balance {
   platform_fee_pct: number
 }
 
+// Drafts tile omitted — the draft flow has been removed from the product.
+// The API still returns a `draft` count for back-compat, but it's not surfaced
+// in the dashboard summary.
 const STATUS_META: Record<
-  keyof DashboardData["event_counts"],
+  Exclude<keyof DashboardData["event_counts"], "draft">,
   { label: string; icon: React.ComponentType<{ className?: string }>; tone: string }
 > = {
-  draft: { label: "Drafts", icon: FileText, tone: "text-muted-foreground" },
   pending: { label: "Pending", icon: Clock, tone: "text-amber-600 dark:text-amber-400" },
   approved: { label: "Live", icon: CheckCircle, tone: "text-emerald-600 dark:text-emerald-400" },
   rejected: { label: "Rejected", icon: XCircle, tone: "text-destructive" },
@@ -199,8 +200,8 @@ export default function OrganizerDashboardPage() {
             Manage all <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
-        <div className="grid grid-cols-2 divide-y divide-border border-t border-border sm:grid-cols-5 sm:divide-x sm:divide-y-0">
-          {(Object.keys(STATUS_META) as Array<keyof DashboardData["event_counts"]>).map((key) => {
+        <div className="grid grid-cols-2 divide-y divide-border border-t border-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          {(Object.keys(STATUS_META) as Array<keyof typeof STATUS_META>).map((key) => {
             const meta = STATUS_META[key]
             const Icon = meta.icon
             const count = data.event_counts[key] ?? 0
