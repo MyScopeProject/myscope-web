@@ -252,6 +252,10 @@ function CheckoutPageInner() {
       setSubmitError("Email is required.")
       return
     }
+    if (!attendee.phone.trim()) {
+      setSubmitError("Phone number is required for SMS updates.")
+      return
+    }
 
     let body: Record<string, unknown>
 
@@ -541,7 +545,7 @@ function CheckoutPageInner() {
             </header>
             <div className="px-5 py-5">
             <p className="mb-4 text-xs text-muted-foreground">
-              Phone is used by the venue if anything changes on the day.
+              Your phone number is used for SMS ticket alerts and venue contact on the day.
             </p>
 
             {/* Email: locked for signed-in users (their account email),
@@ -595,7 +599,7 @@ function CheckoutPageInner() {
                   />
                 </FieldGroup>
               )}
-              <FieldGroup id="att-phone" label="Phone" helper="Optional, helpful for venue updates">
+              <FieldGroup id="att-phone" label="Phone" required helper="Sri Lankan mobile, e.g. 077 123 4567 — used for SMS updates.">
                 <Input
                   id="att-phone"
                   type="tel"
@@ -603,6 +607,7 @@ function CheckoutPageInner() {
                   onChange={(e) => setAttendee({ ...attendee, phone: e.target.value })}
                   autoComplete="tel"
                   placeholder="+94 77 123 4567"
+                  required
                 />
               </FieldGroup>
             </div>

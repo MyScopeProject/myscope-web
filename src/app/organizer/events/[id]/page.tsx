@@ -957,18 +957,25 @@ function WaitlistTab({ eventId }: { eventId: string }) {
 // ===========================================================================
 
 function CommsTab({ eventId }: { eventId: string }) {
-  const [subject, setSubject] = React.useState("")
+  type Channel = "email" | "sms" | "both"
   const [message, setMessage] = React.useState("")
+  const [channel, setChannel] = React.useState<Channel>("email")
   const [sending, setSending] = React.useState(false)
   const [result, setResult] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
 
+  // SMS messages charge per ~160-char segment (Unicode = 70). Show the
+  // organizer their roughly-projected segment count so they're not surprised
+  // by a long body burning through SMS credit.
+  const smsSegments = Math.max(1, Math.ceil((message.length + 30) / 160))
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!subject.trim() || !message.trim()) {
-      setResult({ text: "Subject and message are both required.", tone: "err" })
+    if (!message.trim()) {
+      setResult({ text: "Message is required.", tone: "err" })
       return
     }
-    if (!window.confirm(`Send this announcement to every confirmed attendee?`)) return
+    const channelLabel = channel === "both" ? "email and SMS" : channel === "sms" ? "SMS" : "email"
+    if (!window.confirm(`Send this announcement to every confirmed attendee via ${channelLabel}?`)) return
     setSending(true)
     setResult(null)
     try {
@@ -976,17 +983,14 @@ function CommsTab({ eventId }: { eventId: string }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject: subject.trim(), message: message.trim() }),
+        body: JSON.stringify({ message: message.trim(), channel }),
       })
       const body = await res.json()
       setResult({
         text: body?.message || (body?.success ? "Sent." : "Failed."),
         tone: body?.success ? "ok" : "err",
       })
-      if (body?.success) {
-        setSubject("")
-        setMessage("")
-      }
+      if (body?.success) setMessage("")
     } catch {
       setResult({ text: "Network error.", tone: "err" })
     } finally {
@@ -994,21 +998,50 @@ function CommsTab({ eventId }: { eventId: string }) {
     }
   }
 
+  const channelOptions: Array<{ value: Channel; label: string; hint: string }> = [
+    { value: "email", label: "Email",       hint: "Best for long messages and attachments." },
+    { value: "sms",   label: "SMS",         hint: "Time-sensitive alerts. Charged per segment by text.lk." },
+    { value: "both",  label: "Email + SMS", hint: "Belt-and-braces for last-minute changes." },
+  ]
+  const currentHint = channelOptions.find(c => c.value === channel)?.hint
+
   return (
-    <form onSubmit={send} className="space-y-3 rounded-xl border border-border bg-card p-4">
-      <h3 className="text-sm font-semibold text-foreground">Send announcement to attendees</h3>
-      <p className="text-xs text-muted-foreground">
-        Goes to every confirmed attendee&rsquo;s email — perfect for parking info, schedule
-        updates, weather notes, or any other heads-up. Deduplicated by email.
-      </p>
-      <Input
-        type="text"
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-        placeholder="Subject (e.g. Parking update for tomorrow)"
-        maxLength={200}
-        required
-      />
+    <form onSubmit={send} className="space-y-4 rounded-xl border border-border bg-card p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">Send announcement to attendees</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Goes to every confirmed attendee — parking info, schedule updates, weather notes, or any other heads-up. Deduplicated.
+        </p>
+      </div>
+
+      {/* Channel selector — segmented control */}
+      <div>
+        <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Channel</div>
+        <div className="inline-flex rounded-lg border border-border bg-muted/30 p-1">
+          {channelOptions.map(opt => {
+            const active = channel === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setChannel(opt.value)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+        {currentHint && (
+          <p className="mt-1 text-[11px] text-muted-foreground">{currentHint}</p>
+        )}
+      </div>
+
       <textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
@@ -1021,6 +1054,9 @@ function CommsTab({ eventId }: { eventId: string }) {
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] text-muted-foreground">
           {message.length}/5000
+          {(channel === "sms" || channel === "both") && (
+            <span className="ml-2">· ~{smsSegments} SMS segment{smsSegments === 1 ? "" : "s"}</span>
+          )}
         </span>
         <Button type="submit" size="sm" disabled={sending}>
           {sending ? <Loader className="animate-spin" /> : <Send />}
