@@ -21,6 +21,11 @@ export interface SeatMapSeat {
   seat_label: string | null
   seat_type: SeatType
   status: SeatStatus
+  // Server-set: true if the requesting user is the one holding this seat.
+  // The picker treats these as still-selectable (they can release).
+  held_by_me?: boolean
+  // ISO timestamp of when this user's hold on this seat expires (server-clock).
+  held_until?: string | null
   ticket_type: SeatTicketType | null
 }
 
@@ -57,6 +62,10 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
   const [selectionWarning, setSelectionWarning] = React.useState<string | null>(null)
   const [lastRefreshAt, setLastRefreshAt] = React.useState<number>(Date.now())
+  // Seats with an in-flight hold or release call. Used to (a) disable double
+  // clicks while a request is pending and (b) skip server-state reconciliation
+  // for these IDs so the optimistic update isn't clobbered by a stale fetch.
+  const [inFlightIds, setInFlightIds] = React.useState<Set<string>>(new Set())
 
   // Flat list of all seats — handy for lookups across sections.
   const allSeats = React.useMemo(() => {
@@ -78,9 +87,13 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
   }, [selectedIds, allSeats])
 
   // Fetch (called on mount + every 30s + manual refresh).
+  // credentials: include lets the server detect the logged-in user so it can
+  // mark seats with held_by_me: true (which the picker then pre-selects).
   const fetchSeats = React.useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/events/${eventId}/seats`)
+      const res = await fetch(`${API_URL}/api/events/${eventId}/seats`, {
+        credentials: "include",
+      })
       const data = (await res.json()) as SeatMapResponse
       if (!data.success || !data.data) {
         setError(data.message || "Couldn't load seat map.")
@@ -107,23 +120,50 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
     return () => clearInterval(t)
   }, [fetchSeats])
 
+  // Reconcile selection with server truth on every fetch:
+  // - Any seat with held_by_me:true is added to selectedIds (covers refresh
+  //   recovery — user comes back to the page and sees their existing holds).
+  // - Any seat in selectedIds that the server no longer reports as held by me
+  //   is removed (someone else booked it, or my hold expired via pg_cron).
+  // In-flight seats are skipped so optimistic updates aren't clobbered.
   React.useEffect(() => {
-    if (selectedIds.size === 0) return
-    const bookedNow = new Set(
-      allSeats.filter(s => s.status === "booked" && selectedIds.has(s.id)).map(s => s.id),
-    )
-    if (bookedNow.size === 0) return
+    if (allSeats.length === 0) return
+    const heldByMe = new Set(allSeats.filter(s => s.held_by_me).map(s => s.id))
+
     setSelectedIds(prev => {
-      const next = new Set(prev)
-      bookedNow.forEach(id => next.delete(id))
+      const next = new Set<string>()
+      // Keep prev items that are either still mine OR currently in-flight.
+      for (const id of prev) {
+        if (heldByMe.has(id) || inFlightIds.has(id)) next.add(id)
+      }
+      // Add any held-by-me seats that aren't already selected.
+      for (const id of heldByMe) next.add(id)
+      // No-op if unchanged.
+      if (next.size === prev.size && [...prev].every(id => next.has(id))) return prev
       return next
     })
-    setSelectionWarning(
-      bookedNow.size === 1
-        ? "One of your seats was just booked by someone else — it's been removed from your selection."
-        : `${bookedNow.size} of your seats were just booked by others — they've been removed.`,
+
+    // Surface the case where a previously-selected seat was taken / expired.
+    const dropped = [...selectedIds].filter(
+      id => !heldByMe.has(id) && !inFlightIds.has(id),
     )
-  }, [allSeats, selectedIds])
+    if (dropped.length > 0) {
+      const droppedSeats = allSeats.filter(s => dropped.includes(s.id))
+      const bookedDropped = droppedSeats.filter(s => s.status === "booked")
+      if (bookedDropped.length > 0) {
+        setSelectionWarning(
+          bookedDropped.length === 1
+            ? "One of your seats was just booked by someone else."
+            : `${bookedDropped.length} of your seats were just booked by others.`,
+        )
+      } else {
+        setSelectionWarning(
+          "Your seat hold expired. Please re-select your seats and complete payment within 10 minutes.",
+        )
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allSeats])
 
   // Notify parent whenever the selection changes.
   React.useEffect(() => {
@@ -143,37 +183,141 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
     onSelectionChange(picked, total)
   }, [selectedIds, allSeats, onSelectionChange])
 
-  const toggleSeat = (seat: SeatMapSeat) => {
-    setSelectionWarning(null)
-    if (seat.status !== "available") return
-    if (!seat.ticket_type) return // unpriced seat — refuse silently
+  // Track a seat as in-flight (disables clicks + protects from reconcile races).
+  const markInFlight = React.useCallback((id: string, on: boolean) => {
+    setInFlightIds(prev => {
+      const next = new Set(prev)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }, [])
 
-    // Single-tier guard: once a tier is committed, block clicks on other tiers.
-    if (
-      activeTicketTypeId &&
-      seat.ticket_type.id !== activeTicketTypeId &&
-      !selectedIds.has(seat.id)
-    ) {
+  const toggleSeat = async (seat: SeatMapSeat) => {
+    setSelectionWarning(null)
+    if (inFlightIds.has(seat.id)) return // already busy
+
+    const isCurrentlySelected = selectedIds.has(seat.id)
+
+    // ----- Release path -----
+    if (isCurrentlySelected) {
+      // Optimistically deselect; if the server fails, reconcile will restore.
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        next.delete(seat.id)
+        return next
+      })
+      markInFlight(seat.id, true)
+      try {
+        await fetch(`${API_URL}/api/events/${eventId}/seats/release`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seat_ids: [seat.id] }),
+        })
+      } catch {
+        // Best-effort — refresh will reconcile on next tick.
+      } finally {
+        markInFlight(seat.id, false)
+      }
+      return
+    }
+
+    // ----- Hold path: pre-flight checks -----
+    if (!seat.ticket_type) return // unpriced seat
+    if (seat.status === "booked" || seat.status === "disabled") return
+    // Held by someone else — we'd lose the race anyway.
+    if (seat.status === "held" && !seat.held_by_me) return
+
+    if (activeTicketTypeId && seat.ticket_type.id !== activeTicketTypeId) {
       setSelectionWarning(
         "Only one ticket type per order. Deselect your current seats to pick a different tier.",
       )
       return
     }
+    if (selectedIds.size >= maxPerOrder) {
+      setSelectionWarning(`Maximum ${maxPerOrder} seats per order.`)
+      return
+    }
 
+    // Optimistic add; revert if the server rejects.
     setSelectedIds(prev => {
       const next = new Set(prev)
-      if (next.has(seat.id)) {
-        next.delete(seat.id)
-      } else {
-        if (next.size >= maxPerOrder) {
-          setSelectionWarning(`Maximum ${maxPerOrder} seats per order.`)
-          return prev
-        }
-        next.add(seat.id)
-      }
+      next.add(seat.id)
       return next
     })
+    markInFlight(seat.id, true)
+    try {
+      const res = await fetch(`${API_URL}/api/events/${eventId}/seats/hold`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seat_ids: [seat.id] }),
+      })
+      if (!res.ok) {
+        // Revert optimistic add.
+        setSelectedIds(prev => {
+          const next = new Set(prev)
+          next.delete(seat.id)
+          return next
+        })
+        if (res.status === 409) {
+          setSelectionWarning(
+            `Seat ${seat.seat_label ?? seat.seat_number} was just taken by someone else.`,
+          )
+          // Refresh so the seat shows the right status immediately.
+          fetchSeats()
+        } else if (res.status === 401) {
+          setSelectionWarning("Please sign in to reserve seats.")
+        } else {
+          setSelectionWarning("Couldn't hold that seat. Please try again.")
+        }
+      }
+    } catch {
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        next.delete(seat.id)
+        return next
+      })
+      setSelectionWarning("Network error. Please try again.")
+    } finally {
+      markInFlight(seat.id, false)
+    }
   }
+
+  // Best-effort release on unmount / tab close. Uses sendBeacon so the
+  // browser fires it even during a navigation away.
+  React.useEffect(() => {
+    const release = (ids: string[]) => {
+      if (ids.length === 0) return
+      const url = `${API_URL}/api/events/${eventId}/seats/release`
+      const body = JSON.stringify({ seat_ids: ids })
+      if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+        // sendBeacon doesn't carry cookies in some browsers if the URL is
+        // cross-origin without credentials, but since the API is on the same
+        // parent domain (.myscope.lk) the auth cookie is included.
+        navigator.sendBeacon(url, new Blob([body], { type: "application/json" }))
+      } else {
+        // Fallback to keepalive fetch.
+        fetch(url, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => {})
+      }
+    }
+
+    const onUnload = () => release([...selectedIds])
+    window.addEventListener("beforeunload", onUnload)
+    return () => {
+      window.removeEventListener("beforeunload", onUnload)
+      // Component unmount (e.g. user navigates within the SPA away from
+      // checkout without paying). Release everything we still hold.
+      release([...selectedIds])
+    }
+  }, [eventId, selectedIds])
 
   if (loading) {
     return (
@@ -279,6 +423,7 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
                             seat={seat}
                             isSelected={isSelected}
                             otherTier={!isSelected && otherTier}
+                            inFlight={inFlightIds.has(seat.id)}
                             onClick={() => toggleSeat(seat)}
                           />
                         )
@@ -326,17 +471,23 @@ function SeatButton({
   seat,
   isSelected,
   otherTier,
+  inFlight,
   onClick,
 }: {
   seat: SeatMapSeat
   isSelected: boolean
   otherTier: boolean
+  inFlight: boolean
   onClick: () => void
 }) {
   const isAccessible = seat.seat_type === "accessible"
   const isBooked = seat.status === "booked"
-  const isHeld = seat.status === "held"
-  const isDisabled = seat.status === "disabled" || seat.status === "booked" || seat.status === "held"
+  // A "held" seat is only foreign if the *current user* doesn't hold it —
+  // their own holds render as selected (and remain clickable to release).
+  const isForeignHeld = seat.status === "held" && !isSelected
+  // Disabled: foreign holds, booked, structurally disabled, or pending request.
+  const isDisabled =
+    seat.status === "disabled" || isBooked || isForeignHeld || inFlight
   const lockedTier = !isSelected && otherTier && seat.status === "available"
 
   const title = seat.ticket_type
@@ -358,10 +509,12 @@ function SeatButton({
         "flex h-6 w-6 shrink-0 items-center justify-center rounded font-mono text-[9px] ring-1 transition-colors sm:h-7 sm:w-7 sm:text-[10px]",
         // baseline by status
         isBooked && "cursor-not-allowed bg-destructive/20 text-destructive ring-destructive/40 opacity-60",
-        isHeld && "cursor-not-allowed bg-amber-100 text-amber-700 ring-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400",
+        isForeignHeld && "cursor-not-allowed bg-amber-100 text-amber-700 ring-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400",
         seat.status === "disabled" && "cursor-not-allowed bg-muted text-muted-foreground/40 ring-border opacity-50",
         // selected overrides everything
         isSelected && "bg-primary text-primary-foreground ring-primary hover:bg-primary/90",
+        // mid-flight (request in progress) — soft visual cue
+        inFlight && "animate-pulse",
         // available
         !isSelected && !isDisabled && !isAccessible && "bg-emerald-100 text-emerald-900 ring-emerald-500/40 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300",
         // accessible
