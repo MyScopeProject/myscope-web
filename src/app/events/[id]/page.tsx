@@ -7,11 +7,13 @@ import {
   AlertCircle,
   ArrowLeft,
   BadgeCheck,
+  Bell,
   CalendarPlus,
   CheckCircle2,
   ExternalLink,
   ImageIcon,
   Info,
+  Loader,
   MapPin,
   ShieldCheck,
   Tag,
@@ -19,6 +21,7 @@ import {
   User,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/context/AuthContext"
 import { cn } from "@/lib/utils"
@@ -492,22 +495,27 @@ export default function EventDetailsPage() {
                     </Button>
                   </>
                 ) : hasTicketTypes ? (
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    disabled={isSoldOut}
-                    onClick={handleContinueToCheckout}
-                  >
-                    <Ticket /> {isSoldOut ? "Sold out" : "Buy Tickets"}
-                  </Button>
+                  isSoldOut ? (
+                    <WaitlistJoin eventId={params.id as string} defaultEmail={user?.email ?? ""} defaultName={user?.name ?? ""} />
+                  ) : (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={handleContinueToCheckout}
+                    >
+                      <Ticket /> Buy Tickets
+                    </Button>
+                  )
+                ) : isSoldOut ? (
+                  <WaitlistJoin eventId={params.id as string} defaultEmail={user?.email ?? ""} defaultName={user?.name ?? ""} />
                 ) : (
                   <Button
                     className="w-full"
                     size="lg"
                     onClick={handleRegister}
-                    disabled={isSoldOut || busy}
+                    disabled={busy}
                   >
-                    <Ticket /> {busy ? "Processing…" : isSoldOut ? "Sold out" : "Register (Free RSVP)"}
+                    <Ticket /> {busy ? "Processing…" : "Register (Free RSVP)"}
                   </Button>
                 )}
               </div>
@@ -650,6 +658,122 @@ function DetailSkeleton() {
           <div className="h-72 animate-pulse rounded-2xl bg-muted" />
         </div>
       </div>
+    </div>
+  )
+}
+
+// Sold-out events show a small inline form to capture interested buyers.
+// Works for guests too (email is the only required field). Persists "joined"
+// state in localStorage so a return visitor sees the confirmation instead of
+// the form (server is also the source of truth — POSTing again just upserts).
+function WaitlistJoin({
+  eventId,
+  defaultEmail,
+  defaultName,
+}: {
+  eventId: string
+  defaultEmail: string
+  defaultName: string
+}) {
+  const STORAGE_KEY = `waitlist:${eventId}`
+  const [open, setOpen] = React.useState(false)
+  const [email, setEmail] = React.useState(defaultEmail)
+  const [name, setName] = React.useState(defaultName)
+  const [submitting, setSubmitting] = React.useState(false)
+  const [joined, setJoined] = React.useState<string | null>(null) // joined email
+  const [error, setError] = React.useState("")
+
+  React.useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY)
+      if (saved) setJoined(saved)
+    } catch { /* localStorage unavailable */ }
+  }, [STORAGE_KEY])
+
+  React.useEffect(() => { if (defaultEmail) setEmail(defaultEmail) }, [defaultEmail])
+  React.useEffect(() => { if (defaultName)  setName(defaultName) },  [defaultName])
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    if (!email.trim()) {
+      setError("Email is required.")
+      return
+    }
+    setSubmitting(true)
+    try {
+      const res = await fetch(`${API_URL}/api/events/${eventId}/waitlist`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined }),
+      })
+      const data = await res.json()
+      if (!data?.success) {
+        setError(data?.message || "Couldn't join the waitlist.")
+        return
+      }
+      setJoined(email.trim())
+      try { window.localStorage.setItem(STORAGE_KEY, email.trim()) } catch { /* noop */ }
+    } catch {
+      setError("Network error. Try again.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (joined) {
+    return (
+      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+        <div className="flex items-start gap-2">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-medium">You&rsquo;re on the waitlist.</p>
+            <p className="mt-0.5 text-xs opacity-80">
+              We&rsquo;ll email <span className="font-mono">{joined}</span> if seats open up.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button variant="outline" className="w-full" size="lg" disabled>
+        <Ticket /> Sold out
+      </Button>
+      {!open ? (
+        <Button variant="ghost" className="w-full" onClick={() => setOpen(true)}>
+          <Bell /> Notify me if seats open up
+        </Button>
+      ) : (
+        <form onSubmit={submit} className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+          <div className="text-xs text-muted-foreground">
+            Drop your email and we&rsquo;ll let you know if anyone cancels.
+          </div>
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
+          <Input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name (optional)"
+            autoComplete="name"
+          />
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <Button type="submit" size="sm" className="w-full" disabled={submitting}>
+            {submitting ? <Loader className="animate-spin" /> : <Bell />}
+            {submitting ? "Joining…" : "Join waitlist"}
+          </Button>
+        </form>
+      )}
     </div>
   )
 }

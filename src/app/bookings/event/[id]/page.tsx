@@ -5,11 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   AlertTriangle,
+  Apple,
   Calendar,
+  CalendarPlus,
   CheckCircle,
   ChevronLeft,
   Clock,
   Loader,
+  Mail,
   MapPin,
   RefreshCw,
   Ticket,
@@ -22,6 +25,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 interface Booking {
   id: string;
   booking_reference: string;
+  short_code?: string | null;
   number_of_tickets: number;
   ticket_price: number | string;
   total_amount: number | string;
@@ -36,6 +40,7 @@ interface EventSummary {
   title: string;
   start_time: string | null;
   venue_name: string | null;
+  seating_mode?: string | null;
 }
 
 interface TicketTypeSummary {
@@ -44,13 +49,24 @@ interface TicketTypeSummary {
   price: number;
 }
 
+interface BookingSeat {
+  id: string;
+  seat_label: string | null;
+  section: string | null;
+  row_label: string | null;
+  seat_number: string | null;
+  status: string;
+}
+
 interface BookingResponse {
   booking: Booking;
   event: EventSummary | null;
   ticket_type: TicketTypeSummary | null;
-  // seating_mode is fetched separately from /api/events/:id since the booking
-  // payload doesn't include it. May be undefined until the second fetch lands.
+  // seating_mode is now also surfaced inside event.seating_mode (set by the
+  // backend) — kept here for backwards compatibility with older response shapes.
   seating_mode?: string | null;
+  // Seats linked to this booking (only present for reserved-mode bookings).
+  seats?: BookingSeat[] | null;
 }
 
 interface SeatTicket {
@@ -58,6 +74,8 @@ interface SeatTicket {
   check_in_status: string | null;
   checked_in_at: string | null;
   qr_image_url: string | null;
+  recipient_email?: string | null;
+  recipient_name?: string | null;
   seat: {
     id: string;
     seat_label: string | null;
@@ -92,12 +110,26 @@ export default function EventBookingDetailPage() {
   // payment-confirmed flow. Backend gates the endpoint on NODE_ENV !== production.
   const isDev = process.env.NODE_ENV !== 'production';
 
+  // Guest bookings carry a per-row access token (?t=…) instead of a session.
+  // We read it once on mount and reuse it for every backend call below.
+  const [guestToken, setGuestToken] = useState<string | null>(null);
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('t');
+    if (t) setGuestToken(t);
+  }, []);
+
+  // Suffix appended to checkout API URLs when we're acting as a guest.
+  const tokenQS = guestToken ? `?token=${encodeURIComponent(guestToken)}` : '';
+
+  // Auth gate: signed-in users go straight in. Guests must present a ?t= token —
+  // anyone visiting /bookings/event/:id without one gets pushed to login (the
+  // common case is a previously-signed-in user revisiting the page).
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
+    if (!user && !guestToken) {
       router.push(`/auth/login?redirect=/bookings/event/${bookingId}`);
     }
-  }, [authLoading, user, bookingId, router]);
+  }, [authLoading, user, guestToken, bookingId, router]);
 
   // Tick once a second so the seat-hold countdown stays live. Only run the
   // interval while it's actually meaningful (reserved + Pending) to avoid
@@ -114,11 +146,48 @@ export default function EventBookingDetailPage() {
     if (p) setPaymentResult(p);
   }, []);
 
+  // When the user lands back from PayHere with ?payment=success but the
+  // booking is still Pending, the webhook either hasn't arrived yet or was
+  // missed (e.g. Render free-tier cold start). Poll /reconcile a few times
+  // so we self-heal instead of leaving the user staring at "Pending".
+  const [reconciling, setReconciling] = useState(false);
+  useEffect(() => {
+    if (paymentResult !== 'success') return;
+    if (data?.booking?.status !== 'Pending') return;
+
+    setReconciling(true);
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10; // ~30s of polling at 3s intervals
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(
+          `${API_URL}/api/checkout/${bookingId}/reconcile${tokenQS}`,
+          { method: 'POST', credentials: 'include' },
+        );
+        const body = await res.json();
+        if (body?.success && body.data?.status === 'Confirmed') {
+          clearInterval(interval);
+          setReconciling(false);
+          await fetchBooking();
+          return;
+        }
+      } catch {
+        // network blip — keep polling until we hit MAX_ATTEMPTS
+      }
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(interval);
+        setReconciling(false);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [paymentResult, data?.booking?.status, bookingId, tokenQS]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchBooking = async () => {
     if (!bookingId) return;
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/checkout/${bookingId}`, {
+      const res = await fetch(`${API_URL}/api/checkout/${bookingId}${tokenQS}`, {
         credentials: 'include',
       });
       const body = await res.json();
@@ -156,7 +225,7 @@ export default function EventBookingDetailPage() {
     if (!bookingId) return;
     setSeatTicketsError('');
     try {
-      const res = await fetch(`${API_URL}/api/checkout/${bookingId}/tickets`, {
+      const res = await fetch(`${API_URL}/api/checkout/${bookingId}/tickets${tokenQS}`, {
         credentials: 'include',
       });
       const body = await res.json();
@@ -178,12 +247,78 @@ export default function EventBookingDetailPage() {
     }
   }, [seatingMode, data?.booking?.status, seatTickets, seatTicketsError]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [transferringId, setTransferringId] = useState<string | null>(null);
+  const [refundRequesting, setRefundRequesting] = useState(false);
+  const [refundRequested, setRefundRequested] = useState(false);
+  const handleRefund = async () => {
+    if (!data?.booking) return;
+    const reason = window.prompt(
+      'Request a refund?\n\nOptionally tell us why so we can improve things:',
+      '',
+    );
+    if (reason === null) return; // cancelled
+    setRefundRequesting(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/checkout/${data.booking.id}/refund${tokenQS}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: reason.trim() || undefined }),
+        },
+      );
+      const body = await res.json();
+      if (!body?.success) {
+        setError(body?.message || 'Refund request failed.');
+        return;
+      }
+      setRefundRequested(true);
+    } catch {
+      setError('Network error requesting refund.');
+    } finally {
+      setRefundRequesting(false);
+    }
+  };
+
+  const handleTransferSeatTicket = async (ticket: SeatTicket) => {
+    if (!data?.booking) return;
+    const recipient = window.prompt(
+      `Transfer this ticket to someone else?\n\nEnter their email address — we'll send them the QR.`,
+      '',
+    );
+    if (!recipient || !recipient.trim()) return;
+    setTransferringId(ticket.id);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/checkout/${data.booking.id}/tickets/${ticket.id}/transfer${tokenQS}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipient_email: recipient.trim() }),
+        },
+      );
+      const body = await res.json();
+      if (!body?.success) {
+        setError(body?.message || 'Transfer failed.');
+        return;
+      }
+      // Refresh per-seat tickets so the recipient appears in the row state.
+      await fetchSeatTickets();
+    } catch {
+      setError('Network error transferring ticket.');
+    } finally {
+      setTransferringId(null);
+    }
+  };
+
   const handleDownloadSeatTicket = async (ticket: SeatTicket) => {
     if (!data?.booking) return;
     setDownloadingSeatId(ticket.id);
     try {
       const res = await fetch(
-        `${API_URL}/api/checkout/${data.booking.id}/tickets/${ticket.id}/png`,
+        `${API_URL}/api/checkout/${data.booking.id}/tickets/${ticket.id}/png${tokenQS}`,
         { credentials: 'include' },
       );
       if (!res.ok) {
@@ -209,15 +344,17 @@ export default function EventBookingDetailPage() {
   };
 
   useEffect(() => {
-    if (user) fetchBooking();
-  }, [user, bookingId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Run the fetch once we have *some* way to authenticate: either a signed-in
+    // user, or a guest token from the URL.
+    if (user || guestToken) fetchBooking();
+  }, [user, guestToken, bookingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCancel = async () => {
     if (!data?.booking) return;
     if (!confirm('Cancel this booking? The tickets will be released back to inventory.')) return;
     setCancelling(true);
     try {
-      const res = await fetch(`${API_URL}/api/checkout/${data.booking.id}/cancel`, {
+      const res = await fetch(`${API_URL}/api/checkout/${data.booking.id}/cancel${tokenQS}`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -238,7 +375,7 @@ export default function EventBookingDetailPage() {
     if (!data?.booking) return;
     setDownloadingTicket(true);
     try {
-      const res = await fetch(`${API_URL}/api/checkout/${data.booking.id}/ticket`, {
+      const res = await fetch(`${API_URL}/api/checkout/${data.booking.id}/ticket${tokenQS}`, {
         credentials: 'include',
       });
       if (!res.ok) {
@@ -292,7 +429,11 @@ export default function EventBookingDetailPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: data.booking.id }),
+        body: JSON.stringify({
+          bookingId: data.booking.id,
+          // Backend allows guest payment init when this token matches the row.
+          ...(guestToken ? { guestToken } : {}),
+        }),
       });
       const body = await res.json();
       if (!body?.success) {
@@ -343,18 +484,22 @@ export default function EventBookingDetailPage() {
     );
   }
 
-  const { booking, event, ticket_type } = data;
+  const { booking, event, ticket_type, seats } = data;
   const isPending = booking.status === 'Pending';
   const isCancelled = booking.status === 'Cancelled';
   const isConfirmed = booking.status === 'Confirmed';
+  const isReserved = (event?.seating_mode ?? seatingMode) === 'reserved';
 
   return (
     <div className="min-h-screen px-4 py-12 bg-background">
       <div className="max-w-2xl mx-auto">
         {/* Payment result banners (shown after PayHere redirect-back) */}
         {paymentResult === 'success' && !isConfirmed && (
-          <div className="mb-4 p-3 rounded-xl text-sm font-inter border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-            Payment received — your booking is being confirmed. This page will update shortly.
+          <div className="mb-4 flex items-center gap-2 p-3 rounded-xl text-sm font-inter border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+            {reconciling && <Loader className="w-4 h-4 animate-spin shrink-0" />}
+            <span>
+              Payment received — confirming your booking{reconciling ? '… (this can take a few seconds)' : '. This page will update shortly.'}
+            </span>
           </div>
         )}
         {paymentResult === 'cancelled' && (
@@ -385,8 +530,8 @@ export default function EventBookingDetailPage() {
             <StatusHero
               tone="warning"
               icon={<Clock className="w-6 h-6" />}
-              title="Payment pending"
-              body="Your tickets are reserved. Complete payment to confirm."
+              title="Review your order"
+              body="Check the details below, then complete payment to confirm your booking."
             />
           )}
           {isCancelled && (
@@ -398,9 +543,25 @@ export default function EventBookingDetailPage() {
             />
           )}
 
-          <div className="mt-4 text-xs text-muted-foreground font-mono">
-            Reference: {booking.booking_reference}
-          </div>
+          {booking.short_code ? (
+            <div className="mt-4 space-y-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] font-inter font-semibold text-muted-foreground uppercase tracking-wider">
+                  Booking code
+                </span>
+                <span className="font-mono font-bold text-foreground tracking-[0.2em] text-lg">
+                  {booking.short_code}
+                </span>
+              </div>
+              <div className="text-[11px] text-muted-foreground font-mono">
+                Support reference: {booking.booking_reference}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 text-xs text-muted-foreground font-mono">
+              Reference: {booking.booking_reference}
+            </div>
+          )}
         </div>
 
         {/* Order summary */}
@@ -425,13 +586,44 @@ export default function EventBookingDetailPage() {
             </div>
           )}
 
+          {/* Per-seat line items — only present for reserved-mode bookings.
+              Surfaces "which seats did I just get?" before payment, which the
+              previous summary (quantity + unit price only) didn't answer. */}
+          {isReserved && seats && seats.length > 0 && (
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-sm font-inter font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Your seats ({seats.length})
+              </h3>
+              <ul className="space-y-1.5">
+                {seats.map(s => (
+                  <li key={s.id} className="flex items-baseline justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <span className="font-mono font-semibold text-foreground">
+                        Seat {s.seat_label ?? `${s.row_label}-${s.seat_number}`}
+                      </span>
+                      {s.section && (
+                        <span className="ml-2 text-xs text-muted-foreground">{s.section}</span>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-muted-foreground">
+                      LKR {Number(booking.ticket_price).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="pt-4 border-t border-border space-y-2">
             <Row label="Ticket type" value={ticket_type?.name ?? '—'} />
-            <Row label="Quantity" value={String(booking.number_of_tickets)} />
+            <Row
+              label={isReserved ? 'Seats' : 'Quantity'}
+              value={String(booking.number_of_tickets)}
+            />
             <Row label="Unit price" value={`LKR ${Number(booking.ticket_price).toLocaleString()}`} />
             <div className="flex items-baseline justify-between pt-2 border-t border-border">
               <span className="text-muted-foreground font-plex-sans">Total</span>
-              <span className="text-xl font-outfit font-bold text-foreground">
+              <span className="text-2xl font-outfit font-bold text-foreground">
                 LKR {Number(booking.total_amount).toLocaleString()}
               </span>
             </div>
@@ -502,37 +694,44 @@ export default function EventBookingDetailPage() {
         })()}
 
         {isPending && (
-          <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-            {isDev && (
-              <button
-                type="button"
-                onClick={handleDevMarkPaid}
-                disabled={devMarkingPaid}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-inter font-semibold disabled:opacity-50 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-dashed border-sky-500/40 hover:bg-sky-500/15"
-                title="Local-dev only: simulate a PayHere success without going through the gateway"
-              >
-                {devMarkingPaid ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                {devMarkingPaid ? 'Confirming…' : 'Mark paid (dev)'}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={cancelling}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-inter font-semibold disabled:opacity-50 bg-destructive/10 text-destructive hover:bg-destructive/15"
-            >
-              {cancelling ? <Loader className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-              Cancel booking
-            </button>
+          <div className="mt-6 space-y-3">
             <button
               type="button"
               onClick={handlePay}
               disabled={paying}
-              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90"
+              className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-base font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
             >
-              {paying ? <Loader className="w-4 h-4 animate-spin" /> : <Ticket className="w-4 h-4" />}
-              {paying ? 'Redirecting…' : 'Pay now'}
+              {paying ? <Loader className="w-5 h-5 animate-spin" /> : <Ticket className="w-5 h-5" />}
+              {paying
+                ? 'Redirecting to PayHere…'
+                : `Confirm and pay LKR ${Number(booking.total_amount).toLocaleString()}`}
             </button>
+            <p className="text-center text-xs text-muted-foreground">
+              You&rsquo;ll be redirected to PayHere to complete your payment securely.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium disabled:opacity-50 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              >
+                {cancelling ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                Cancel booking
+              </button>
+              {isDev && (
+                <button
+                  type="button"
+                  onClick={handleDevMarkPaid}
+                  disabled={devMarkingPaid}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium disabled:opacity-50 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-dashed border-sky-500/40 hover:bg-sky-500/15"
+                  title="Local-dev only: simulate a PayHere success without going through the gateway"
+                >
+                  {devMarkingPaid ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                  {devMarkingPaid ? 'Confirming…' : 'Mark paid (dev)'}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -562,12 +761,17 @@ export default function EventBookingDetailPage() {
                   return (
                     <li
                       key={t.id}
-                      className="flex items-center justify-between gap-3 p-4 rounded-xl border border-border bg-card"
+                      className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-card sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
                         <div className="font-outfit font-semibold text-foreground">Seat {seatLabel}</div>
                         {sectionLabel && (
                           <div className="text-xs text-muted-foreground mt-0.5">{sectionLabel}</div>
+                        )}
+                        {t.recipient_email && (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Sent to <span className="font-mono">{t.recipient_email}</span>
+                          </div>
                         )}
                         {checkedIn && (
                           <div className="text-xs mt-1 text-emerald-600 dark:text-emerald-400">
@@ -575,25 +779,60 @@ export default function EventBookingDetailPage() {
                           </div>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadSeatTicket(t)}
-                        disabled={downloadingSeatId === t.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
-                      >
-                        {downloadingSeatId === t.id ? (
-                          <Loader className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Ticket className="w-3.5 h-3.5" />
-                        )}
-                        {downloadingSeatId === t.id ? 'Preparing…' : 'Download'}
-                      </button>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleTransferSeatTicket(t)}
+                          disabled={transferringId === t.id || checkedIn}
+                          title={checkedIn ? 'Already used — cannot transfer' : 'Send to a different email'}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-semibold disabled:opacity-50 disabled:cursor-not-allowed border border-border bg-card hover:bg-muted text-foreground"
+                        >
+                          {transferringId === t.id ? (
+                            <Loader className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Mail className="w-3.5 h-3.5" />
+                          )}
+                          {transferringId === t.id ? 'Sending…' : 'Transfer'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadSeatTicket(t)}
+                          disabled={downloadingSeatId === t.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                          {downloadingSeatId === t.id ? (
+                            <Loader className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Ticket className="w-3.5 h-3.5" />
+                          )}
+                          {downloadingSeatId === t.id ? 'Preparing…' : 'Download'}
+                        </button>
+                      </div>
                     </li>
                   );
                 })}
               </ul>
             )}
-            <div className="mt-4 text-center">
+            {event?.start_time && (
+              <div className="mt-4 p-4 rounded-xl border border-border bg-card">
+                <AddToCalendar
+                  title={event.title}
+                  startIso={event.start_time}
+                  location={event.venue_name}
+                  description={`Booking reference: ${booking.booking_reference}`}
+                />
+              </div>
+            )}
+            <div className="mt-4 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRefund}
+                disabled={refundRequesting || refundRequested}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-60"
+              >
+                {refundRequesting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                {refundRequested ? 'Refund requested' : refundRequesting ? 'Requesting…' : 'Request refund'}
+              </button>
               <Link href="/events" className="text-primary underline text-sm">
                 Browse more events →
               </Link>
@@ -602,7 +841,7 @@ export default function EventBookingDetailPage() {
         )}
 
         {isConfirmed && seatingMode !== 'reserved' && (
-          <div className="mt-6 flex flex-col items-center gap-3">
+          <div className="mt-6 flex flex-col items-center gap-4">
             <button
               type="button"
               onClick={handleDownloadTicket}
@@ -611,6 +850,25 @@ export default function EventBookingDetailPage() {
             >
               {downloadingTicket ? <Loader className="w-4 h-4 animate-spin" /> : <Ticket className="w-4 h-4" />}
               {downloadingTicket ? 'Preparing…' : 'Download ticket (QR)'}
+            </button>
+            {event?.start_time && (
+              <div className="w-full p-4 rounded-xl border border-border bg-card">
+                <AddToCalendar
+                  title={event.title}
+                  startIso={event.start_time}
+                  location={event.venue_name}
+                  description={`Booking reference: ${booking.booking_reference}`}
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleRefund}
+              disabled={refundRequesting || refundRequested}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-60"
+            >
+              {refundRequesting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+              {refundRequested ? 'Refund requested' : refundRequesting ? 'Requesting…' : 'Request refund'}
             </button>
             <Link href="/events" className="text-primary underline text-sm">
               Browse more events →
@@ -625,6 +883,103 @@ export default function EventBookingDetailPage() {
             </Link>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// "Add to Calendar" — three deep-links that cover ~all desktop and mobile
+// calendars. Google/Outlook open in a new tab; Apple downloads a .ics file
+// which iOS/macOS Calendar auto-imports. Reduces no-shows on event day.
+function AddToCalendar({
+  title,
+  startIso,
+  endIso,
+  location,
+  description,
+}: {
+  title: string;
+  startIso: string;
+  endIso?: string | null;
+  location?: string | null;
+  description?: string | null;
+}) {
+  const start = new Date(startIso);
+  // Default to a 3-hour window when we don't know the actual end time —
+  // matches typical event length and is easy to edit afterward.
+  const end = endIso ? new Date(endIso) : new Date(start.getTime() + 3 * 60 * 60 * 1000);
+
+  // Google/Outlook want UTC stamps as YYYYMMDDTHHmmssZ.
+  const fmtGoogle = (d: Date) =>
+    d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+  const text = encodeURIComponent(title);
+  const loc = encodeURIComponent(location || '');
+  const det = encodeURIComponent(description || '');
+  const dates = `${fmtGoogle(start)}/${fmtGoogle(end)}`;
+
+  const googleUrl =
+    `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}` +
+    `&dates=${dates}&details=${det}&location=${loc}`;
+
+  const outlookUrl =
+    `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent` +
+    `&subject=${text}&startdt=${encodeURIComponent(start.toISOString())}` +
+    `&enddt=${encodeURIComponent(end.toISOString())}&body=${det}&location=${loc}`;
+
+  // Build an .ics blob for Apple/iCal — works offline, no third-party hop.
+  const handleAppleClick = () => {
+    const dtStamp = fmtGoogle(new Date());
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//MyScope//Event Booking//EN',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:${dtStamp}-${Math.random().toString(36).slice(2, 10)}@myscope.lk`,
+      `DTSTAMP:${dtStamp}`,
+      `DTSTART:${fmtGoogle(start)}`,
+      `DTEND:${fmtGoogle(end)}`,
+      `SUMMARY:${title.replace(/([,;])/g, '\\$1')}`,
+      location ? `LOCATION:${location.replace(/([,;])/g, '\\$1')}` : '',
+      description ? `DESCRIPTION:${description.replace(/([,;\n])/g, m => (m === '\n' ? '\\n' : `\\${m}`))}` : '',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 40)}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const btn =
+    'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-medium border border-border bg-card hover:bg-muted text-foreground';
+
+  return (
+    <div className="w-full">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-inter font-semibold text-muted-foreground uppercase tracking-wide">
+        <CalendarPlus className="w-3.5 h-3.5" />
+        Add to calendar
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <a href={googleUrl} target="_blank" rel="noopener noreferrer" className={btn}>
+          <Calendar className="w-3.5 h-3.5" />
+          Google
+        </a>
+        <button type="button" onClick={handleAppleClick} className={btn}>
+          <Apple className="w-3.5 h-3.5" />
+          Apple
+        </button>
+        <a href={outlookUrl} target="_blank" rel="noopener noreferrer" className={btn}>
+          <Mail className="w-3.5 h-3.5" />
+          Outlook
+        </a>
       </div>
     </div>
   );

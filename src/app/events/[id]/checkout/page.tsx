@@ -90,15 +90,45 @@ function CheckoutPageInner() {
   const [seatTotal, setSeatTotal] = React.useState(0)
   const isReserved = event?.seating_mode === "reserved"
 
-  // Auth guard
+  // Per-attendee gift recipients. Opt-in: buyer toggles "Send each ticket to a
+  // different person" to reveal N name+email inputs. Stored as a sparse array
+  // — empty slots default to the buyer at emission time.
+  const [giftMode, setGiftMode] = React.useState(false)
+  const [recipients, setRecipients] = React.useState<{ name: string; email: string }[]>([])
+  const ticketCount = isReserved ? selectedSeats.length : quantity
+
+  // Promo code state. The discount is server-validated against the current
+  // subtotal — if the user changes quantity or tier after applying, we re-clear
+  // and force them to re-apply so a fixed amount never silently exceeds the new total.
+  const [promoInput, setPromoInput] = React.useState("")
+  const [promoApplied, setPromoApplied] = React.useState<{
+    code: string
+    discount: number
+  } | null>(null)
+  const [promoChecking, setPromoChecking] = React.useState(false)
+  const [promoError, setPromoError] = React.useState("")
+  // Keep the recipients array sized to ticketCount whenever it changes.
+  React.useEffect(() => {
+    setRecipients((prev) => {
+      if (prev.length === ticketCount) return prev
+      const next = [...prev]
+      while (next.length < ticketCount) next.push({ name: "", email: "" })
+      next.length = ticketCount
+      return next
+    })
+  }, [ticketCount])
+
+  // Auth guard — only required for reserved-seating events. Other modes
+  // (none/free/zoned) allow guest checkout: the buyer just supplies an email.
   React.useEffect(() => {
     if (authLoading) return
-    if (!user) {
+    if (!user && event?.seating_mode === "reserved") {
       router.push(`/auth/login?redirect=/events/${eventId}/checkout`)
     }
-  }, [authLoading, user, eventId, router])
+  }, [authLoading, user, eventId, router, event?.seating_mode])
 
-  // Pre-fill attendee from logged-in user (Profile → Dashboard updates these)
+  // Pre-fill attendee from logged-in user (Profile → Dashboard updates these).
+  // Guests start with blank fields — they edit them directly.
   React.useEffect(() => {
     if (user) {
       setAttendee({
@@ -157,13 +187,62 @@ function CheckoutPageInner() {
   const selectedTt = event?.ticket_types?.find((t) => t.id === selectedTtId) ?? null
   const available = selectedTt ? selectedTt.quantity_total - selectedTt.quantity_sold : 0
   const maxQty = selectedTt ? Math.min(selectedTt.per_order_limit, available) : 1
-  const total = selectedTt ? selectedTt.price * quantity : 0
+  const subtotal = isReserved
+    ? seatTotal
+    : selectedTt
+      ? selectedTt.price * quantity
+      : 0
+  const discount = promoApplied?.discount ?? 0
+  const total = Math.max(0, subtotal - discount)
+
+  // Any change to the subtotal invalidates a previously-applied code (the
+  // backend will re-validate at checkout, but we should not show a stale
+  // discount line while the user is editing). Clear when subtotal moves.
+  React.useEffect(() => {
+    if (promoApplied) {
+      setPromoApplied(null)
+      setPromoError("Subtotal changed — please re-apply your promo code.")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal])
 
   // Clamp quantity when switching ticket type
   React.useEffect(() => {
     if (selectedTt && quantity > maxQty) setQuantity(Math.max(1, maxQty))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTtId])
+
+  const applyPromo = async () => {
+    setPromoError("")
+    const code = promoInput.trim()
+    if (!code) {
+      setPromoError("Enter a code first.")
+      return
+    }
+    if (subtotal <= 0) {
+      setPromoError("Pick a ticket first.")
+      return
+    }
+    setPromoChecking(true)
+    try {
+      const res = await fetch(`${API_URL}/api/promo/validate`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, event_id: event?.id, subtotal }),
+      })
+      const data = await res.json()
+      if (!data?.success) {
+        setPromoError(data?.message || "Invalid code.")
+        return
+      }
+      setPromoApplied({ code: data.data.code, discount: Number(data.data.discount) })
+    } catch {
+      setPromoError("Network error checking code.")
+    } finally {
+      setPromoChecking(false)
+    }
+  }
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,6 +254,15 @@ function CheckoutPageInner() {
     }
 
     let body: Record<string, unknown>
+
+    // Only include the recipients array if the buyer actually filled out at
+    // least one email — empty arrays would just be noise to the backend.
+    const giftPayload = giftMode
+      ? recipients
+          .slice(0, ticketCount)
+          .map((r) => ({ name: r.name.trim() || undefined, email: r.email.trim() || undefined }))
+          .filter((r) => r.email || r.name)
+      : []
 
     if (isReserved) {
       if (selectedSeats.length === 0) {
@@ -189,6 +277,8 @@ function CheckoutPageInner() {
           email: attendee.email.trim() || undefined,
           phone: attendee.phone.trim() || undefined,
         },
+        ...(giftPayload.length ? { recipients: giftPayload } : {}),
+        ...(promoApplied ? { promo_code: promoApplied.code } : {}),
       }
     } else {
       if (!selectedTt) {
@@ -208,6 +298,8 @@ function CheckoutPageInner() {
           email: attendee.email.trim() || undefined,
           phone: attendee.phone.trim() || undefined,
         },
+        ...(giftPayload.length ? { recipients: giftPayload } : {}),
+        ...(promoApplied ? { promo_code: promoApplied.code } : {}),
       }
     }
 
@@ -224,7 +316,11 @@ function CheckoutPageInner() {
         setSubmitError(data?.message || "Checkout failed.")
         return
       }
-      router.push(`/bookings/event/${data.data.booking.id}`)
+      // Guest bookings come with an opaque access token instead of a session —
+      // pass it via ?t= so the confirmation page can re-authenticate the buyer.
+      const guestToken = data.data.guest_access_token as string | undefined
+      const dest = `/bookings/event/${data.data.booking.id}${guestToken ? `?t=${encodeURIComponent(guestToken)}` : ""}`
+      router.push(dest)
     } catch {
       setSubmitError("Network error. Please try again.")
     } finally {
@@ -448,18 +544,31 @@ function CheckoutPageInner() {
               Phone is used by the venue if anything changes on the day.
             </p>
 
-            {/* Locked email — tied to the Google account, not editable */}
-            <div className="mb-4 flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
-              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-              <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Tickets will be sent to
-                </div>
-                <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
-                  {attendee.email || "—"}
+            {/* Email: locked for signed-in users (their account email),
+                editable for guests (they need to receive the ticket somewhere). */}
+            {user ? (
+              <div className="mb-4 flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Tickets will be sent to
+                  </div>
+                  <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
+                    {attendee.email || "—"}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                <span>Checking out as a guest. Tickets will be sent to the email below.</span>
+                <Link
+                  href={`/auth/login?redirect=/events/${eventId}/checkout`}
+                  className="font-medium text-primary hover:underline"
+                >
+                  Sign in instead
+                </Link>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FieldGroup id="att-name" label="Name">
@@ -472,6 +581,20 @@ function CheckoutPageInner() {
                   placeholder="Akila Perera"
                 />
               </FieldGroup>
+              {/* Editable email only for guests — signed-in users have it locked above. */}
+              {!user && (
+                <FieldGroup id="att-email" label="Email" required helper="Your ticket will be sent here.">
+                  <Input
+                    id="att-email"
+                    type="email"
+                    value={attendee.email}
+                    onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </FieldGroup>
+              )}
               <FieldGroup id="att-phone" label="Phone" helper="Optional, helpful for venue updates">
                 <Input
                   id="att-phone"
@@ -486,9 +609,74 @@ function CheckoutPageInner() {
             </div>
           </section>
 
+          {/* Gift recipients — opt-in section so single-ticket buyers aren't
+              forced through a "leave blank or fill?" prompt. Only meaningful
+              when ticketCount > 1 (or 1 ticket bought for somebody else). */}
+          {ticketCount > 0 && (
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+              <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">Send tickets to others?</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Buying for friends or family? Add their email so each person gets their own ticket.
+                  </p>
+                </div>
+                <label className="inline-flex shrink-0 items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={giftMode}
+                    onChange={(e) => setGiftMode(e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <span>Different attendees</span>
+                </label>
+              </header>
+              {giftMode && (
+                <div className="space-y-3 px-5 py-5">
+                  {recipients.map((r, i) => (
+                    <div
+                      key={i}
+                      className="grid grid-cols-1 gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:grid-cols-[1.5rem_1fr_1fr]"
+                    >
+                      <div className="hidden h-full items-center justify-center text-xs font-semibold text-muted-foreground sm:flex">
+                        #{i + 1}
+                      </div>
+                      <Input
+                        type="text"
+                        value={r.name}
+                        onChange={(e) => {
+                          const next = [...recipients]
+                          next[i] = { ...next[i], name: e.target.value }
+                          setRecipients(next)
+                        }}
+                        placeholder={`Attendee ${i + 1} name`}
+                        autoComplete="off"
+                      />
+                      <Input
+                        type="email"
+                        value={r.email}
+                        onChange={(e) => {
+                          const next = [...recipients]
+                          next[i] = { ...next[i], email: e.target.value }
+                          setRecipients(next)
+                        }}
+                        placeholder="email@example.com"
+                        autoComplete="off"
+                      />
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-muted-foreground">
+                    Leave an attendee blank to send that ticket to you (the buyer). The buyer
+                    always receives the full booking confirmation.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Mobile: pay button shows here too */}
           <div className="lg:hidden">
-            <Button type="submit" size="lg" className="w-full" disabled={submitting || !selectedTt}>
+            <Button type="submit" size="lg" className="w-full" disabled={submitting || (isReserved ? selectedSeats.length === 0 : !selectedTt)}>
               <Lock />
               {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
             </Button>
@@ -500,12 +688,71 @@ function CheckoutPageInner() {
           <div className="sticky top-20 space-y-4 rounded-xl border border-border bg-card p-6 shadow-xs">
             <h2 className="text-base font-semibold text-foreground">Order summary</h2>
 
-            {selectedTt ? (
+            {selectedTt || isReserved ? (
               <>
-                <SummaryRow
-                  label={`${selectedTt.name} × ${quantity}`}
-                  value={formatLkr(selectedTt.price * quantity)}
-                />
+                {selectedTt && !isReserved && (
+                  <SummaryRow
+                    label={`${selectedTt.name} × ${quantity}`}
+                    value={formatLkr(selectedTt.price * quantity)}
+                  />
+                )}
+                {isReserved && selectedSeats.length > 0 && (
+                  <SummaryRow
+                    label={`${selectedSeats[0].ticket_type_name} × ${selectedSeats.length}`}
+                    value={formatLkr(subtotal)}
+                  />
+                )}
+
+                {/* Promo code input. Only meaningful once we have a subtotal. */}
+                {subtotal > 0 && (
+                  <div className="border-t border-border pt-3">
+                    {promoApplied ? (
+                      <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm">
+                        <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                          Code <span className="font-mono">{promoApplied.code}</span> applied
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => { setPromoApplied(null); setPromoInput(""); setPromoError("") }}
+                          className="text-xs text-emerald-700 underline hover:opacity-80 dark:text-emerald-400"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="flex gap-2">
+                          <Input
+                            type="text"
+                            value={promoInput}
+                            onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                            placeholder="Promo code"
+                            autoComplete="off"
+                            className="font-mono uppercase"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={applyPromo}
+                            disabled={promoChecking || !promoInput.trim()}
+                          >
+                            {promoChecking ? "Checking…" : "Apply"}
+                          </Button>
+                        </div>
+                        {promoError && (
+                          <p className="text-xs text-destructive">{promoError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {discount > 0 && (
+                  <SummaryRow
+                    label="Discount"
+                    value={`− ${formatLkr(discount)}`}
+                  />
+                )}
                 <div className="border-t border-border pt-3">
                   <div className="flex items-baseline justify-between">
                     <span className="text-sm text-muted-foreground">Total</span>
@@ -514,14 +761,16 @@ function CheckoutPageInner() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">Pick a ticket type to see the total.</p>
+              <p className="text-sm text-muted-foreground">
+                {isReserved ? "Pick seats to see the total." : "Pick a ticket type to see the total."}
+              </p>
             )}
 
             <Button
               type="submit"
               size="lg"
               className="hidden w-full lg:inline-flex"
-              disabled={submitting || !selectedTt}
+              disabled={submitting || (isReserved ? selectedSeats.length === 0 : !selectedTt)}
             >
               <Lock />
               {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}

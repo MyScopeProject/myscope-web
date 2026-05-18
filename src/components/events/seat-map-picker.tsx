@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertCircle, Armchair, Loader, RefreshCw } from "lucide-react"
+import { AlertCircle, Armchair, Loader, RefreshCw, ZoomIn, ZoomOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -61,6 +61,21 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
   const [error, setError] = React.useState<string | null>(null)
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
   const [selectionWarning, setSelectionWarning] = React.useState<string | null>(null)
+  // Zoom level for the seat grid — useful on mobile where tap targets are small
+  // for wide venues. Applied as a CSS transform with a per-level scale factor.
+  const [zoom, setZoom] = React.useState(1)
+  const minZoom = 0.75
+  const maxZoom = 1.75
+  // When a user clicks a seat in a different tier than their current selection,
+  // we stash it here so the warning banner can offer a one-click "switch tier"
+  // action (release current holds → hold the new seat) instead of forcing the
+  // user to manually deselect everything.
+  const [tierSwitchPending, setTierSwitchPending] = React.useState<{
+    targetSeat: SeatMapSeat
+    targetTierName: string
+    currentTierName: string
+  } | null>(null)
+  const [tierSwitching, setTierSwitching] = React.useState(false)
   const [lastRefreshAt, setLastRefreshAt] = React.useState<number>(Date.now())
   // Seats with an in-flight hold or release call. Used to (a) disable double
   // clicks while a request is pending and (b) skip server-state reconciliation
@@ -195,6 +210,7 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
 
   const toggleSeat = async (seat: SeatMapSeat) => {
     setSelectionWarning(null)
+    setTierSwitchPending(null)
     if (inFlightIds.has(seat.id)) return // already busy
 
     const isCurrentlySelected = selectedIds.has(seat.id)
@@ -230,9 +246,15 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
     if (seat.status === "held" && !seat.held_by_me) return
 
     if (activeTicketTypeId && seat.ticket_type.id !== activeTicketTypeId) {
-      setSelectionWarning(
-        "Only one ticket type per order. Deselect your current seats to pick a different tier.",
-      )
+      const currentTierName =
+        allSeats.find(s => selectedIds.has(s.id))?.ticket_type?.name || "current tier"
+      // Stash the click so the warning banner can offer a one-click switch
+      // (release all current holds → hold this seat).
+      setTierSwitchPending({
+        targetSeat: seat,
+        targetTierName: seat.ticket_type.name,
+        currentTierName,
+      })
       return
     }
     if (selectedIds.size >= maxPerOrder) {
@@ -282,6 +304,36 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
       setSelectionWarning("Network error. Please try again.")
     } finally {
       markInFlight(seat.id, false)
+    }
+  }
+
+  // One-click "switch tier": release every currently-held seat, then hold the
+  // target seat. Called from the warning banner when the user clicks a seat in
+  // a different tier — much friendlier than the old "deselect everything
+  // yourself" workflow.
+  const switchTier = async () => {
+    if (!tierSwitchPending) return
+    const target = tierSwitchPending.targetSeat
+    setTierSwitching(true)
+    setSelectionWarning(null)
+    try {
+      const toRelease = [...selectedIds]
+      if (toRelease.length > 0) {
+        await fetch(`${API_URL}/api/events/${eventId}/seats/release`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seat_ids: toRelease }),
+        }).catch(() => {})
+      }
+      // Local state mirrors what the server just did.
+      setSelectedIds(new Set())
+      setTierSwitchPending(null)
+      // Re-fire the click on the target seat — now there's no active tier
+      // conflict so it takes the normal hold path.
+      await toggleSeat(target)
+    } finally {
+      setTierSwitching(false)
     }
   }
 
@@ -368,8 +420,71 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
         </div>
       )}
 
-      {/* Sections */}
-      <div className="space-y-6 overflow-x-auto pb-2">
+      {tierSwitchPending && (
+        <div className="flex flex-col gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Your cart has <strong>{tierSwitchPending.currentTierName}</strong> seats.
+              Switch to <strong>{tierSwitchPending.targetTierName}</strong>?
+            </span>
+          </div>
+          <div className="flex shrink-0 gap-2 sm:ml-3">
+            <button
+              type="button"
+              onClick={() => setTierSwitchPending(null)}
+              disabled={tierSwitching}
+              className="rounded-md px-3 py-1.5 text-xs font-medium hover:bg-amber-500/15 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={switchTier}
+              disabled={tierSwitching}
+              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60 dark:bg-amber-500 dark:hover:bg-amber-600"
+            >
+              {tierSwitching ? "Switching…" : `Switch to ${tierSwitchPending.targetTierName}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Zoom controls — handy on mobile for wide venues. transform-origin
+          top-left keeps content anchored so users scroll naturally to find
+          their section. */}
+      <div className="flex items-center justify-end gap-1.5 text-xs">
+        <span className="text-muted-foreground">Zoom</span>
+        <button
+          type="button"
+          onClick={() => setZoom((z) => Math.max(minZoom, Math.round((z - 0.25) * 100) / 100))}
+          disabled={zoom <= minZoom}
+          aria-label="Zoom out"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card hover:bg-muted disabled:opacity-40"
+        >
+          <ZoomOut className="h-3.5 w-3.5" />
+        </button>
+        <span className="min-w-12 text-center font-mono tabular-nums text-muted-foreground">
+          {Math.round(zoom * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={() => setZoom((z) => Math.min(maxZoom, Math.round((z + 0.25) * 100) / 100))}
+          disabled={zoom >= maxZoom}
+          aria-label="Zoom in"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card hover:bg-muted disabled:opacity-40"
+        >
+          <ZoomIn className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Sections — wrapped in a CSS zoom container so the existing seat
+          sizing keeps working unchanged. CSS `zoom` (vs transform: scale)
+          reflows surrounding content correctly so the scroll container
+          knows the scaled width. */}
+      <div className="space-y-6 overflow-x-auto pb-2 [zoom:var(--seat-zoom)]"
+           style={{ '--seat-zoom': zoom } as React.CSSProperties}
+      >
         {sectionNames.map(sectionName => {
           const rows = sections[sectionName]
           // Cheap section price hint — first seat with a ticket type.
@@ -492,7 +607,7 @@ function SeatButton({
 
   const title = seat.ticket_type
     ? `${seat.seat_label || seat.seat_number} · ${seat.ticket_type.name} · LKR ${seat.ticket_type.price.toLocaleString()}${
-        lockedTier ? " (different tier — deselect first)" : ""
+        lockedTier ? " (different tier — click to switch)" : ""
       }`
     : seat.seat_label || seat.seat_number
 
@@ -519,8 +634,9 @@ function SeatButton({
         !isSelected && !isDisabled && !isAccessible && "bg-emerald-100 text-emerald-900 ring-emerald-500/40 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300",
         // accessible
         !isSelected && !isDisabled && isAccessible && "bg-blue-100 text-blue-700 ring-blue-500/40 hover:bg-blue-200 dark:bg-blue-500/20 dark:text-blue-300",
-        // locked-by-tier — visually muted but still hoverable (click surfaces the warning)
-        lockedTier && "cursor-not-allowed opacity-30",
+        // locked-by-tier — visually muted but clickable; click opens the
+        // "Switch to {tier}?" banner so the user can move tiers in one step.
+        lockedTier && "cursor-pointer opacity-40 hover:opacity-70",
       )}
     >
       {isAccessible ? "H" : seat.seat_number}
