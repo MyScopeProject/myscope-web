@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
+  AlertTriangle,
   Calendar,
   CheckCircle,
   ChevronLeft,
   Clock,
   Loader,
   MapPin,
+  RefreshCw,
   Ticket,
   XCircle,
 } from 'lucide-react';
@@ -74,6 +76,9 @@ export default function EventBookingDetailPage() {
   const [paymentResult, setPaymentResult] = useState<string | null>(null);
   const [data, setData] = useState<BookingResponse | null>(null);
   const [seatingMode, setSeatingMode] = useState<string | null>(null);
+  // Live clock for the seat-hold countdown. Ticks once a second only while
+  // a reserved booking is sitting in Pending; otherwise the interval is idle.
+  const [now, setNow] = useState<number>(() => Date.now());
   const [seatTickets, setSeatTickets] = useState<SeatTicket[] | null>(null);
   const [seatTicketsError, setSeatTicketsError] = useState('');
   const [downloadingSeatId, setDownloadingSeatId] = useState<string | null>(null);
@@ -93,6 +98,16 @@ export default function EventBookingDetailPage() {
       router.push(`/auth/login?redirect=/bookings/event/${bookingId}`);
     }
   }, [authLoading, user, bookingId, router]);
+
+  // Tick once a second so the seat-hold countdown stays live. Only run the
+  // interval while it's actually meaningful (reserved + Pending) to avoid
+  // re-rendering the page every second on confirmed/cancelled bookings.
+  useEffect(() => {
+    const status = data?.booking?.status;
+    if (seatingMode !== 'reserved' || status !== 'Pending') return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [seatingMode, data?.booking?.status]);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get('payment');
@@ -435,6 +450,56 @@ export default function EventBookingDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Seat-hold countdown — only meaningful for reserved Pending bookings.
+            Backend's hold_seats RPC locks seats for 10 min from checkout; we
+            mirror that window here so users know they have to act. After 0,
+            pg_cron's release_expired_holds will have already released the seats. */}
+        {isPending && seatingMode === 'reserved' && (() => {
+          const HOLD_MS = 10 * 60 * 1000;
+          const created = new Date(booking.created_at).getTime();
+          const deadline = created + HOLD_MS;
+          const msLeft = Math.max(0, deadline - now);
+          const expired = msLeft === 0;
+          const mm = String(Math.floor(msLeft / 60000)).padStart(2, '0');
+          const ss = String(Math.floor((msLeft % 60000) / 1000)).padStart(2, '0');
+
+          return expired ? (
+            <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">Reservation expired</p>
+                <p className="mt-0.5 text-xs opacity-90">
+                  Your seats were held for 10 minutes and have now been released for other buyers.
+                  Refresh to see the latest status, or cancel this booking and start over.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchBooking}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium hover:bg-destructive/15"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Refresh
+              </button>
+            </div>
+          ) : (
+            <div className="mt-6 flex items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-700 dark:text-amber-400">
+              <Clock className="h-5 w-5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">
+                  Pay within{' '}
+                  <span className="font-mono tabular-nums">
+                    {mm}:{ss}
+                  </span>
+                </p>
+                <p className="mt-0.5 text-xs opacity-90">
+                  Your seats are held just for you. If payment isn&rsquo;t completed in time, they&rsquo;ll be released.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
 
         {isPending && (
           <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
