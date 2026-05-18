@@ -81,6 +81,10 @@ interface Event {
   featured: boolean
   seating_mode?: SeatingMode | null
   ticket_types?: TicketType[]
+  // True when the organizer has hit "Pause sales" — event still exists, but
+  // every ticket tier is inactive. Surface as "Event on hold" in the UI
+  // instead of falling through to the "Free" registration path.
+  sales_paused?: boolean
 }
 
 const formatLkr = (n: number) =>
@@ -264,9 +268,10 @@ export default function EventDetailsPage() {
         )}
 
         {/* Floating badges (top-right) */}
-        {(event.featured || isSoldOut) && (
+        {(event.featured || isSoldOut || event.sales_paused) && (
           <div className="absolute right-4 top-4 z-10 flex flex-wrap gap-1.5">
             {event.featured && <Badge variant="warning">Featured</Badge>}
+            {event.sales_paused && <Badge variant="destructive">On hold</Badge>}
             {isSoldOut && <Badge variant="destructive">Sold out</Badge>}
           </div>
         )}
@@ -464,23 +469,36 @@ export default function EventDetailsPage() {
               <CountdownCard target={dateObj} />
             )}
 
-            {/* Price + CTA */}
+            {/* Price + CTA. Suppressed when sales are paused — minTierPrice
+                would be 0 (active tiers were filtered out server-side), and
+                rendering "Free" against a paused event misleads the buyer. */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
-              <div className="mb-5">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {hasMultipleTiers ? "Starting from" : "Price"}
+              {event.sales_paused ? (
+                <div className="mb-5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Status
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-destructive">
+                    On hold
+                  </div>
                 </div>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-foreground">
-                    {formatLkr(minTierPrice ?? 0)}
-                  </span>
-                  {hasMultipleTiers && maxTierPrice !== minTierPrice && (
-                    <span className="text-xs text-muted-foreground">
-                      up to {formatLkr(maxTierPrice)}
+              ) : (
+                <div className="mb-5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {hasMultipleTiers ? "Starting from" : "Price"}
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-foreground">
+                      {formatLkr(minTierPrice ?? 0)}
                     </span>
-                  )}
+                    {hasMultipleTiers && maxTierPrice !== minTierPrice && (
+                      <span className="text-xs text-muted-foreground">
+                        up to {formatLkr(maxTierPrice)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* CTAs */}
               <div className="space-y-2">
@@ -494,6 +512,27 @@ export default function EventDetailsPage() {
                       {busy ? "Working…" : "Unregister"}
                     </Button>
                   </>
+                ) : event.sales_paused ? (
+                  // Organizer hit "Pause sales" — tickets exist but every
+                  // tier is inactive. Show a clear hold state instead of
+                  // falling through to Buy (which would 409 at checkout) or
+                  // to Register-Free (which would misrepresent the event).
+                  <div className="space-y-2">
+                    {/* disabled:opacity-100 overrides the default 50% so the
+                        red stays vivid — we want this to look like a hard
+                        "stop" signal, not a faded-out CTA. */}
+                    <Button
+                      className="w-full disabled:opacity-100"
+                      size="lg"
+                      variant="destructive"
+                      disabled
+                    >
+                      <Ticket /> Event on hold
+                    </Button>
+                    <p className="text-center text-xs text-destructive">
+                      The organizer has temporarily paused ticket sales. Check back soon.
+                    </p>
+                  </div>
                 ) : hasTicketTypes ? (
                   isSoldOut ? (
                     <WaitlistJoin eventId={params.id as string} defaultEmail={user?.email ?? ""} defaultName={user?.name ?? ""} />

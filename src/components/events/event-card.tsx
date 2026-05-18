@@ -18,6 +18,10 @@ export interface EventCardData {
   tickets_sold?: number | null
   featured?: boolean
   has_multiple_tiers?: boolean
+  // True when the organizer has paused sales (every tier inactive). The list
+  // card renders an "On hold" state instead of falling back to a misleading
+  // "Free" price (server sends 0 because active-tier query returned nothing).
+  sales_paused?: boolean
 }
 
 interface EventCardProps {
@@ -92,9 +96,10 @@ export function EventCard({ event, className }: EventCardProps) {
         )}
 
         {/* Top-right floating badges */}
-        {(event.featured || isSoldOut) && (
+        {(event.featured || isSoldOut || event.sales_paused) && (
           <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
             {event.featured && <Badge variant="warning">Featured</Badge>}
+            {event.sales_paused && <Badge variant="destructive">On hold</Badge>}
             {isSoldOut && <Badge variant="destructive">Sold out</Badge>}
           </div>
         )}
@@ -143,40 +148,57 @@ export function EventCard({ event, className }: EventCardProps) {
           )}
         </div>
 
-        {/* Price + CTA row */}
+        {/* Price + CTA row. Paused state short-circuits everything below —
+            we hide the price (which would otherwise show "Free" because the
+            server filters active-only tiers) and replace the CTA with a
+            non-clickable "On hold" affordance. */}
         <div className="mt-auto space-y-2 border-t border-border pt-2 sm:space-y-3 sm:pt-3">
-          <div>
-            {hasPrice && priceNum! > 0 ? (
+          {event.sales_paused ? (
+            <>
               <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">LKR</div>
-                <div className="truncate text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
-                  {formatPrice(priceNum!)}
-                </div>
-                {event.has_multiple_tiers && (
-                  <div className="text-[10px] font-medium text-muted-foreground sm:text-xs">Upwards</div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">Status</div>
+                <div className="text-base font-bold leading-tight text-destructive sm:text-xl">On hold</div>
+              </div>
+              <Button asChild size="sm" variant="destructive" className="w-full rounded-lg text-xs sm:text-sm">
+                <Link href={`/events/${event.id}`}>View details</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <div>
+                {hasPrice && priceNum! > 0 ? (
+                  <div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">LKR</div>
+                    <div className="truncate text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
+                      {formatPrice(priceNum!)}
+                    </div>
+                    {event.has_multiple_tiers && (
+                      <div className="text-[10px] font-medium text-muted-foreground sm:text-xs">Upwards</div>
+                    )}
+                  </div>
+                ) : hasPrice && priceNum === 0 ? (
+                  <div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">Entry</div>
+                    <div className="text-base font-bold leading-tight text-emerald-600 dark:text-emerald-400 sm:text-xl">Free</div>
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
                 )}
               </div>
-            ) : hasPrice && priceNum === 0 ? (
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">Entry</div>
-                <div className="text-base font-bold leading-tight text-emerald-600 dark:text-emerald-400 sm:text-xl">Free</div>
-              </div>
-            ) : (
-              <span className="text-sm text-muted-foreground">—</span>
-            )}
-          </div>
 
-          <Button
-            asChild
-            size="sm"
-            variant={isSoldOut ? "outline" : "default"}
-            className="w-full rounded-lg text-xs sm:text-sm"
-            disabled={isSoldOut}
-          >
-            <Link href={`/events/${event.id}`}>
-              {isSoldOut ? "Sold out" : "Get tickets"}
-            </Link>
-          </Button>
+              <Button
+                asChild
+                size="sm"
+                variant={isSoldOut ? "outline" : "default"}
+                className="w-full rounded-lg text-xs sm:text-sm"
+                disabled={isSoldOut}
+              >
+                <Link href={`/events/${event.id}`}>
+                  {isSoldOut ? "Sold out" : "Get tickets"}
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </article>
