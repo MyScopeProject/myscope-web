@@ -159,7 +159,10 @@ export function EventCard({ event, className }: EventCardProps) {
                 <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">Status</div>
                 <div className="text-base font-bold leading-tight text-destructive sm:text-xl">On hold</div>
               </div>
-              <Button asChild size="sm" variant="destructive" className="w-full rounded-lg text-xs sm:text-sm">
+              {/* "View details" matches the default Get-tickets CTA so the
+                  card stays visually consistent; the red signal lives in the
+                  badge + status text above. */}
+              <Button asChild size="sm" className="w-full rounded-lg text-xs sm:text-sm">
                 <Link href={`/events/${event.id}`}>View details</Link>
               </Button>
             </>

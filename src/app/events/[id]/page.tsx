@@ -518,13 +518,13 @@ export default function EventDetailsPage() {
                   // falling through to Buy (which would 409 at checkout) or
                   // to Register-Free (which would misrepresent the event).
                   <div className="space-y-2">
-                    {/* disabled:opacity-100 overrides the default 50% so the
-                        red stays vivid — we want this to look like a hard
-                        "stop" signal, not a faded-out CTA. */}
+                    {/* Solid red + white text override. The shared
+                        `destructive` variant is a muted tone (red text on
+                        translucent red bg); we want a hard "stop" signal
+                        here. disabled:opacity-100 keeps it vivid when disabled. */}
                     <Button
-                      className="w-full disabled:opacity-100"
+                      className="w-full bg-destructive text-white hover:bg-destructive/90 disabled:opacity-100"
                       size="lg"
-                      variant="destructive"
                       disabled
                     >
                       <Ticket /> Event on hold
