@@ -306,23 +306,25 @@ export default function OrganizerProfilePage() {
 
         // Per-status palette. Kept on this case branch (not Tailwind cn())
         // so adjustments are obvious at a glance.
+        // Solid surface — no gradient. Per-status accent lives in the ring,
+        // status pip, and (for approved) the soft glow blob.
         const palette = isApproved
           ? {
               ring: "ring-1 ring-sky-200/60 dark:ring-sky-400/20",
-              bg: "bg-gradient-to-br from-sky-50 via-white to-white dark:from-sky-500/10 dark:via-zinc-900 dark:to-zinc-900",
+              bg: "bg-card",
               accent: "text-sky-700 dark:text-sky-300",
               accentDot: "bg-sky-500",
             }
           : isPending
           ? {
               ring: "ring-1 ring-amber-200/70 dark:ring-amber-400/20",
-              bg: "bg-gradient-to-br from-amber-50 via-white to-white dark:from-amber-500/10 dark:via-zinc-900 dark:to-zinc-900",
+              bg: "bg-card",
               accent: "text-amber-700 dark:text-amber-300",
               accentDot: "bg-amber-500",
             }
           : {
               ring: "ring-1 ring-destructive/20",
-              bg: "bg-gradient-to-br from-red-50 via-white to-white dark:from-red-500/10 dark:via-zinc-900 dark:to-zinc-900",
+              bg: "bg-card",
               accent: "text-destructive",
               accentDot: "bg-destructive",
             }
@@ -533,8 +535,8 @@ export default function OrganizerProfilePage() {
           </div>
         </section>
 
-        {/* Save bar */}
-        <div className="flex flex-wrap items-center justify-end gap-3 rounded-xl border border-border bg-card p-4">
+        {/* Save bar — no bordered wrapper; lives directly in the form flow. */}
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {saveResult && (
             <span className={cn(
               "inline-flex items-center gap-1.5 text-sm",
