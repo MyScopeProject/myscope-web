@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { QRCodeSVG } from "qrcode.react"
 import {
   AlertCircle,
   ArrowLeft,
@@ -862,17 +863,27 @@ function ScannersTab({ eventId }: { eventId: string }) {
               <XCircle />
             </Button>
           </div>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex-1 rounded-lg border border-border bg-card px-4 py-3 text-center font-mono text-3xl font-bold tracking-[0.4em] text-foreground">
-              {justIssued.code}
+          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="rounded-lg bg-white p-3 shrink-0 self-center sm:self-auto" aria-label="Scan this QR with the MyScope Organizer app to redeem">
+              <QRCodeSVG value={justIssued.code} size={132} level="M" />
             </div>
-            <Button onClick={copyCode} size="sm">
-              <Copy />
-              {copied ? "Copied" : "Copy code"}
-            </Button>
+            <div className="flex-1 space-y-2">
+              <div className="rounded-lg border border-border bg-card px-4 py-3 text-center font-mono text-3xl font-bold tracking-[0.4em] text-foreground">
+                {justIssued.code}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={copyCode} size="sm" variant="outline" className="flex-1">
+                  <Copy />
+                  {copied ? "Copied" : "Copy code"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Staff can scan the QR in the MyScope Organizer app, or type the code manually.
+              </p>
+            </div>
           </div>
           {justIssued.gate_label && (
-            <p className="mt-2 text-xs text-muted-foreground">Gate: <strong>{justIssued.gate_label}</strong></p>
+            <p className="mt-3 text-xs text-muted-foreground">Gate: <strong>{justIssued.gate_label}</strong></p>
           )}
         </div>
       )}
