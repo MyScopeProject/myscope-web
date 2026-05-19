@@ -688,16 +688,32 @@ function AttendeesTab({ eventId }: { eventId: string }) {
 // Check-in — real-time totals + recent scans
 // ===========================================================================
 
+type GateStat = { label: string; scanned: number }
+
 function CheckinTab({ eventId }: { eventId: string }) {
   const [data, setData] = React.useState<CheckinStatus | null>(null)
+  const [gates, setGates] = React.useState<GateStat[]>([])
   const [err, setErr] = React.useState("")
 
   const fetchStatus = React.useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/check-in-status`, { credentials: "include" })
-      const body = await res.json()
-      if (body?.success) setData(body.data as CheckinStatus)
-      else setErr(body?.message || "Couldn't load check-in status.")
+      const [statusRes, statsRes] = await Promise.all([
+        fetch(`${API_URL}/api/organizer/events/${eventId}/check-in-status`, { credentials: "include" }),
+        fetch(`${API_URL}/api/scanner/events/${eventId}/stats`, { credentials: "include" }),
+      ])
+      const statusBody = await statusRes.json()
+      if (statusBody?.success) setData(statusBody.data as CheckinStatus)
+      else setErr(statusBody?.message || "Couldn't load check-in status.")
+
+      // The scanner endpoint may legitimately 404 for events outside the
+      // organizer's reach (shouldn't happen here) or 403 for non-scanner-eligible
+      // roles. Swallow non-success and just hide the by-gate section.
+      const statsBody = await statsRes.json().catch(() => null)
+      if (statsBody?.success && Array.isArray(statsBody.data?.gates)) {
+        setGates(statsBody.data.gates as GateStat[])
+      } else {
+        setGates([])
+      }
     } catch {
       setErr("Network error.")
     }
@@ -715,6 +731,7 @@ function CheckinTab({ eventId }: { eventId: string }) {
   if (!data) return <CardSkeleton />
 
   const t = data.totals
+  const totalScanned = gates.reduce((s, g) => s + g.scanned, 0)
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -722,6 +739,31 @@ function CheckinTab({ eventId }: { eventId: string }) {
         <Stat label="Checked in" value={String(t.checked_in_tickets)} />
         <Stat label="% through" value={`${t.checked_in_pct}%`} />
       </div>
+
+      {gates.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-sm font-semibold text-foreground">By gate</h3>
+          <ul className="space-y-2">
+            {gates.map(g => {
+              const share = totalScanned > 0 ? Math.round((g.scanned / totalScanned) * 100) : 0
+              return (
+                <li key={g.label} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">{g.label}</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {g.scanned} <span className="text-xs font-normal text-muted-foreground">· {share}%</span>
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full bg-primary" style={{ width: `${share}%` }} />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
       <div>
         <h3 className="mb-2 text-sm font-semibold text-foreground">Recent check-ins</h3>
         {data.recent.length === 0 ? (
