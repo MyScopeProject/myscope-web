@@ -97,96 +97,80 @@ export default function HomePage() {
         <HeroCarousel events={heroEvents} />
       ) : (
       <section className="relative isolate overflow-hidden border-b border-border">
-        {/* Subtle backdrop — single soft gradient at the top fading into bg.
-            Cleaner than two overlapping radials; reads better in both modes. */}
+        {/* Single soft halo centred above the headline. Just one. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-primary/[0.07] via-background to-background"
-        />
-        {/* Faint grid pattern overlay — adds texture without colour noise */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.15] dark:opacity-[0.08]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-            maskImage:
-              "radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent 70%)",
-          }}
+          className="pointer-events-none absolute left-1/2 top-[-8rem] -z-10 h-[36rem] w-[44rem] -translate-x-1/2 rounded-full bg-primary/[0.12] blur-3xl"
         />
 
-        <div className="mx-auto max-w-4xl px-4 py-14 text-center sm:px-6 sm:py-20 lg:py-24">
-          {/* Eyebrow — animated live indicator anchors the local feel */}
-          <div className="mb-5 flex justify-center sm:mb-7">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              </span>
-              Live across Sri Lanka
-            </span>
-          </div>
-
-          {/* Headline — gradient accent on the second clause adds polish
-              without going full marketing-page noise */}
-          <h1 className="text-balance text-3xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+        <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-3xl flex-col items-center justify-center px-4 py-20 text-center sm:px-6 sm:py-24 lg:py-28">
+          {/* Headline — first element in the hero. The single halo above
+              anchors it visually so it doesn't feel like it's floating. */}
+          <h1 className="text-balance text-4xl font-bold leading-[1.05] tracking-[-0.025em] text-foreground sm:text-5xl lg:text-6xl">
             Every show worth showing up for,{" "}
-            <span className="bg-gradient-to-r from-primary to-fuchsia-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary via-fuchsia-500 to-fuchsia-400 bg-clip-text text-transparent">
               one tap away.
             </span>
           </h1>
 
-          <p className="mx-auto mt-4 max-w-xl text-pretty text-sm text-muted-foreground sm:mt-5 sm:text-base">
-            Concerts, theatre, sports, festivals — discover and book live experiences across the island.
+          {/* Subtitle */}
+          <p className="mt-5 max-w-md text-pretty text-base leading-relaxed text-muted-foreground sm:mt-6">
+            Entertain in a perfect scope
           </p>
 
-          {/* Search — pill-shaped, search icon inline, submit attached */}
-          <form
-            onSubmit={handleSearch}
-            className="mx-auto mt-7 flex max-w-xl items-center gap-2 sm:mt-9"
-          >
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                placeholder="Search artists, venues, events…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="h-12 w-full rounded-full border border-border bg-card pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground shadow-sm transition-colors focus:border-primary/50 focus:outline-none"
-              />
+          {/* Search — the only interactive element above the fold. Refined
+              pill with a soft coloured shadow + bright focus ring. */}
+          <form onSubmit={handleSearch} className="mt-10 w-full max-w-xl sm:mt-12">
+            <div className="group flex items-center gap-2 rounded-full border border-border bg-card p-1.5 shadow-[0_12px_40px_-18px_rgba(99,102,241,0.35)] transition-shadow focus-within:shadow-[0_18px_50px_-18px_rgba(99,102,241,0.5)] focus-within:ring-2 focus-within:ring-primary/20">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  placeholder="Search artists, venues, events…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="h-12 w-full rounded-full bg-transparent pl-11 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+                />
+              </div>
+              <Button type="submit" size="lg" className="h-12 shrink-0 rounded-full px-5 shadow-md">
+                <span className="hidden sm:inline">Search</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </div>
-            <Button
-              type="submit"
-              size="lg"
-              className="h-12 shrink-0 rounded-full px-5"
-            >
-              <span className="hidden sm:inline">Search</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
           </form>
 
-          {/* Quick category chips — instant filtering by category */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 sm:mt-6">
-            {HERO_CATEGORIES.map(({ label, href, icon: Icon }) => (
-              <Link
-                key={label}
-                href={href}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs font-medium text-foreground backdrop-blur-sm transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </Link>
+          {/* Category links — inline editorial, dot-separated. No chrome.
+              Reads like a magazine footer; clean and quiet. */}
+          <nav className="mt-7 flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-sm font-medium text-foreground/70 sm:mt-8">
+            {HERO_CATEGORIES.map(({ label, href }, i) => (
+              <React.Fragment key={label}>
+                {i > 0 && (
+                  <span aria-hidden className="text-border">·</span>
+                )}
+                <Link
+                  href={href}
+                  className="rounded px-1 transition-colors hover:text-primary"
+                >
+                  {label}
+                </Link>
+              </React.Fragment>
             ))}
+            <span aria-hidden className="text-border">·</span>
             <Link
               href="/events"
-              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+              className="inline-flex items-center gap-1 rounded px-1 text-muted-foreground transition-colors hover:text-primary"
             >
               Browse all
               <ArrowRight className="h-3 w-3" />
             </Link>
-          </div>
+          </nav>
         </div>
+
+        {/* Hairline accent — coloured gradient, not a flat border. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"
+        />
       </section>
       )}
 
@@ -299,3 +283,4 @@ function EmptyEvents() {
     </div>
   )
 }
+
