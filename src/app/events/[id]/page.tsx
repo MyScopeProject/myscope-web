@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation"
 import {
   AlertCircle,
   ArrowLeft,
-  BadgeCheck,
   Bell,
   CalendarPlus,
   CheckCircle2,
@@ -449,7 +448,17 @@ export default function EventDetailsPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="truncate font-semibold text-foreground">{brandName}</span>
                       {o.verified && (
-                        <BadgeCheck className="h-4 w-4 shrink-0 text-primary" aria-label="Verified organizer" />
+                        // Custom verified badge (blue rosette + tick). File
+                        // name has a space → URL-encode it. Next.js serves
+                        // /public/* at the root, so /Images/... is correct.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src="/Images/verified%20badge.png"
+                          alt="Verified organizer"
+                          width={16}
+                          height={16}
+                          className="h-4 w-4 shrink-0"
+                        />
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground">{roleLabel}</div>
