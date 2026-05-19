@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EventCard, type EventCardData } from "@/components/events/event-card"
-import { HeroCarousel, type HeroEvent } from "@/components/home/hero-carousel"
+import { HeroCarousel, type HeroSlide } from "@/components/home/hero-carousel"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -37,7 +37,7 @@ export default function HomePage() {
   const [events, setEvents] = React.useState<EventCardData[]>([])
   const [loading, setLoading] = React.useState(true)
   const [query, setQuery] = React.useState("")
-  const [heroEvents, setHeroEvents] = React.useState<HeroEvent[]>([])
+  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>([])
   const [heroLoading, setHeroLoading] = React.useState(true)
 
   React.useEffect(() => {
@@ -60,16 +60,17 @@ export default function HomePage() {
     }
   }, [])
 
-  // Hero carousel — fetched separately so the page can render its default hero
-  // immediately when no events are featured.
+  // Hero carousel — admin-managed slides from /api/hero-slides. Fetched
+  // separately so the page renders its default hero immediately when no
+  // slides have been published.
   React.useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/events/featured?limit=8`)
+        const res = await fetch(`${API_URL}/api/hero-slides`)
         const data = await res.json()
         if (!cancelled && data?.success) {
-          setHeroEvents(data.data.events || [])
+          setHeroSlides(data.data.slides || [])
         }
       } catch {
         // Soft-fail — default hero renders instead
@@ -88,13 +89,13 @@ export default function HomePage() {
     router.push(q ? `/events?search=${encodeURIComponent(q)}` : "/events")
   }
 
-  const showCarousel = !heroLoading && heroEvents.length > 0
+  const showCarousel = !heroLoading && heroSlides.length > 0
 
   return (
     <div>
-      {/* Hero — carousel when admins have featured events, otherwise the default hero */}
+      {/* Hero — carousel when admins have published slides, otherwise the default hero */}
       {showCarousel ? (
-        <HeroCarousel events={heroEvents} />
+        <HeroCarousel slides={heroSlides} />
       ) : (
       <section className="relative isolate overflow-hidden border-b border-border">
         {/* Single soft halo centred above the headline. Just one. */}

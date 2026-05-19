@@ -4,6 +4,19 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react"
 
+// The carousel now consumes admin-managed slides instead of featured events.
+// `link_url` is optional — when null the slide is a passive banner; when set
+// (relative or absolute URL) the whole slide is clickable.
+export interface HeroSlide {
+  id: string
+  image_url: string
+  title?: string | null
+  subtitle?: string | null
+  link_url?: string | null
+}
+
+// Kept for back-compat with any existing imports / type unions during the
+// transition. Maps to the new shape.
 export interface HeroEvent {
   id: string
   title: string
@@ -12,11 +25,24 @@ export interface HeroEvent {
 
 const AUTOPLAY_MS = 5000
 
-export function HeroCarousel({ events }: { events: HeroEvent[] }) {
+export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
   const router = useRouter()
   const [index, setIndex] = React.useState(0)
   const [paused, setPaused] = React.useState(false)
-  const count = events.length
+  const count = slides.length
+
+  // Resolve the destination for a slide click. External URLs open in a new
+  // tab; relative paths stay in-app via the Next router. Slides with no
+  // link_url at all are passive — clicking just advances the carousel.
+  const openSlide = (slide: HeroSlide) => {
+    const href = slide.link_url?.trim()
+    if (!href) return
+    if (/^https?:\/\//i.test(href)) {
+      window.open(href, "_blank", "noopener,noreferrer")
+    } else {
+      router.push(href.startsWith("/") ? href : `/${href}`)
+    }
+  }
 
   const go = React.useCallback(
     (next: number) => {
@@ -73,15 +99,18 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
           className="relative h-full w-full"
           style={{ transformStyle: "preserve-3d" }}
         >
-          {events.map((event, i) => {
+          {slides.map((slide, i) => {
             const offset = offsetOf(i)
             return (
               <Slide
-                key={event.id}
-                event={event}
+                key={slide.id}
+                slide={slide}
                 offset={offset}
                 onClick={() => {
-                  if (offset === 0) router.push(`/events/${event.id}`)
+                  // Centre slide: follow the link if it has one (otherwise
+                  // it's a passive banner — clicks do nothing). Off-centre
+                  // slides advance the carousel toward them.
+                  if (offset === 0) openSlide(slide)
                   else go(i)
                 }}
               />
@@ -115,7 +144,7 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
       {/* Dot indicators */}
       {count > 1 && (
         <div className="mt-6 flex items-center justify-center gap-2">
-          {events.map((_, i) => (
+          {slides.map((_, i) => (
             <button
               key={i}
               type="button"
@@ -136,11 +165,11 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
 }
 
 function Slide({
-  event,
+  slide,
   offset,
   onClick,
 }: {
-  event: HeroEvent
+  slide: HeroSlide
   offset: number
   onClick: () => void
 }) {
@@ -161,11 +190,17 @@ function Slide({
   const opacity = isActive ? 1 : isAdjacent ? 0.55 : 0
   const zIndex = isActive ? 30 : isAdjacent ? 20 : 0
 
+  const label = slide.title || "Hero slide"
+  // Aria label communicates whether centred click follows a link or just
+  // selects the slide; passive slides (no link_url) say "Show slide".
+  const activeAria = slide.link_url ? `Open ${label}` : `Show ${label}`
+  const peekAria = `Go to ${label}`
+
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={isActive ? `View ${event.title}` : `Go to ${event.title}`}
+      aria-label={isActive ? activeAria : peekAria}
       aria-hidden={!visible || undefined}
       tabIndex={isActive ? 0 : -1}
       className="absolute left-1/2 top-1/2 aspect-[4/5] h-full overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10 transition-all duration-700 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -175,17 +210,37 @@ function Slide({
         opacity,
         zIndex,
         pointerEvents: visible ? "auto" : "none",
+        // Passive (no-link) active slides still look fully active — only
+        // off-centre peeks are dimmed.
         filter: isActive ? "none" : "brightness(0.5)",
+        // Passive slides aren't clickable, but we still want to feel
+        // interactive (e.g. on the peek they advance the carousel).
+        cursor: isActive && !slide.link_url ? "default" : "pointer",
         willChange: "transform, opacity, filter",
       }}
     >
-      <PosterImage event={event} />
+      <PosterImage slide={slide} />
+      {/* Title / subtitle overlay, shown only when copy is present. */}
+      {(slide.title || slide.subtitle) && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-4 pt-12 text-left sm:p-6 sm:pt-16">
+          {slide.title && (
+            <div className="line-clamp-2 text-base font-bold leading-tight text-white sm:text-2xl">
+              {slide.title}
+            </div>
+          )}
+          {slide.subtitle && (
+            <div className="mt-1 line-clamp-2 text-xs text-white/80 sm:text-sm">
+              {slide.subtitle}
+            </div>
+          )}
+        </div>
+      )}
     </button>
   )
 }
 
-function PosterImage({ event }: { event: HeroEvent }) {
-  if (!event.banner_url) {
+function PosterImage({ slide }: { slide: HeroSlide }) {
+  if (!slide.image_url) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
         <ImageIcon className="h-12 w-12" />
@@ -195,8 +250,8 @@ function PosterImage({ event }: { event: HeroEvent }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={event.banner_url}
-      alt={event.title}
+      src={slide.image_url}
+      alt={slide.title || "Hero slide"}
       className="h-full w-full object-cover"
       draggable={false}
     />
