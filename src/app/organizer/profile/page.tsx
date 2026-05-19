@@ -294,47 +294,123 @@ export default function OrganizerProfilePage() {
         </p>
       </div>
 
-      {/* Verification status banner */}
-      {meta && (
-        <div
-          className={cn(
-            "flex items-start gap-3 rounded-xl border p-4",
-            profile.verification_status === "approved" && "border-emerald-500/30 bg-emerald-500/10",
-            profile.verification_status === "pending" && "border-amber-500/30 bg-amber-500/10",
-            profile.verification_status === "rejected" && "border-destructive/30 bg-destructive/10",
-          )}
-        >
-          {VerificationIcon && (
-            <span
-              className={cn(
-                "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-                profile.verification_status === "approved" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-                profile.verification_status === "pending" && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-                profile.verification_status === "rejected" && "bg-destructive/15 text-destructive",
-              )}
-            >
-              <VerificationIcon className="h-5 w-5" />
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={meta.variant}>{meta.label}</Badge>
-              {profile.deactivated_at && (
-                <Badge variant="outline">
-                  <ShieldAlert className="h-3 w-3" />
-                  Deactivated
-                </Badge>
-              )}
-            </div>
-            <p className="mt-1 text-sm text-foreground/80">{meta.description}</p>
-            {profile.verification_status === "rejected" && profile.rejection_reason && (
-              <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs text-destructive">
-                <span className="font-semibold">Reason:</span> {profile.rejection_reason}
-              </p>
+      {/* Verification status — premium card with gradient backdrop, larger
+          status hierarchy, and a glow accent on the badge for approved. The
+          status hint chip (top-right) gives a calm secondary anchor without
+          shouting; the headline does the heavy lifting visually. */}
+      {meta && (() => {
+        const status = profile.verification_status
+        const isApproved = status === "approved"
+        const isPending  = status === "pending"
+        const isRejected = status === "rejected"
+
+        // Per-status palette. Kept on this case branch (not Tailwind cn())
+        // so adjustments are obvious at a glance.
+        const palette = isApproved
+          ? {
+              ring: "ring-1 ring-sky-200/60 dark:ring-sky-400/20",
+              bg: "bg-gradient-to-br from-sky-50 via-white to-white dark:from-sky-500/10 dark:via-zinc-900 dark:to-zinc-900",
+              accent: "text-sky-700 dark:text-sky-300",
+              accentDot: "bg-sky-500",
+            }
+          : isPending
+          ? {
+              ring: "ring-1 ring-amber-200/70 dark:ring-amber-400/20",
+              bg: "bg-gradient-to-br from-amber-50 via-white to-white dark:from-amber-500/10 dark:via-zinc-900 dark:to-zinc-900",
+              accent: "text-amber-700 dark:text-amber-300",
+              accentDot: "bg-amber-500",
+            }
+          : {
+              ring: "ring-1 ring-destructive/20",
+              bg: "bg-gradient-to-br from-red-50 via-white to-white dark:from-red-500/10 dark:via-zinc-900 dark:to-zinc-900",
+              accent: "text-destructive",
+              accentDot: "bg-destructive",
+            }
+        const headline = isApproved ? "Verified Organizer"
+          : isPending ? "Pending Review"
+          : "Application Rejected"
+
+        return (
+          <section
+            className={cn(
+              "relative overflow-hidden rounded-2xl border border-border p-6 shadow-sm",
+              palette.bg,
+              palette.ring,
             )}
-          </div>
-        </div>
-      )}
+          >
+            {/* Soft glow behind the badge for the approved state — gives the
+                "trusted brand" feel without overdoing it. */}
+            {isApproved && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-10 -left-10 h-40 w-40 rounded-full bg-sky-400/20 blur-3xl"
+              />
+            )}
+
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+              {/* Badge / icon */}
+              {isApproved ? (
+                <div className="relative inline-flex h-20 w-20 shrink-0 items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/Images/verified%20badge.png"
+                    alt="Verified organizer"
+                    width={72}
+                    height={72}
+                    className="h-[72px] w-[72px] drop-shadow-md"
+                  />
+                </div>
+              ) : VerificationIcon ? (
+                <div
+                  className={cn(
+                    "inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full",
+                    isPending && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+                    isRejected && "bg-destructive/15 text-destructive",
+                  )}
+                >
+                  <VerificationIcon className="h-7 w-7" />
+                </div>
+              ) : null}
+
+              {/* Status hierarchy */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", palette.accentDot)} />
+                  <span className={cn("text-[11px] font-semibold uppercase tracking-[0.18em]", palette.accent)}>
+                    {meta.label}
+                  </span>
+                </div>
+                <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                  {headline}
+                </h2>
+                <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
+                  {meta.description}
+                </p>
+
+                {/* Deactivated chip — separate from status because being
+                    deactivated is orthogonal to approval state. */}
+                {profile.deactivated_at && (
+                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/70 px-2.5 py-1 text-[11px] font-medium text-zinc-600 backdrop-blur dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">
+                    <ShieldAlert className="h-3 w-3" />
+                    Account deactivated
+                  </div>
+                )}
+
+                {/* Rejection reason — quoted block, not a destructive banner,
+                    because we already conveyed the rejection above. */}
+                {isRejected && profile.rejection_reason && (
+                  <blockquote className="mt-4 rounded-lg border-l-4 border-destructive/40 bg-white/60 px-4 py-3 text-sm text-foreground/80 backdrop-blur dark:bg-zinc-800/40">
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                      Reviewer note
+                    </div>
+                    {profile.rejection_reason}
+                  </blockquote>
+                )}
+              </div>
+            </div>
+          </section>
+        )
+      })()}
 
       {/* Form */}
       <form onSubmit={save} className="space-y-6">
