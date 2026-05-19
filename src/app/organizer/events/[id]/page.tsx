@@ -13,10 +13,12 @@ import {
   ClipboardList,
   Edit3,
   Loader,
+  Copy,
   Mail,
   MapPin,
   PauseCircle,
   PlayCircle,
+  QrCode,
   RefreshCw,
   Send,
   Tag,
@@ -125,6 +127,7 @@ type Tab =
   | "tickets"
   | "attendees"
   | "checkin"
+  | "scanners"
   | "promo"
   | "waitlist"
   | "comms"
@@ -134,6 +137,7 @@ const TABS: Array<{ value: Tab; label: string; icon: React.ComponentType<{ class
   { value: "tickets",   label: "Tickets",    icon: Ticket },
   { value: "attendees", label: "Attendees",  icon: UsersIcon },
   { value: "checkin",   label: "Check-in",   icon: ClipboardList },
+  { value: "scanners",  label: "Scanners",   icon: QrCode },
   { value: "promo",     label: "Promo codes", icon: Tag },
   { value: "waitlist",  label: "Waitlist",   icon: Bell },
   { value: "comms",     label: "Comms",      icon: Mail },
@@ -441,6 +445,7 @@ export default function OrganizerEventControlPage() {
         {tab === "tickets"   && <TicketsTab   tickets={tickets} />}
         {tab === "attendees" && <AttendeesTab eventId={eventId!} />}
         {tab === "checkin"   && <CheckinTab   eventId={eventId!} />}
+        {tab === "scanners"  && <ScannersTab  eventId={eventId!} />}
         {tab === "promo"     && <PromoTab     eventId={eventId!} />}
         {tab === "waitlist"  && <WaitlistTab  eventId={eventId!} />}
         {tab === "comms"     && <CommsTab     eventId={eventId!} />}
@@ -734,6 +739,216 @@ function CheckinTab({ eventId }: { eventId: string }) {
           </ul>
         )}
       </div>
+    </div>
+  )
+}
+
+// ===========================================================================
+// Scanners — issue and revoke invite codes for door-staff phones
+// ===========================================================================
+
+type ScannerInvite = {
+  id: string
+  gate_label: string | null
+  device_label: string | null
+  expires_at: string
+  revoked_at: string | null
+  redeemed_at: string | null
+  last_used_at: string | null
+  created_at: string
+  computed_status: "unredeemed" | "active" | "revoked" | "expired"
+}
+
+type IssuedInvite = {
+  id: string
+  code: string
+  gate_label: string | null
+  expires_at: string
+}
+
+function ScannersTab({ eventId }: { eventId: string }) {
+  const [invites, setInvites] = React.useState<ScannerInvite[] | null>(null)
+  const [err, setErr] = React.useState("")
+  const [form, setForm] = React.useState({ gate_label: "", expires_in_hours: "12" })
+  const [creating, setCreating] = React.useState(false)
+  const [formErr, setFormErr] = React.useState("")
+  const [justIssued, setJustIssued] = React.useState<IssuedInvite | null>(null)
+  const [copied, setCopied] = React.useState(false)
+
+  const fetchInvites = React.useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/scanner-invites?event_id=${eventId}`, { credentials: "include" })
+      const body = await res.json()
+      if (body?.success) setInvites((body.data ?? []) as ScannerInvite[])
+      else setErr(body?.message || "Couldn't load scanner invites.")
+    } catch {
+      setErr("Network error.")
+    }
+  }, [eventId])
+
+  React.useEffect(() => { fetchInvites() }, [fetchInvites])
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormErr("")
+    setCreating(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/scanner-invites`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_id: eventId,
+          gate_label: form.gate_label.trim() || null,
+          expires_in_hours: Number(form.expires_in_hours),
+        }),
+      })
+      const body = await res.json()
+      if (!body?.success) {
+        setFormErr(body?.message || "Couldn't issue invite.")
+        return
+      }
+      setJustIssued(body.data as IssuedInvite)
+      setCopied(false)
+      setForm({ gate_label: "", expires_in_hours: form.expires_in_hours })
+      await fetchInvites()
+    } catch {
+      setFormErr("Network error.")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const revoke = async (id: string) => {
+    if (!window.confirm("Revoke this scanner session? The phone using it will be signed out on its next request.")) return
+    try {
+      await fetch(`${API_URL}/api/organizer/scanner-invites/${id}/revoke`, {
+        method: "POST",
+        credentials: "include",
+      })
+      await fetchInvites()
+    } catch {
+      setErr("Network error revoking invite.")
+    }
+  }
+
+  const copyCode = async () => {
+    if (!justIssued) return
+    try {
+      await navigator.clipboard.writeText(justIssued.code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard blocked — fall back to selection by user
+    }
+  }
+
+  if (err) return <ErrorBanner message={err} />
+
+  return (
+    <div className="space-y-5">
+      {/* Just-issued code — surfaced loudly because we can never show it again */}
+      {justIssued && (
+        <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">New invite issued</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Share this code with the door staff <strong>now</strong>. It will not be shown again.
+                Expires {formatWhen(justIssued.expires_at)}.
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setJustIssued(null)} aria-label="Dismiss">
+              <XCircle />
+            </Button>
+          </div>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex-1 rounded-lg border border-border bg-card px-4 py-3 text-center font-mono text-3xl font-bold tracking-[0.4em] text-foreground">
+              {justIssued.code}
+            </div>
+            <Button onClick={copyCode} size="sm">
+              <Copy />
+              {copied ? "Copied" : "Copy code"}
+            </Button>
+          </div>
+          {justIssued.gate_label && (
+            <p className="mt-2 text-xs text-muted-foreground">Gate: <strong>{justIssued.gate_label}</strong></p>
+          )}
+        </div>
+      )}
+
+      {/* Issue form */}
+      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <h3 className="text-sm font-semibold text-foreground">Issue scanner invite</h3>
+        <p className="text-xs text-muted-foreground">
+          Generate a one-time code your door staff can redeem in the MyScope Organizer app to scan tickets — no MyScope account required.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input
+            placeholder="Gate label (optional, e.g. Main Gate)"
+            value={form.gate_label}
+            onChange={(e) => setForm({ ...form, gate_label: e.target.value })}
+            maxLength={60}
+          />
+          <select
+            aria-label="Expires in"
+            value={form.expires_in_hours}
+            onChange={(e) => setForm({ ...form, expires_in_hours: e.target.value })}
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm"
+          >
+            <option value="4">Expires in 4 hours</option>
+            <option value="8">Expires in 8 hours</option>
+            <option value="12">Expires in 12 hours</option>
+            <option value="24">Expires in 24 hours</option>
+            <option value="48">Expires in 48 hours</option>
+          </select>
+        </div>
+        {formErr && <p className="text-xs text-destructive">{formErr}</p>}
+        <Button type="submit" size="sm" disabled={creating}>
+          {creating ? <Loader className="animate-spin" /> : <QrCode />}
+          Issue invite
+        </Button>
+      </form>
+
+      {/* List */}
+      {!invites ? (
+        <CardSkeleton />
+      ) : invites.length === 0 ? (
+        <EmptyHint icon={QrCode} text="No scanner invites yet. Issue one above to delegate door-scanning to staff." />
+      ) : (
+        <ul className="space-y-2">
+          {invites.map(inv => {
+            const variant: "default" | "warning" | "success" | "destructive" | "outline" =
+              inv.computed_status === "active"     ? "success" :
+              inv.computed_status === "unredeemed" ? "warning" :
+              inv.computed_status === "revoked"   ? "destructive" :
+                                                    "outline"
+            const canRevoke = inv.computed_status === "active" || inv.computed_status === "unredeemed"
+            return (
+              <li key={inv.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <span className="text-base font-semibold text-foreground">
+                      {inv.gate_label || "(no gate label)"}
+                    </span>
+                    <Badge variant={variant}>{inv.computed_status}</Badge>
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {inv.device_label ? <>Phone: <strong>{inv.device_label}</strong> · </> : null}
+                    Expires {formatWhen(inv.expires_at)}
+                    {inv.last_used_at && <> · last scan {formatWhen(inv.last_used_at)}</>}
+                  </div>
+                </div>
+                {canRevoke && (
+                  <Button variant="outline" size="sm" onClick={() => revoke(inv.id)} className="hover:bg-destructive/10 hover:text-destructive">
+                    <XCircle /> Revoke
+                  </Button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }
