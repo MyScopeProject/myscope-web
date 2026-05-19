@@ -164,6 +164,22 @@ const formatWhen = (iso?: string | null) => {
   })
 }
 
+// Compact relative-time. Falls back to formatWhen() once we're past a day so
+// the live dashboard stays at "12 sec ago" / "3 min ago" / "2 hr ago" without
+// drifting into multi-word strings.
+const formatRelative = (iso?: string | null) => {
+  if (!iso) return "—"
+  const diffMs = Date.now() - new Date(iso).getTime()
+  if (diffMs < 0) return formatWhen(iso)
+  const sec = Math.floor(diffMs / 1000)
+  if (sec < 60)   return `${sec} sec ago`
+  const min = Math.floor(sec / 60)
+  if (min < 60)   return `${min} min ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24)    return `${hr} hr ago`
+  return formatWhen(iso)
+}
+
 // ===========================================================================
 // Top-level page
 // ===========================================================================
@@ -830,7 +846,13 @@ function ScannersTab({ eventId }: { eventId: string }) {
     }
   }, [eventId])
 
-  React.useEffect(() => { fetchInvites() }, [fetchInvites])
+  React.useEffect(() => {
+    fetchInvites()
+    // Light polling — Scanners tab doubles as the live monitor during the
+    // event so the scan counts and last-activity timestamps stay current.
+    const t = setInterval(fetchInvites, 10_000)
+    return () => clearInterval(t)
+  }, [fetchInvites])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -995,7 +1017,7 @@ function ScannersTab({ eventId }: { eventId: string }) {
                   <div className="mt-0.5 text-xs text-muted-foreground">
                     {inv.device_label ? <>Phone: <strong>{inv.device_label}</strong> · </> : null}
                     Expires {formatWhen(inv.expires_at)}
-                    {inv.last_used_at && <> · last activity {formatWhen(inv.last_used_at)}</>}
+                    {inv.last_used_at && <> · last activity {formatRelative(inv.last_used_at)}</>}
                   </div>
                 </div>
                 {canRevoke && (
