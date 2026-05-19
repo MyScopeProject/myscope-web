@@ -799,6 +799,7 @@ type ScannerInvite = {
   redeemed_at: string | null
   last_used_at: string | null
   created_at: string
+  scan_count: number
   computed_status: "unredeemed" | "active" | "revoked" | "expired"
 }
 
@@ -985,11 +986,16 @@ function ScannersTab({ eventId }: { eventId: string }) {
                       {inv.gate_label || "(no gate label)"}
                     </span>
                     <Badge variant={variant}>{inv.computed_status}</Badge>
+                    {inv.scan_count > 0 && (
+                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                        {inv.scan_count} scan{inv.scan_count === 1 ? "" : "s"}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-0.5 text-xs text-muted-foreground">
                     {inv.device_label ? <>Phone: <strong>{inv.device_label}</strong> · </> : null}
                     Expires {formatWhen(inv.expires_at)}
-                    {inv.last_used_at && <> · last scan {formatWhen(inv.last_used_at)}</>}
+                    {inv.last_used_at && <> · last activity {formatWhen(inv.last_used_at)}</>}
                   </div>
                 </div>
                 {canRevoke && (
