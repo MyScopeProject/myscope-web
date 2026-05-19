@@ -60,13 +60,10 @@ interface Event {
   tickets_sold: number
   category: string
   organizer: {
+    // Brand fields from organizer_profiles — the public face of the organizer.
+    // Personal user fields (name, email, profile_image) are intentionally NOT
+    // surfaced here; attendees should see the brand, not the person.
     id?: string
-    _id: string
-    name: string
-    email: string
-    profile_image?: string | null
-    // From organizer_profiles — preferred public-facing fields. Optional
-    // because legacy events created before onboarding may lack a profile.
     business_name?: string | null
     business_type?: string | null
     phone?: string | null
@@ -413,14 +410,16 @@ export default function EventDetailsPage() {
             )
           })()}
 
-          {/* Organizer — always labelled "Organizer" regardless of business
-              type. If the organizer has resigned or been revoked, label flips
-              to "Former organizer" and the verified mark is suppressed. */}
+          {/* Organizer card — sources ONLY from organizer_profiles
+              (business_name, profile_image_url, business_type). We deliberately
+              do NOT fall back to the user's personal name / Google avatar:
+              attendees see the brand, not the person behind it. Resigned /
+              revoked organizers flip to "Former organizer" with no badge. */}
           {event.organizer && (() => {
             const o = event.organizer
-            const displayName = o.business_name?.trim() || o.name
-            const initial = (displayName || "?").charAt(0).toUpperCase()
-            const avatarSrc = o.profile_image_url || o.profile_image || null
+            const brandName = o.business_name?.trim() || "Organizer"
+            const initial = brandName.charAt(0).toUpperCase()
+            const avatarSrc = o.profile_image_url || null
             const roleLabel = o.deactivated ? "Former organizer" : "Organizer"
 
             return (
@@ -429,7 +428,7 @@ export default function EventDetailsPage() {
                 <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
                   <span
                     className={cn(
-                      "inline-flex h-11 w-11 shrink-0 overflow-hidden rounded-full bg-muted font-semibold text-foreground",
+                      "inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10 font-semibold text-primary",
                       o.deactivated && "grayscale",
                     )}
                   >
@@ -437,18 +436,18 @@ export default function EventDetailsPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={avatarSrc}
-                        alt={displayName}
+                        alt={brandName}
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <span className="flex h-full w-full items-center justify-center">
+                      <span className="flex h-full w-full items-center justify-center text-lg">
                         {initial}
                       </span>
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate font-semibold text-foreground">{displayName}</span>
+                      <span className="truncate font-semibold text-foreground">{brandName}</span>
                       {o.verified && (
                         <BadgeCheck className="h-4 w-4 shrink-0 text-primary" aria-label="Verified organizer" />
                       )}
