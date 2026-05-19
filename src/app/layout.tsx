@@ -33,8 +33,39 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MyScope — Discover events, book tickets",
+  // metadataBase makes relative OG / icon URLs resolve against the production
+  // domain. Without it Next 16 falls back to localhost and Slack/iMessage etc.
+  // can't fetch the preview image.
+  metadataBase: new URL("https://www.myscope.lk"),
+  title: {
+    default: "MyScope — Discover events, book tickets",
+    // Pages can override their own title; %s gets replaced. Tab still reads
+    // "<Page> · MyScope" so the brand sticks on every tab.
+    template: "%s · MyScope",
+  },
   description: "Sri Lanka's home for live events, movies, and experiences.",
+  applicationName: "MyScope",
+  // Explicit icon list — belt-and-braces alongside the app-router file
+  // conventions (icon.png, apple-icon.png) in case any client looks here.
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+    shortcut: "/icon.png",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "MyScope",
+    title: "MyScope — Discover events, book tickets",
+    description: "Sri Lanka's home for live events, movies, and experiences.",
+    images: ["/opengraph-image.png"],
+    locale: "en_LK",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MyScope — Discover events, book tickets",
+    description: "Sri Lanka's home for live events, movies, and experiences.",
+    images: ["/opengraph-image.png"],
+  },
 };
 
 // Resolves the active theme before React mounts so the first paint matches the
