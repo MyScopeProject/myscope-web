@@ -667,8 +667,6 @@ interface TicketDraft {
   price: string
   quantity_total: string
   per_order_limit: string
-  sale_start: string
-  sale_end: string
   is_active: boolean
 }
 
@@ -678,8 +676,6 @@ const emptyDraft = (): TicketDraft => ({
   price: "",
   quantity_total: "",
   per_order_limit: "10",
-  sale_start: "",
-  sale_end: "",
   is_active: true,
 })
 
@@ -689,8 +685,6 @@ const fromTicket = (t: TicketType): TicketDraft => ({
   price: String(t.price),
   quantity_total: String(t.quantity_total),
   per_order_limit: String(t.per_order_limit),
-  sale_start: isoToLocal(t.sale_start),
-  sale_end: isoToLocal(t.sale_end),
   is_active: t.is_active,
 })
 
@@ -714,8 +708,6 @@ const validateDraft = (
       price,
       quantity_total: qty,
       per_order_limit: limit,
-      sale_start: localToIso(d.sale_start),
-      sale_end: localToIso(d.sale_end),
       is_active: d.is_active,
     },
   }
@@ -995,22 +987,6 @@ function DraftRow({
           value={draft.per_order_limit}
           onChange={(e) => upd({ per_order_limit: e.target.value })}
         />
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Sale start (optional)</label>
-          <Input
-            type="datetime-local"
-            value={draft.sale_start}
-            onChange={(e) => upd({ sale_start: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Sale end (optional)</label>
-          <Input
-            type="datetime-local"
-            value={draft.sale_end}
-            onChange={(e) => upd({ sale_end: e.target.value })}
-          />
-        </div>
       </div>
       <Input
         type="text"

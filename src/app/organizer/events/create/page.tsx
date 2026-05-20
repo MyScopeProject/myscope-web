@@ -86,8 +86,6 @@ interface TicketTypeForm {
   price: string
   quantity_total: string
   per_order_limit: string
-  sale_start: string
-  sale_end: string
 }
 
 interface MediaForm {
@@ -152,8 +150,6 @@ const emptyTicket = (): TicketTypeForm => ({
   price: "",
   quantity_total: "",
   per_order_limit: "10",
-  sale_start: "",
-  sale_end: "",
 })
 
 const emptyMedia: MediaForm = { banner_url: "", layout_image_url: "" }
@@ -188,8 +184,6 @@ const buildPayload = (
     price: t.price === "" ? 0 : Number(t.price),
     quantity_total: t.quantity_total === "" ? 0 : parseInt(t.quantity_total, 10),
     per_order_limit: t.per_order_limit === "" ? 10 : parseInt(t.per_order_limit, 10),
-    sale_start: localToIso(t.sale_start),
-    sale_end: localToIso(t.sale_end),
   })),
 })
 
@@ -922,22 +916,6 @@ function TicketsStep({
                   value={t.per_order_limit}
                   onChange={(e) => updTicket(idx, { per_order_limit: e.target.value })}
                   placeholder="10"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <FieldLabel>Sale start (optional)</FieldLabel>
-                <Input
-                  type="datetime-local"
-                  value={t.sale_start}
-                  onChange={(e) => updTicket(idx, { sale_start: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <FieldLabel>Sale end (optional)</FieldLabel>
-                <Input
-                  type="datetime-local"
-                  value={t.sale_end}
-                  onChange={(e) => updTicket(idx, { sale_end: e.target.value })}
                 />
               </div>
               <div className="sm:col-span-2 space-y-1.5">
