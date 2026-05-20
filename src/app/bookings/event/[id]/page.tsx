@@ -860,7 +860,7 @@ export default function EventBookingDetailPage() {
               type="button"
               onClick={handlePay}
               disabled={paying}
-              className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-base font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+              className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-base font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white hover:bg-red-700 shadow-sm"
             >
               {paying ? <Loader className="w-5 h-5 animate-spin" /> : <Ticket className="w-5 h-5" />}
               {paying
