@@ -837,7 +837,6 @@ function TicketTypeOption({
 }) {
   const remaining = Math.max(0, ticket.quantity_total - ticket.quantity_sold)
   const soldOut = remaining <= 0
-  const lowStock = !soldOut && remaining <= 10
   const price = Number(ticket.price)
 
   return (
@@ -873,18 +872,13 @@ function TicketTypeOption({
                   Sold out
                 </span>
               )}
-              {lowStock && (
-                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                  Only {remaining} left
-                </span>
-              )}
             </div>
             {ticket.description && (
               <p className="mt-1 text-sm text-muted-foreground">{ticket.description}</p>
             )}
-            {!soldOut && !lowStock && (
+            {!soldOut && (
               <p className="mt-1 text-xs text-muted-foreground">
-                {remaining} available · max {ticket.per_order_limit}/order
+                Max {ticket.per_order_limit} per order
               </p>
             )}
           </div>

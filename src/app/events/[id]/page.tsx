@@ -640,9 +640,7 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
 }
 
 function TicketPriceRow({ ticket }: { ticket: TicketType }) {
-  const remaining = ticketRemaining(ticket)
   const status = ticketStatus(ticket)
-  const lowStock = status === "available" && remaining <= 10
   const price = Number(ticket.price)
 
   return (
@@ -664,11 +662,6 @@ function TicketPriceRow({ ticket }: { ticket: TicketType }) {
             {status === "not_started" && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                 Opens {new Date(ticket.sale_start!).toLocaleDateString()}
-              </span>
-            )}
-            {lowStock && (
-              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                Only {remaining} left
               </span>
             )}
           </div>

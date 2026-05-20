@@ -180,6 +180,15 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allSeats])
 
+  // Keep the latest callback in a ref so the notify effect doesn't depend on
+  // its identity. Parents commonly pass an inline arrow function, which changes
+  // every render — depending on it here would retrigger the effect, call back
+  // into the parent's setState, and spin into an update loop.
+  const onSelectionChangeRef = React.useRef(onSelectionChange)
+  React.useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange
+  })
+
   // Notify parent whenever the selection changes.
   React.useEffect(() => {
     const picked: SelectedSeat[] = []
@@ -195,8 +204,8 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
       })
       total += seat.ticket_type.price
     }
-    onSelectionChange(picked, total)
-  }, [selectedIds, allSeats, onSelectionChange])
+    onSelectionChangeRef.current(picked, total)
+  }, [selectedIds, allSeats])
 
   // Track a seat as in-flight (disables clicks + protects from reconcile races).
   const markInFlight = React.useCallback((id: string, on: boolean) => {
@@ -283,6 +292,7 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
           next.delete(seat.id)
           return next
         })
+        const body = await res.json().catch(() => null)
         if (res.status === 409) {
           setSelectionWarning(
             `Seat ${seat.seat_label ?? seat.seat_number} was just taken by someone else.`,
@@ -292,7 +302,8 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
         } else if (res.status === 401) {
           setSelectionWarning("Please sign in to reserve seats.")
         } else {
-          setSelectionWarning("Couldn't hold that seat. Please try again.")
+          // Surface the backend's actual reason when it sends one.
+          setSelectionWarning(body?.message || "Couldn't hold that seat. Please try again.")
         }
       }
     } catch {

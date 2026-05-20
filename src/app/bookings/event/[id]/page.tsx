@@ -597,53 +597,28 @@ export default function EventBookingDetailPage() {
           Back to events
         </Link>
 
-        {/* Status hero */}
-        <div className="p-6 rounded-2xl border border-border bg-card mb-6">
-          {isConfirmed && (
-            <StatusHero
-              tone="success"
-              icon={<CheckCircle className="w-6 h-6" />}
-              title="Booking confirmed"
-              body="Your e-tickets will be emailed to you shortly."
-            />
-          )}
-          {isPending && (
-            <StatusHero
-              tone="warning"
-              icon={<Clock className="w-6 h-6" />}
-              title="Review your order"
-              body="Check the details below, then complete payment to confirm your booking."
-            />
-          )}
-          {isCancelled && (
-            <StatusHero
-              tone="danger"
-              icon={<XCircle className="w-6 h-6" />}
-              title="Booking cancelled"
-              body="Inventory has been released. You can book again any time."
-            />
-          )}
-
-          {booking.short_code ? (
-            <div className="mt-4 space-y-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-[10px] font-inter font-semibold text-muted-foreground uppercase tracking-wider">
-                  Booking code
-                </span>
-                <span className="font-mono font-bold text-foreground tracking-[0.2em] text-lg">
-                  {booking.short_code}
-                </span>
-              </div>
-              <div className="text-[11px] text-muted-foreground font-mono">
-                Support reference: {booking.booking_reference}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 text-xs text-muted-foreground font-mono">
-              Reference: {booking.booking_reference}
-            </div>
-          )}
-        </div>
+        {/* Status hero — only for confirmed/cancelled. Pending no longer shows
+            a "Review your order" hero. */}
+        {(isConfirmed || isCancelled) && (
+          <div className="p-6 rounded-2xl border border-border bg-card mb-6">
+            {isConfirmed && (
+              <StatusHero
+                tone="success"
+                icon={<CheckCircle className="w-6 h-6" />}
+                title="Booking confirmed"
+                body="Your e-tickets will be emailed to you shortly."
+              />
+            )}
+            {isCancelled && (
+              <StatusHero
+                tone="danger"
+                icon={<XCircle className="w-6 h-6" />}
+                title="Booking cancelled"
+                body="Inventory has been released. You can book again any time."
+              />
+            )}
+          </div>
+        )}
 
         {/* Order summary */}
         <div className="p-6 rounded-2xl border border-border bg-card space-y-4">
@@ -710,18 +685,43 @@ export default function EventBookingDetailPage() {
             </div>
           </div>
 
-          {booking.attendee_info && (
-            <div className="pt-4 border-t border-border">
-              <h3 className="text-sm font-inter font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Attendee
-              </h3>
-              <div className="text-sm text-foreground">{booking.attendee_info.name || '—'}</div>
-              <div className="text-sm text-muted-foreground">{booking.attendee_info.email || '—'}</div>
-              {booking.attendee_info.phone && (
-                <div className="text-sm text-muted-foreground">{booking.attendee_info.phone}</div>
+          <div className="pt-4 border-t border-border">
+            <h3 className="text-sm font-inter font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Attendee
+            </h3>
+            {booking.attendee_info && (
+              <>
+                <div className="text-sm text-foreground">{booking.attendee_info.name || '—'}</div>
+                <div className="text-sm text-muted-foreground">{booking.attendee_info.email || '—'}</div>
+                {booking.attendee_info.phone && (
+                  <div className="text-sm text-muted-foreground">{booking.attendee_info.phone}</div>
+                )}
+              </>
+            )}
+
+            {/* Booking code */}
+            <div className="mt-3 pt-3 border-t border-border">
+              {booking.short_code ? (
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] font-inter font-semibold text-muted-foreground uppercase tracking-wider">
+                      Booking code
+                    </span>
+                    <span className="font-mono font-bold text-foreground tracking-[0.2em] text-lg">
+                      {booking.short_code}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground font-mono">
+                    Support reference: {booking.booking_reference}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground font-mono">
+                  Reference: {booking.booking_reference}
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Phone verification — confirm the attendee's number is reachable so
