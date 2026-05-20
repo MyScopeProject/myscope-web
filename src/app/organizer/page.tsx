@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
+import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -217,6 +218,9 @@ export default function OrganizerDashboardPage() {
           })}
         </div>
       </section>
+
+      {/* Contact & collaborate with the MyScope team */}
+      <ContactCollaborate subtitle="connect with us for your event procedure." />
 
       {/* Top events + Recent bookings */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">

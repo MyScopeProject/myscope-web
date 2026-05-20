@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -526,6 +527,14 @@ function OrganizerEventRow({
               <span className="font-semibold">Rejection reason: </span>
               {event.rejection_reason}
             </div>
+          )}
+
+          {event.approval_status === "pending" && (
+            <ContactCollaborate
+              variant="small"
+              eventTitle={event.title}
+              subtitle="While your event is under review, chat with us on WhatsApp for further process of your event."
+            />
           )}
 
           <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-1">
