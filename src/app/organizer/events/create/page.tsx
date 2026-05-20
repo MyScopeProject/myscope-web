@@ -92,6 +92,7 @@ interface TicketTypeForm {
 
 interface MediaForm {
   banner_url: string
+  layout_image_url: string
 }
 
 type Step = number
@@ -155,7 +156,7 @@ const emptyTicket = (): TicketTypeForm => ({
   sale_end: "",
 })
 
-const emptyMedia: MediaForm = { banner_url: "" }
+const emptyMedia: MediaForm = { banner_url: "", layout_image_url: "" }
 
 const localToIso = (v: string): string | null => {
   if (!v) return null
@@ -180,6 +181,7 @@ const buildPayload = (
   seating_mode: details.seating_mode,
   sms_reminders: details.sms_reminders,
   banner_url: media.banner_url.trim() || null,
+  layout_image_url: media.layout_image_url.trim() || null,
   ticket_types: tickets.map((t) => ({
     name: t.name.trim(),
     description: t.description.trim() || null,
@@ -1430,6 +1432,49 @@ function MediaStep({
   value: MediaForm
   onChange: (v: MediaForm) => void
 }) {
+  return (
+    <div className="space-y-6">
+      <StepHeader
+        icon={ImageIcon}
+        title="Media"
+        subtitle="Upload a banner image, and optionally a seating/zone layout map."
+      />
+
+      <div className="space-y-2.5">
+        <FieldLabel>Banner image</FieldLabel>
+        <ImageDropzone
+          value={value.banner_url}
+          onChange={(url) => onChange({ ...value, banner_url: url })}
+          previewAlt="Banner preview"
+        />
+      </div>
+
+      <div className="space-y-2.5">
+        <FieldLabel>Seating / zone layout (optional)</FieldLabel>
+        <p className="-mt-1 text-xs text-muted-foreground">
+          A venue map showing zones or the seat plan. Shown to attendees on the ticket-selection page.
+        </p>
+        <ImageDropzone
+          value={value.layout_image_url}
+          onChange={(url) => onChange({ ...value, layout_image_url: url })}
+          previewAlt="Layout preview"
+        />
+      </div>
+    </div>
+  )
+}
+
+// Reusable image upload + preview tile. Posts to the shared upload-banner
+// endpoint (a generic image uploader) and hands back the public URL.
+function ImageDropzone({
+  value,
+  onChange,
+  previewAlt,
+}: {
+  value: string
+  onChange: (url: string) => void
+  previewAlt: string
+}) {
   const [uploading, setUploading] = React.useState(false)
   const [uploadError, setUploadError] = React.useState("")
   const fileRef = React.useRef<HTMLInputElement>(null)
@@ -1457,7 +1502,7 @@ function MediaStep({
       })
       const data = await res.json()
       if (!data?.success) throw new Error(data?.message || "Upload failed.")
-      onChange({ banner_url: data.data.url })
+      onChange(data.data.url)
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.")
     } finally {
@@ -1467,13 +1512,7 @@ function MediaStep({
   }
 
   return (
-    <div className="space-y-5">
-      <StepHeader
-        icon={ImageIcon}
-        title="Media"
-        subtitle="Upload a banner image for your event."
-      />
-
+    <div className="space-y-2">
       {/* Drop zone — a <label> wrapping a hidden file input keeps a single
           interactive control while remaining keyboard- and click-accessible. */}
       <label
@@ -1488,8 +1527,8 @@ function MediaStep({
           ref={fileRef}
           type="file"
           accept="image/*"
-          title="Upload banner image"
-          aria-label="Upload banner image"
+          title="Upload image"
+          aria-label="Upload image"
           className="hidden"
           onChange={handleFileChange}
           disabled={uploading}
@@ -1508,22 +1547,20 @@ function MediaStep({
         )}
       </label>
 
-      {uploadError && (
-        <p className="text-sm text-destructive">{uploadError}</p>
-      )}
+      {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
 
-      {value.banner_url && (
+      {value && (
         <div className="space-y-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={value.banner_url}
-            alt="Banner preview"
+            src={value}
+            alt={previewAlt}
             className="w-full rounded-xl border border-border bg-muted object-contain"
             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
           <button
             type="button"
-            onClick={() => onChange({ banner_url: "" })}
+            onClick={() => onChange("")}
             className="text-xs font-medium text-destructive hover:underline"
           >
             Remove image
@@ -1627,14 +1664,33 @@ function ReviewStep({
       )}
 
       <ReviewBlock title="Media">
-        {media.banner_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={media.banner_url}
-            alt="Banner preview"
-            className="h-28 w-auto rounded-lg border border-border object-contain bg-muted"
-            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-          />
+        {media.banner_url || media.layout_image_url ? (
+          <div className="flex flex-wrap gap-3">
+            {media.banner_url && (
+              <div className="space-y-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={media.banner_url}
+                  alt="Banner preview"
+                  className="h-28 w-auto rounded-lg border border-border object-contain bg-muted"
+                  onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                />
+                <div className="text-[11px] text-muted-foreground">Banner</div>
+              </div>
+            )}
+            {media.layout_image_url && (
+              <div className="space-y-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={media.layout_image_url}
+                  alt="Layout preview"
+                  className="h-28 w-auto rounded-lg border border-border object-contain bg-muted"
+                  onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                />
+                <div className="text-[11px] text-muted-foreground">Seating / zone layout</div>
+              </div>
+            )}
+          </div>
         ) : (
           <span className="text-sm text-muted-foreground">No image uploaded</span>
         )}

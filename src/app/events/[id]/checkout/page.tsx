@@ -10,6 +10,7 @@ import {
   Check,
   Loader,
   Lock,
+  Map as MapIcon,
   MapPin,
   Minus,
   Plus,
@@ -47,6 +48,7 @@ interface EventDetail {
   start_time: string | null
   date: string | null
   banner_url: string | null
+  layout_image_url: string | null
   approval_status: string
   seating_mode?: SeatingMode | null
   ticket_types: TicketType[]
@@ -425,6 +427,37 @@ function CheckoutPageInner() {
       <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: ticket selection + attendee form */}
         <div className="space-y-6 lg:col-span-2">
+          {/* Seating / zone layout — a reference map the organizer uploaded.
+              Opens full-size in a new tab for zooming. */}
+          {event.layout_image_url && (
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+              <header className="flex items-center gap-2 border-b border-border px-5 py-4">
+                <MapIcon className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold text-foreground">Seating layout</h2>
+              </header>
+              <div className="p-4">
+                <a
+                  href={event.layout_image_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                  title="Open full-size layout"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={event.layout_image_url}
+                    alt="Seating layout"
+                    className="w-full rounded-lg border border-border bg-muted object-contain"
+                    onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                  />
+                </a>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Tap the image to view it full-size.
+                </p>
+              </div>
+            </section>
+          )}
+
           {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
           {isReserved ? (
             <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs">

@@ -40,6 +40,7 @@ interface EventRow {
   end_time: string | null
   capacity: number | null
   banner_url: string | null
+  layout_image_url: string | null
   sms_reminders: boolean | null
   approval_status: ApprovalStatus
   rejection_reason: string | null
@@ -108,6 +109,7 @@ export default function EditEventPage() {
     end_time: "",
     capacity: "",
     banner_url: "",
+    layout_image_url: "",
     sms_reminders: true,
   })
 
@@ -153,6 +155,7 @@ export default function EditEventPage() {
           end_time: isoToLocal(e.end_time),
           capacity: e.capacity != null ? String(e.capacity) : "",
           banner_url: e.banner_url ?? "",
+          layout_image_url: e.layout_image_url ?? "",
           sms_reminders: e.sms_reminders ?? true,
         })
       } catch {
@@ -202,6 +205,7 @@ export default function EditEventPage() {
           end_time: localToIso(form.end_time),
           capacity: form.capacity ? parseInt(form.capacity, 10) : null,
           banner_url: form.banner_url.trim() || null,
+          layout_image_url: form.layout_image_url.trim() || null,
           sms_reminders: form.sms_reminders,
         }),
       })
@@ -423,6 +427,14 @@ export default function EditEventPage() {
             disabled={!canEdit || busy !== null}
           />
 
+          <BannerUploadField
+            label="Seating / zone layout (optional)"
+            hint="A venue map showing zones or the seat plan. Shown to attendees on the ticket-selection page."
+            value={form.layout_image_url}
+            onChange={(url) => setForm({ ...form, layout_image_url: url })}
+            disabled={!canEdit || busy !== null}
+          />
+
           <label
             className={cn(
               "flex w-full cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition-colors",
@@ -534,10 +546,14 @@ function BannerUploadField({
   value,
   onChange,
   disabled,
+  label = "Banner image",
+  hint,
 }: {
   value: string
   onChange: (url: string) => void
   disabled: boolean
+  label?: string
+  hint?: string
 }) {
   const [uploading, setUploading] = React.useState(false)
   const [uploadError, setUploadError] = React.useState("")
@@ -580,9 +596,10 @@ function BannerUploadField({
       <span className="block text-sm font-medium text-foreground">
         <span className="inline-flex items-center gap-1.5">
           <ImageIcon className="h-4 w-4 text-primary" />
-          Banner image
+          {label}
         </span>
       </span>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
 
       {/* Drop zone via label so the whole tile triggers the file input */}
       <label
@@ -597,8 +614,8 @@ function BannerUploadField({
           ref={fileRef}
           type="file"
           accept="image/*"
-          title="Upload banner image"
-          aria-label="Upload banner image"
+          title={`Upload ${label.toLowerCase()}`}
+          aria-label={`Upload ${label.toLowerCase()}`}
           className="hidden"
           onChange={handleFileChange}
           disabled={disabled || uploading}
@@ -621,7 +638,7 @@ function BannerUploadField({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={value}
-            alt="Banner preview"
+            alt={`${label} preview`}
             className="w-full rounded-xl border border-border bg-muted object-contain"
             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
