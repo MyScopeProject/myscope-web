@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   Loader,
   MapPin,
+  MessageSquare,
   Plus,
   Sparkles,
   Tag,
@@ -44,6 +45,7 @@ interface DetailsForm {
   venue_location_url: string
   capacity: string
   seating_mode: SeatingMode
+  sms_reminders: boolean
 }
 
 const SEATING_MODES: Array<{
@@ -140,6 +142,7 @@ const emptyDetails: DetailsForm = {
   venue_location_url: "",
   capacity: "",
   seating_mode: "none",
+  sms_reminders: true,
 }
 
 const emptyTicket = (): TicketTypeForm => ({
@@ -175,6 +178,7 @@ const buildPayload = (
   end_time: localToIso(details.end_time),
   capacity: details.capacity ? parseInt(details.capacity, 10) : null,
   seating_mode: details.seating_mode,
+  sms_reminders: details.sms_reminders,
   banner_url: media.banner_url.trim() || null,
   ticket_types: tickets.map((t) => ({
     name: t.name.trim(),
@@ -762,6 +766,50 @@ function DetailsStep({
           Paste a Google Maps link so attendees can find the venue easily.
         </p>
       </div>
+
+      <label
+        className={cn(
+          "flex w-full cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+          value.sms_reminders
+            ? "border-primary/40 bg-primary/5"
+            : "border-border bg-card hover:border-primary/40",
+        )}
+      >
+        <span
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+            value.sms_reminders ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+          )}
+        >
+          <MessageSquare className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="text-sm font-semibold text-foreground">SMS reminders</span>
+          <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+            Text attendees a reminder before this event. Turn off to send email-only reminders.
+          </span>
+        </span>
+        <input
+          type="checkbox"
+          checked={value.sms_reminders}
+          onChange={(e) => upd({ sms_reminders: e.target.checked })}
+          aria-label="SMS reminders"
+          className="sr-only"
+        />
+        <span
+          className={cn(
+            "relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
+            value.sms_reminders ? "bg-primary" : "bg-muted ring-1 ring-border",
+          )}
+        >
+          <span
+            className={cn(
+              "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+              value.sms_reminders ? "translate-x-5" : "translate-x-0.5",
+            )}
+          />
+        </span>
+      </label>
     </div>
   )
 }

@@ -10,6 +10,7 @@ import {
   Edit3,
   ImageIcon,
   Loader,
+  MessageSquare,
   Plus,
   Save,
   Send,
@@ -39,6 +40,7 @@ interface EventRow {
   end_time: string | null
   capacity: number | null
   banner_url: string | null
+  sms_reminders: boolean | null
   approval_status: ApprovalStatus
   rejection_reason: string | null
 }
@@ -106,6 +108,7 @@ export default function EditEventPage() {
     end_time: "",
     capacity: "",
     banner_url: "",
+    sms_reminders: true,
   })
 
   // Auth + role guard
@@ -150,6 +153,7 @@ export default function EditEventPage() {
           end_time: isoToLocal(e.end_time),
           capacity: e.capacity != null ? String(e.capacity) : "",
           banner_url: e.banner_url ?? "",
+          sms_reminders: e.sms_reminders ?? true,
         })
       } catch {
         if (!cancelled) setError("Network error loading event.")
@@ -198,6 +202,7 @@ export default function EditEventPage() {
           end_time: localToIso(form.end_time),
           capacity: form.capacity ? parseInt(form.capacity, 10) : null,
           banner_url: form.banner_url.trim() || null,
+          sms_reminders: form.sms_reminders,
         }),
       })
       const data = await res.json()
@@ -417,6 +422,50 @@ export default function EditEventPage() {
             onChange={(url) => setForm({ ...form, banner_url: url })}
             disabled={!canEdit || busy !== null}
           />
+
+          <label
+            className={cn(
+              "flex w-full cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+              form.sms_reminders
+                ? "border-primary/40 bg-primary/5"
+                : "border-border bg-card hover:border-primary/40",
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                form.sms_reminders ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+              )}
+            >
+              <MessageSquare className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="text-sm font-semibold text-foreground">SMS reminders</span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                Text attendees a reminder before this event. Turn off to send email-only reminders.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={form.sms_reminders}
+              onChange={(e) => setForm({ ...form, sms_reminders: e.target.checked })}
+              aria-label="SMS reminders"
+              className="sr-only"
+            />
+            <span
+              className={cn(
+                "relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
+                form.sms_reminders ? "bg-primary" : "bg-muted ring-1 ring-border",
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                  form.sms_reminders ? "translate-x-5" : "translate-x-0.5",
+                )}
+              />
+            </span>
+          </label>
         </fieldset>
       </div>
 

@@ -15,6 +15,8 @@ import {
   Mail,
   MapPin,
   RefreshCw,
+  ShieldCheck,
+  Smartphone,
   Ticket,
   XCircle,
 } from 'lucide-react';
@@ -33,6 +35,8 @@ interface Booking {
   status: string;
   created_at: string;
   attendee_info: { name?: string; email?: string; phone?: string | null } | null;
+  guest_phone?: string | null;
+  phone_verified?: boolean | null;
 }
 
 interface EventSummary {
@@ -246,6 +250,78 @@ export default function EventBookingDetailPage() {
       fetchSeatTickets();
     }
   }, [seatingMode, data?.booking?.status, seatTickets, seatTicketsError]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Phone verification (OTP). The booking already exists at this point, so we
+  // verify the number on the booking via the checkout verify-phone endpoints.
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [verifyUnavailable, setVerifyUnavailable] = useState(false);
+
+  const requestOtp = async () => {
+    if (!data?.booking) return;
+    setOtpError('');
+    setOtpBusy(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/checkout/${data.booking.id}/verify-phone/request${tokenQS}`,
+        { method: 'POST', credentials: 'include' },
+      );
+      const body = await res.json();
+      if (!body?.success) {
+        // 503 = phone verification channel turned off platform-wide; hide the card.
+        if (res.status === 503) setVerifyUnavailable(true);
+        setOtpError(body?.message || 'Could not send the code.');
+        return;
+      }
+      if (body.data?.phone_verified) {
+        setPhoneVerified(true);
+        return;
+      }
+      setOtpSent(true);
+      setOtpSentTo(body.data?.sent_to_last4 ?? null);
+    } catch {
+      setOtpError('Network error sending the code.');
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (!data?.booking) return;
+    const code = otp.trim();
+    if (!code) {
+      setOtpError('Enter the code we sent you.');
+      return;
+    }
+    setOtpError('');
+    setOtpBusy(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/checkout/${data.booking.id}/verify-phone${tokenQS}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ otp: code }),
+        },
+      );
+      const body = await res.json();
+      if (!body?.success) {
+        setOtpError(body?.message || 'Incorrect code.');
+        return;
+      }
+      setPhoneVerified(true);
+      setOtp('');
+    } catch {
+      setOtpError('Network error verifying the code.');
+    } finally {
+      setOtpBusy(false);
+    }
+  };
 
   const [transferringId, setTransferringId] = useState<string | null>(null);
   const [refundRequesting, setRefundRequesting] = useState(false);
@@ -490,6 +566,11 @@ export default function EventBookingDetailPage() {
   const isConfirmed = booking.status === 'Confirmed';
   const isReserved = (event?.seating_mode ?? seatingMode) === 'reserved';
 
+  const bookingPhone = booking.attendee_info?.phone || booking.guest_phone || null;
+  const isPhoneVerified = phoneVerified || !!booking.phone_verified;
+  const showPhoneVerify =
+    !!bookingPhone && !isPhoneVerified && !verifyUnavailable && !isCancelled;
+
   return (
     <div className="min-h-screen px-4 py-12 bg-background">
       <div className="max-w-2xl mx-auto">
@@ -642,6 +723,86 @@ export default function EventBookingDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Phone verification — confirm the attendee's number is reachable so
+            SMS reminders / alerts actually land. Shown until verified. */}
+        {showPhoneVerify && (
+          <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Smartphone className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-outfit font-bold text-foreground">Verify your phone</h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  We&rsquo;ll text a 6-digit code to{' '}
+                  <span className="font-medium text-foreground">{bookingPhone}</span> so your SMS
+                  ticket alerts and reminders reach you.
+                </p>
+
+                {!otpSent ? (
+                  <button
+                    type="button"
+                    onClick={requestOtp}
+                    disabled={otpBusy}
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-inter font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {otpBusy ? <Loader className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
+                    {otpBusy ? 'Sending…' : 'Send code'}
+                  </button>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {otpSentTo && (
+                      <p className="text-xs text-muted-foreground">
+                        Code sent to the number ending in{' '}
+                        <span className="font-mono font-semibold">{otpSentTo}</span>.
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="6-digit code"
+                        aria-label="Verification code"
+                        className="w-36 rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono tracking-[0.3em] text-foreground placeholder:tracking-normal focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={verifyOtp}
+                        disabled={otpBusy || otp.length < 4}
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-inter font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                      >
+                        {otpBusy ? <Loader className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                        {otpBusy ? 'Verifying…' : 'Verify'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={requestOtp}
+                        disabled={otpBusy}
+                        className="text-xs font-medium text-primary hover:underline disabled:opacity-60"
+                      >
+                        Resend
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {otpError && <p className="mt-2 text-xs text-destructive">{otpError}</p>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Verified confirmation chip */}
+        {!!bookingPhone && isPhoneVerified && !isCancelled && (
+          <div className="mt-6 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span>Phone number verified — you&rsquo;ll receive SMS updates for this booking.</span>
+          </div>
+        )}
 
         {/* Seat-hold countdown — only meaningful for reserved Pending bookings.
             Backend's hold_seats RPC locks seats for 10 min from checkout; we
