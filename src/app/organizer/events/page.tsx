@@ -449,8 +449,13 @@ function OrganizerEventRow({
   const Icon = meta.icon
   const when = event.start_time || event.date
   const dateObj = when ? new Date(when) : null
-  const canEdit = event.approval_status === "draft" || event.approval_status === "rejected"
-  const canSubmit = canEdit
+  // Pending events are still editable (organizer fixes typos before review) but
+  // shouldn't expose the Manage dashboard or a re-submit action.
+  const canEdit =
+    event.approval_status === "draft" ||
+    event.approval_status === "rejected" ||
+    event.approval_status === "pending"
+  const canSubmit = event.approval_status === "draft" || event.approval_status === "rejected"
 
   return (
     <li className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
@@ -525,10 +530,10 @@ function OrganizerEventRow({
 
           <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-1">
             {/* "Manage" opens the per-event control page (analytics + tickets +
-                attendees + promo + waitlist + comms in one). Shown for any
-                non-draft event since organizers need to monitor pending events
-                too (waitlist sign-ups, promo setup, etc.). */}
-            {event.approval_status !== "draft" && (
+                attendees + promo + waitlist + comms in one). Hidden for draft
+                and pending events — there's nothing to manage until an event is
+                live, so those only get Edit/Delete. */}
+            {event.approval_status !== "draft" && event.approval_status !== "pending" && (
               <Button asChild variant="outline" size="sm">
                 <Link href={`/organizer/events/${event.id}`}>
                   <BarChart2 /> Manage

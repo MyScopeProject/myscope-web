@@ -306,6 +306,14 @@ export default function OrganizerEventControlPage() {
     }
   }, [user, fetchEvent])
 
+  // Pending (and draft) events have nothing to manage yet — only Edit/Delete
+  // make sense. If one is opened by direct URL, send the organizer to Edit.
+  React.useEffect(() => {
+    if (event && (event.approval_status === "pending" || event.approval_status === "draft")) {
+      router.replace(`/organizer/events/${eventId}/edit`)
+    }
+  }, [event, eventId, router])
+
   if (authLoading || loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -327,6 +335,16 @@ export default function OrganizerEventControlPage() {
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error || "Event not found."}</span>
         </div>
+      </div>
+    )
+  }
+
+  // Redirect-in-progress for pending/draft (see effect above) — avoid flashing
+  // the manage dashboard before the route swap lands.
+  if (event.approval_status === "pending" || event.approval_status === "draft") {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
