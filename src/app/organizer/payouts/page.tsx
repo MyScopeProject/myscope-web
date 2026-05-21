@@ -227,6 +227,27 @@ export default function OrganizerPayoutsPage() {
     }
   }
 
+  // Fetch the slip as a blob and save it, so the browser downloads instead of
+  // navigating to the storage URL. Falls back to opening the URL on failure.
+  const downloadSlip = async (url: string, ref: string) => {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("fetch failed")
+      const blob = await res.blob()
+      const ext = (url.split("?")[0].split(".").pop() || "png").toLowerCase()
+      const objUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = objUrl
+      a.download = `payment-slip-${ref}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(objUrl)
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer")
+    }
+  }
+
   // Tiny helper: only show the last 4 digits of the account number once saved.
   const maskedAccount = (n: string | null) => {
     if (!n) return "—"
@@ -552,15 +573,13 @@ export default function OrganizerPayoutsPage() {
                       <div className="mt-1 text-xs italic text-muted-foreground">{p.notes}</div>
                     )}
                     {p.slip_url && (
-                      <a
-                        href={p.slip_url}
-                        download
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => downloadSlip(p.slip_url!, p.id.slice(0, 8))}
                         className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                       >
                         <Download className="h-3 w-3" /> Download payment slip
-                      </a>
+                      </button>
                     )}
                   </div>
                   <div className="shrink-0 text-right">
