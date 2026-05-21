@@ -6,21 +6,15 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   AlertCircle,
   ArrowLeft,
-  Calendar,
   Check,
   Loader,
   Lock,
-  Map as MapIcon,
-  MapPin,
   Minus,
   Plus,
-  Ticket,
-  User as UserIcon,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { SeatMapPicker, type SelectedSeat } from "@/components/events/seat-map-picker"
 
@@ -372,10 +366,6 @@ function CheckoutPageInner() {
     )
   }
 
-  const whenIso = event.start_time || event.date
-  const dateObj = whenIso ? new Date(whenIso) : null
-  const venue = event.venue_name
-
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <Link
@@ -387,32 +377,9 @@ function CheckoutPageInner() {
 
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <Badge>Checkout</Badge>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             {event.title}
           </h1>
-          {(dateObj || venue) && (
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              {dateObj && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {dateObj.toLocaleString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </span>
-              )}
-              {venue && (
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {venue}
-                </span>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -431,8 +398,7 @@ function CheckoutPageInner() {
               Opens full-size in a new tab for zooming. */}
           {event.layout_image_url && (
             <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-              <header className="flex items-center gap-2 border-b border-border px-5 py-4">
-                <MapIcon className="h-4 w-4 text-muted-foreground" />
+              <header className="border-b border-border px-5 py-4">
                 <h2 className="text-base font-semibold text-foreground">Seating layout</h2>
               </header>
               <div className="p-4">
@@ -451,9 +417,6 @@ function CheckoutPageInner() {
                     onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
                   />
                 </a>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Tap the image to view it full-size.
-                </p>
               </div>
             </section>
           )}
@@ -462,11 +425,8 @@ function CheckoutPageInner() {
           {isReserved ? (
             <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs">
               <header className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Ticket className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold text-foreground">Pick your seats</h2>
-                </div>
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                <h2 className="text-base font-semibold text-foreground">Pick your seats</h2>
+                <span className="text-xs font-medium text-muted-foreground">
                   {selectedSeats.length} selected
                 </span>
               </header>
@@ -485,20 +445,12 @@ function CheckoutPageInner() {
             const isZoned = event.seating_mode === "zoned"
             const isFree = event.seating_mode === "free"
             const heading = isZoned ? "Choose a zone" : "Choose a ticket"
-            const unitLabel = (n: number) =>
-              isZoned ? (n === 1 ? "zone" : "zones") : (n === 1 ? "tier" : "tiers")
             const emptyText = isZoned ? "No zones available." : "No tickets available."
 
             return (
           <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-            <header className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div className="flex items-center gap-2">
-                <Ticket className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-base font-semibold text-foreground">{heading}</h2>
-              </div>
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                {event.ticket_types.length} {unitLabel(event.ticket_types.length)}
-              </span>
+            <header className="border-b border-border px-5 py-4">
+              <h2 className="text-base font-semibold text-foreground">{heading}</h2>
             </header>
 
             {/* Open-seating notice — free mode means seats exist but aren't assigned */}
@@ -572,78 +524,68 @@ function CheckoutPageInner() {
 
           {/* Attendee details */}
           <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-            <header className="flex items-center gap-2 border-b border-border px-5 py-4">
-              <UserIcon className="h-4 w-4 text-muted-foreground" />
+            <header className="border-b border-border px-5 py-4">
               <h2 className="text-base font-semibold text-foreground">Attendee details</h2>
             </header>
-            <div className="px-5 py-5">
-            <p className="mb-4 text-xs text-muted-foreground">
-              Your phone number is used for SMS ticket alerts and venue contact on the day.
-            </p>
+            <div className="space-y-4 px-5 py-5">
+              {user ? (
+                <p className="text-sm text-muted-foreground">
+                  Tickets will be sent to{" "}
+                  <span className="font-medium text-foreground">{attendee.email || "—"}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Checking out as a guest.{" "}
+                  <Link
+                    href={`/auth/login?redirect=/events/${eventId}/checkout`}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Sign in
+                  </Link>{" "}
+                  to save your details.
+                </p>
+              )}
 
-            {/* Email: locked for signed-in users (their account email),
-                editable for guests (they need to receive the ticket somewhere). */}
-            {user ? (
-              <div className="mb-4 flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
-                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    Tickets will be sent to
-                  </div>
-                  <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
-                    {attendee.email || "—"}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-                <span>Checking out as a guest. Tickets will be sent to the email below.</span>
-                <Link
-                  href={`/auth/login?redirect=/events/${eventId}/checkout`}
-                  className="font-medium text-primary hover:underline"
-                >
-                  Sign in instead
-                </Link>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FieldGroup id="att-name" label="Name">
-                <Input
-                  id="att-name"
-                  type="text"
-                  value={attendee.name}
-                  onChange={(e) => setAttendee({ ...attendee, name: e.target.value })}
-                  autoComplete="name"
-                  placeholder="Akila Perera"
-                />
-              </FieldGroup>
-              {/* Editable email only for guests — signed-in users have it locked above. */}
-              {!user && (
-                <FieldGroup id="att-email" label="Email" required helper="Your ticket will be sent here.">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FieldGroup id="att-name" label="Name">
                   <Input
-                    id="att-email"
-                    type="email"
-                    value={attendee.email}
-                    onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
-                    autoComplete="email"
-                    placeholder="you@example.com"
+                    id="att-name"
+                    type="text"
+                    value={attendee.name}
+                    onChange={(e) => setAttendee({ ...attendee, name: e.target.value })}
+                    autoComplete="name"
+                    placeholder="Akila Perera"
+                  />
+                </FieldGroup>
+                {!user && (
+                  <FieldGroup id="att-email" label="Email" required>
+                    <Input
+                      id="att-email"
+                      type="email"
+                      value={attendee.email}
+                      onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </FieldGroup>
+                )}
+                <FieldGroup id="att-phone" label="Phone" required>
+                  <Input
+                    id="att-phone"
+                    type="tel"
+                    value={attendee.phone}
+                    onChange={(e) => setAttendee({ ...attendee, phone: e.target.value })}
+                    autoComplete="tel"
+                    placeholder="+94 77 123 4567"
                     required
                   />
                 </FieldGroup>
-              )}
-              <FieldGroup id="att-phone" label="Phone" required helper="Sri Lankan mobile, e.g. 077 123 4567 — used for SMS updates.">
-                <Input
-                  id="att-phone"
-                  type="tel"
-                  value={attendee.phone}
-                  onChange={(e) => setAttendee({ ...attendee, phone: e.target.value })}
-                  autoComplete="tel"
-                  placeholder="+94 77 123 4567"
-                  required
-                />
-              </FieldGroup>
-            </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                We&rsquo;ll text your ticket and event updates to this number.
+              </p>
             </div>
           </section>
 
