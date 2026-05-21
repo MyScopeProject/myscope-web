@@ -86,6 +86,13 @@ export default function OrganizerPayoutsPage() {
   const [bankError, setBankError] = React.useState("")
   const [bankSavedAt, setBankSavedAt] = React.useState<number | null>(null)
 
+  // Payout request form
+  const [requestOpen, setRequestOpen] = React.useState(false)
+  const [requestAmount, setRequestAmount] = React.useState("")
+  const [requestNotes, setRequestNotes] = React.useState("")
+  const [requesting, setRequesting] = React.useState(false)
+  const [requestError, setRequestError] = React.useState("")
+
   React.useEffect(() => {
     if (authLoading) return
     if (!user) router.push("/auth/login?redirect=/organizer/payouts")
@@ -162,6 +169,45 @@ export default function OrganizerPayoutsPage() {
       setBankError("Network error.")
     } finally {
       setBankSaving(false)
+    }
+  }
+
+  const hasBank = !!bank?.bank_account_number
+  const hasOpenRequest = payouts.some((p) => p.status === "requested")
+  const canRequest = !!balance && balance.pending > 0 && hasBank && !hasOpenRequest
+
+  const handleRequest = async () => {
+    setRequestError("")
+    const amt = Number(requestAmount)
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setRequestError("Enter a valid amount.")
+      return
+    }
+    if (balance && amt > balance.pending) {
+      setRequestError(`Amount exceeds your available balance (${formatLkr(balance.pending)}).`)
+      return
+    }
+    setRequesting(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/payouts/request`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amt, notes: requestNotes.trim() || undefined }),
+      })
+      const data = await res.json()
+      if (!data?.success) {
+        setRequestError(data?.message || "Failed to submit request.")
+        return
+      }
+      setPayouts((prev) => [data.data.payout as Payout, ...prev])
+      setRequestOpen(false)
+      setRequestAmount("")
+      setRequestNotes("")
+    } catch {
+      setRequestError("Network error.")
+    } finally {
+      setRequesting(false)
     }
   }
 
@@ -352,12 +398,74 @@ export default function OrganizerPayoutsPage() {
 
       {/* Payouts list */}
       <section className="rounded-xl border border-border bg-card shadow-xs">
-        <div className="border-b border-border p-4">
-          <h2 className="text-sm font-semibold text-foreground">Payout history</h2>
-          <p className="text-xs text-muted-foreground">
-            Payouts are released weekly. Reach out to support if anything looks off.
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Payout history</h2>
+            <p className="text-xs text-muted-foreground">
+              Request a payout of your available balance. Our team reviews and processes it.
+            </p>
+          </div>
+          {canRequest ? (
+            <Button type="button" size="sm" onClick={() => { setRequestOpen((o) => !o); setRequestError(""); setRequestAmount(balance ? String(balance.pending) : "") }}>
+              <Banknote className="h-3.5 w-3.5" /> Request payout
+            </Button>
+          ) : hasOpenRequest ? (
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Request pending review</span>
+          ) : !hasBank ? (
+            <span className="text-xs text-muted-foreground">Add bank details to request a payout</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">No balance available to request</span>
+          )}
         </div>
+
+        {/* Request form */}
+        {requestOpen && canRequest && (
+          <div className="space-y-3 border-b border-border bg-muted/20 p-4">
+            {requestError && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{requestError}</span>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="req-amount" className="mb-1.5 block text-sm font-medium text-foreground">
+                  Amount (LKR)
+                </label>
+                <input
+                  id="req-amount"
+                  type="number"
+                  min={1}
+                  max={balance?.pending}
+                  value={requestAmount}
+                  onChange={(e) => setRequestAmount(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">Available: {formatLkr(balance?.pending ?? 0)}</p>
+              </div>
+              <div>
+                <label htmlFor="req-notes" className="mb-1.5 block text-sm font-medium text-foreground">
+                  Note (optional)
+                </label>
+                <input
+                  id="req-notes"
+                  type="text"
+                  value={requestNotes}
+                  onChange={(e) => setRequestNotes(e.target.value)}
+                  placeholder="Anything we should know?"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setRequestOpen(false)}>Cancel</Button>
+              <Button type="button" size="sm" onClick={handleRequest} disabled={requesting}>
+                {requesting ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />}
+                {requesting ? "Submitting…" : "Submit request"}
+              </Button>
+            </div>
+          </div>
+        )}
         {payouts.length === 0 ? (
           <div className="p-10 text-center">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
