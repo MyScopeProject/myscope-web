@@ -48,6 +48,7 @@ interface Payout {
   event?: { id: string; title: string } | null
   requested_at: string
   processed_at: string | null
+  slip_url?: string | null
 }
 
 const STATUS_META: Record<
@@ -87,8 +88,10 @@ export default function OrganizerPayoutsPage() {
   const [bankSavedAt, setBankSavedAt] = React.useState<number | null>(null)
 
   // Payout request form
+  const [events, setEvents] = React.useState<{ id: string; title: string }[]>([])
   const [requestOpen, setRequestOpen] = React.useState(false)
   const [requestAmount, setRequestAmount] = React.useState("")
+  const [requestEvent, setRequestEvent] = React.useState("")
   const [requestNotes, setRequestNotes] = React.useState("")
   const [requesting, setRequesting] = React.useState(false)
   const [requestError, setRequestError] = React.useState("")
@@ -104,8 +107,9 @@ export default function OrganizerPayoutsPage() {
       fetch(`${API_URL}/api/organizer/payouts/balance`, { credentials: "include" }).then((r) => r.json()),
       fetch(`${API_URL}/api/organizer/payouts`, { credentials: "include" }).then((r) => r.json()),
       fetch(`${API_URL}/api/organizers/me`, { credentials: "include" }).then((r) => r.json()),
+      fetch(`${API_URL}/api/organizer/events`, { credentials: "include" }).then((r) => r.json()),
     ])
-      .then(([balRes, payRes, meRes]) => {
+      .then(([balRes, payRes, meRes, evRes]) => {
         if (!balRes?.success) {
           setError(balRes?.message || "Failed to load balance.")
           return
@@ -116,6 +120,9 @@ export default function OrganizerPayoutsPage() {
         }
         setBalance(balRes.data.balance)
         setPayouts(payRes.data.payouts as Payout[])
+        if (evRes?.success) {
+          setEvents((evRes.data.events ?? []).map((e: { id: string; title: string }) => ({ id: e.id, title: e.title })))
+        }
 
         // Seed bank state from the organizer profile. Auto-open editor when
         // nothing is on file so the empty state has a clear CTA.
@@ -178,6 +185,10 @@ export default function OrganizerPayoutsPage() {
 
   const handleRequest = async () => {
     setRequestError("")
+    if (!requestEvent) {
+      setRequestError("Select the event this payout is for.")
+      return
+    }
     const amt = Number(requestAmount)
     if (!Number.isFinite(amt) || amt <= 0) {
       setRequestError("Enter a valid amount.")
@@ -193,16 +204,20 @@ export default function OrganizerPayoutsPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: amt, notes: requestNotes.trim() || undefined }),
+        body: JSON.stringify({ amount: amt, event_id: requestEvent || undefined, notes: requestNotes.trim() || undefined }),
       })
       const data = await res.json()
       if (!data?.success) {
         setRequestError(data?.message || "Failed to submit request.")
         return
       }
-      setPayouts((prev) => [data.data.payout as Payout, ...prev])
+      // Re-fetch so the new row includes the joined event (the create
+      // response returns the raw row without it).
+      const pr = await fetch(`${API_URL}/api/organizer/payouts`, { credentials: "include" }).then((r) => r.json())
+      if (pr?.success) setPayouts(pr.data.payouts as Payout[])
       setRequestOpen(false)
       setRequestAmount("")
+      setRequestEvent("")
       setRequestNotes("")
     } catch {
       setRequestError("Network error.")
@@ -427,6 +442,22 @@ export default function OrganizerPayoutsPage() {
                 <span>{requestError}</span>
               </div>
             )}
+            <div>
+              <label htmlFor="req-event" className="mb-1.5 block text-sm font-medium text-foreground">
+                Event
+              </label>
+              <select
+                id="req-event"
+                value={requestEvent}
+                onChange={(e) => setRequestEvent(e.target.value)}
+                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Select an event…</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={ev.id}>{ev.title}</option>
+                ))}
+              </select>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="req-amount" className="mb-1.5 block text-sm font-medium text-foreground">
@@ -518,6 +549,16 @@ export default function OrganizerPayoutsPage() {
                     </div>
                     {p.notes && (
                       <div className="mt-1 text-xs italic text-muted-foreground">{p.notes}</div>
+                    )}
+                    {p.slip_url && (
+                      <a
+                        href={p.slip_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <Banknote className="h-3 w-3" /> View payment slip
+                      </a>
                     )}
                   </div>
                   <div className="shrink-0 text-right">
