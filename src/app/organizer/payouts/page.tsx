@@ -9,6 +9,7 @@ import {
   Banknote,
   CheckCircle,
   Clock,
+  Download,
   Loader,
   Pencil,
   Save,
@@ -553,11 +554,12 @@ export default function OrganizerPayoutsPage() {
                     {p.slip_url && (
                       <a
                         href={p.slip_url}
+                        download
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                       >
-                        <Banknote className="h-3 w-3" /> View payment slip
+                        <Download className="h-3 w-3" /> Download payment slip
                       </a>
                     )}
                   </div>
