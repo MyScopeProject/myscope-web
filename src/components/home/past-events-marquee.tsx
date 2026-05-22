@@ -54,7 +54,7 @@ export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
     window.addEventListener("resize", ensureCopies)
 
     const setW = oneSetWidth()
-    if (setW <= 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (setW <= 0) {
       return () => window.removeEventListener("resize", ensureCopies)
     }
 
