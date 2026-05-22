@@ -55,6 +55,8 @@ interface EventDetail {
   banner_url?: string | null
   approval_status: ApprovalStatus
   seating_mode?: string | null
+  postponed?: boolean
+  postponed_to?: string | null
 }
 
 interface TicketType {
@@ -372,6 +374,11 @@ export default function OrganizerEventControlPage() {
             <Badge variant={STATUS_VARIANT[event.approval_status]}>
               {event.approval_status === "approved" ? "Live" : event.approval_status}
             </Badge>
+            {event.postponed && (
+              <Badge variant="warning">
+                Postponed{event.postponed_to ? ` to ${new Date(event.postponed_to).toLocaleDateString()}` : " (date TBA)"}
+              </Badge>
+            )}
             {event.seating_mode && event.seating_mode !== "none" && (
               <Badge variant="outline">{event.seating_mode}</Badge>
             )}
@@ -464,8 +471,6 @@ export default function OrganizerEventControlPage() {
       {postponeOpen && (
         <PostponeModal
           eventId={eventId}
-          currentStart={event.start_time ?? event.date ?? null}
-          currentEnd={event.end_time ?? null}
           onClose={() => setPostponeOpen(false)}
           onDone={(msg) => {
             setPostponeOpen(false)
@@ -1450,46 +1455,26 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
-// ISO timestamp -> value for a <input type="datetime-local"> (local time).
-function toLocalInput(iso: string | null): string {
-  if (!iso) return ""
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ""
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-// Postpone (reschedule) modal — pick a new date/time and optionally notify
-// attendees. Tickets stay valid; this only changes the date.
+// Postpone modal. Two modes: keep selling (still buyable, shown as postponed)
+// or stop sales (not buyable). A new date is optional — omit it to postpone with
+// the date "to be announced". Existing tickets stay valid either way.
 function PostponeModal({
   eventId,
-  currentStart,
-  currentEnd,
   onClose,
   onDone,
 }: {
   eventId: string
-  currentStart: string | null
-  currentEnd: string | null
   onClose: () => void
   onDone: (message: string) => void
 }) {
-  const [start, setStart] = React.useState(toLocalInput(currentStart))
-  const [end, setEnd] = React.useState(toLocalInput(currentEnd))
+  const [start, setStart] = React.useState("")
   const [reason, setReason] = React.useState("")
   const [notify, setNotify] = React.useState(true)
+  const [closeSales, setCloseSales] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [err, setErr] = React.useState("")
 
   const submit = async () => {
-    if (!start) {
-      setErr("Pick a new date and time.")
-      return
-    }
-    if (end && end < start) {
-      setErr("End time must be after the new start time.")
-      return
-    }
     setBusy(true)
     setErr("")
     try {
@@ -1498,10 +1483,10 @@ function PostponeModal({
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          new_start_time: start,
-          new_end_time: end || undefined,
+          new_start_time: start || undefined,
           reason: reason.trim() || undefined,
           notify,
+          close_sales: closeSales,
         }),
       })
       const body = await res.json()
@@ -1530,7 +1515,7 @@ function PostponeModal({
           <div>
             <h2 className="text-lg font-semibold text-foreground">Postpone event</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Move this event to a new date. Existing tickets stay valid.
+              Mark this event as postponed. Existing tickets stay valid.
             </p>
           </div>
           <button
@@ -1551,9 +1536,43 @@ function PostponeModal({
         )}
 
         <div className="space-y-4">
+          {/* Sales mode */}
+          <div>
+            <span className="mb-1.5 block text-sm font-medium text-foreground">While postponed</span>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setCloseSales(false)}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  !closeSales
+                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                    : "border-border hover:border-primary/40 hover:bg-muted/40",
+                )}
+              >
+                <span className="block text-sm font-semibold text-foreground">Keep selling tickets</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">Buyers can still book for the new date.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCloseSales(true)}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  closeSales
+                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                    : "border-border hover:border-primary/40 hover:bg-muted/40",
+                )}
+              >
+                <span className="block text-sm font-semibold text-foreground">Stop ticket sales</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">Tickets can&rsquo;t be bought for now.</span>
+              </button>
+            </div>
+          </div>
+
+          {/* New date — optional */}
           <div>
             <label htmlFor="postpone-start" className="mb-1.5 block text-sm font-medium text-foreground">
-              New start <span className="text-destructive">*</span>
+              New date <span className="text-muted-foreground">(optional)</span>
             </label>
             <Input
               id="postpone-start"
@@ -1561,18 +1580,12 @@ function PostponeModal({
               value={start}
               onChange={(e) => setStart(e.target.value)}
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Leave empty to postpone with the new date announced later.
+            </p>
           </div>
-          <div>
-            <label htmlFor="postpone-end" className="mb-1.5 block text-sm font-medium text-foreground">
-              New end <span className="text-muted-foreground">(optional)</span>
-            </label>
-            <Input
-              id="postpone-end"
-              type="datetime-local"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-            />
-          </div>
+
+          {/* Reason */}
           <div>
             <label htmlFor="postpone-reason" className="mb-1.5 block text-sm font-medium text-foreground">
               Reason <span className="text-muted-foreground">(optional)</span>
@@ -1587,6 +1600,7 @@ function PostponeModal({
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
             />
           </div>
+
           <label className="flex items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
@@ -1602,7 +1616,7 @@ function PostponeModal({
           <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button size="sm" onClick={submit} disabled={busy || !start}>
+          <Button size="sm" onClick={submit} disabled={busy}>
             {busy ? <Loader className="animate-spin" /> : <CalendarClock />}
             {busy ? "Postponing…" : "Postpone event"}
           </Button>

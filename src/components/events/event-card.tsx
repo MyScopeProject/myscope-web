@@ -22,6 +22,11 @@ export interface EventCardData {
   // card renders an "On hold" state instead of falling back to a misleading
   // "Free" price (server sends 0 because active-tier query returned nothing).
   sales_paused?: boolean
+  // Postpone: `postponed` flags a rescheduled event; `postponed_to` is the new
+  // date (null = "date to be announced"). Whether tickets are still buyable
+  // while postponed is governed by sales_paused.
+  postponed?: boolean
+  postponed_to?: string | null
 }
 
 interface EventCardProps {
@@ -41,7 +46,16 @@ function formatPrice(n: number) {
 }
 
 export function EventCard({ event, className }: EventCardProps) {
-  const when = event.start_time || event.date
+  const isPostponed = !!event.postponed
+  const postponedTo = event.postponed_to ?? null
+  // A postponed event with no new date shows "TBA" (no date stub); otherwise it
+  // uses its date (which is the new date once one is set).
+  const when = isPostponed && !postponedTo ? null : (event.start_time || event.date)
+  const postponedLabel = isPostponed
+    ? postponedTo
+      ? `Postponed to ${new Date(postponedTo).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+      : "Postponed — new date TBA"
+    : null
   const venue = event.venue_name || event.location
   const available = Number(event.tickets_available ?? 0)
   const sold = Number(event.tickets_sold ?? 0)
@@ -96,10 +110,11 @@ export function EventCard({ event, className }: EventCardProps) {
         )}
 
         {/* Top-right floating badges */}
-        {(event.featured || isSoldOut || event.sales_paused) && (
+        {(event.featured || isSoldOut || event.sales_paused || isPostponed) && (
           <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
             {event.featured && <Badge variant="warning">Featured</Badge>}
-            {event.sales_paused && <Badge variant="destructive">On hold</Badge>}
+            {isPostponed && <Badge variant="destructive">Postponed</Badge>}
+            {event.sales_paused && !isPostponed && <Badge variant="destructive">On hold</Badge>}
             {isSoldOut && <Badge variant="destructive">Sold out</Badge>}
           </div>
         )}
@@ -157,10 +172,19 @@ export function EventCard({ event, className }: EventCardProps) {
             <>
               <div>
                 <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">Status</div>
-                <div className="text-base font-bold leading-tight text-destructive sm:text-xl">On hold</div>
+                <div className="text-base font-bold leading-tight text-destructive sm:text-xl">
+                  {isPostponed ? "Postponed" : "On hold"}
+                </div>
+                {isPostponed && (
+                  <div className="text-[10px] font-semibold text-destructive sm:text-xs">
+                    {postponedTo
+                      ? `New date: ${new Date(postponedTo).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                      : "New date to be announced"}
+                  </div>
+                )}
               </div>
               {/* "View details" matches the default Get-tickets CTA so the
-                  card stays visually consistent; the red signal lives in the
+                  card stays visually consistent; the signal lives in the
                   badge + status text above. */}
               <Button asChild size="sm" className="w-full rounded-lg text-xs sm:text-sm">
                 <Link href={`/events/${event.id}`}>View details</Link>
@@ -168,6 +192,13 @@ export function EventCard({ event, className }: EventCardProps) {
             </>
           ) : (
             <>
+              {/* Postponed but still buyable — flag it, keep the buy CTA. */}
+              {isPostponed && (
+                <div className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-2 py-1 text-[9px] font-semibold text-destructive sm:text-[10px]">
+                  <Clock className="h-2.5 w-2.5 shrink-0" />
+                  {postponedLabel}
+                </div>
+              )}
               <div>
                 {hasPrice && priceNum! > 0 ? (
                   <div>

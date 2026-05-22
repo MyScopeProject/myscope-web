@@ -81,6 +81,11 @@ interface Event {
   // every ticket tier is inactive. Surface as "Event on hold" in the UI
   // instead of falling through to the "Free" registration path.
   sales_paused?: boolean
+  // Postpone: `postponed` flags a rescheduled event; `postponed_to` is the new
+  // date (null = "to be announced"). Buyability while postponed is governed by
+  // sales_paused (open vs closed mode).
+  postponed?: boolean
+  postponed_to?: string | null
 }
 
 const formatLkr = (n: number) =>
@@ -222,7 +227,10 @@ export default function EventDetailsPage() {
   const ticketsRemaining = ticketsAvailable - ticketsSold
   const isSoldOut = ticketsAvailable > 0 && ticketsRemaining <= 0
   const isRegistered = !!user && event.attendees?.includes(user.id)
-  const whenIso = event.start_time || event.date
+  const isPostponed = !!event.postponed
+  const postponedTo = event.postponed_to ?? null
+  // Postponed without a new date → no concrete date to show (TBA).
+  const whenIso = isPostponed && !postponedTo ? null : (event.start_time || event.date)
   const dateObj = whenIso ? new Date(whenIso) : null
   const endObj = event.end_time ? new Date(event.end_time) : null
   const venue = event.venue_name || event.location
@@ -264,9 +272,10 @@ export default function EventDetailsPage() {
         )}
 
         {/* Floating badges (top-right) */}
-        {(event.featured || isSoldOut || event.sales_paused) && (
+        {(event.featured || isSoldOut || event.sales_paused || isPostponed) && (
           <div className="absolute right-4 top-4 z-10 flex flex-wrap gap-1.5">
             {event.featured && <Badge variant="warning">Featured</Badge>}
+            {isPostponed && <Badge variant="warning">Postponed</Badge>}
             {event.sales_paused && <Badge variant="destructive">On hold</Badge>}
             {isSoldOut && <Badge variant="destructive">Sold out</Badge>}
           </div>
@@ -286,6 +295,14 @@ export default function EventDetailsPage() {
               {event.title}
             </h1>
             <div className="mt-7 space-y-3">
+              {isPostponed && (
+                <p className="inline-flex w-fit items-center gap-2 rounded-full bg-amber-500/90 px-3 py-1 text-sm font-semibold text-white">
+                  <CalendarPlus className="h-4 w-4" />
+                  {postponedTo
+                    ? `Postponed to ${new Date(postponedTo).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                    : "Postponed — new date to be announced"}
+                </p>
+              )}
               {dateObj && (
                 <p className="flex items-center gap-2.5 text-base font-medium text-white/90 sm:text-lg">
                   <CalendarPlus className="h-5 w-5 shrink-0 text-white/70" />
@@ -487,8 +504,15 @@ export default function EventDetailsPage() {
                     Status
                   </div>
                   <div className="mt-1 text-2xl font-bold text-destructive">
-                    On hold
+                    {isPostponed ? "Postponed" : "On hold"}
                   </div>
+                  {isPostponed && (
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {postponedTo
+                        ? `New date: ${new Date(postponedTo).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                        : "New date to be announced"}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="mb-5">
@@ -535,10 +559,14 @@ export default function EventDetailsPage() {
                       size="lg"
                       disabled
                     >
-                      <Ticket /> Event on hold
+                      <Ticket /> {isPostponed ? "Event postponed" : "Event on hold"}
                     </Button>
                     <p className="text-center text-xs text-destructive">
-                      The organizer has temporarily paused ticket sales. Check back soon.
+                      {isPostponed
+                        ? postponedTo
+                          ? "This event has been postponed and ticket sales are closed for now."
+                          : "This event has been postponed (new date to be announced) and ticket sales are closed for now."
+                        : "The organizer has temporarily paused ticket sales. Check back soon."}
                     </p>
                   </div>
                 ) : hasTicketTypes ? (
