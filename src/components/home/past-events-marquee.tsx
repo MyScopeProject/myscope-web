@@ -10,14 +10,13 @@ export interface PastEventItem {
   link_url: string | null
 }
 
-// Auto-scrolling, infinite strip of past-event photos that is ALSO a native
-// horizontal scroller — users can swipe / drag / wheel through it. The items
-// render twice; a requestAnimationFrame loop nudges scrollLeft and wraps at the
-// start of the second copy for a seamless loop. Auto-scroll pauses while the
-// user interacts, and is disabled under prefers-reduced-motion.
+// Continuously-scrolling, infinite strip of past-event photos that is ALSO a
+// native horizontal scroller — users can swipe / drag / wheel through it. The
+// items render twice; a requestAnimationFrame loop nudges scrollLeft and wraps
+// at the start of the second copy for a seamless loop. It never pauses (keeps
+// moving even on hover); auto-motion is only skipped under prefers-reduced-motion.
 export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
   const scrollerRef = React.useRef<HTMLDivElement>(null)
-  const pausedRef = React.useRef(false)
   const count = items?.length ?? 0
 
   React.useEffect(() => {
@@ -39,7 +38,7 @@ export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
     const SPEED = 0.5 // px per frame (~30px/s at 60fps)
     let raf = 0
     const tick = () => {
-      if (!pausedRef.current && loopWidth > 0) {
+      if (loopWidth > 0) {
         el.scrollLeft += SPEED
         if (el.scrollLeft >= loopWidth) el.scrollLeft -= loopWidth
       }
@@ -57,12 +56,6 @@ export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
 
   // Duplicate the list so the wrap has a second copy to land on.
   const doubled = [...items, ...items]
-  const pause = () => {
-    pausedRef.current = true
-  }
-  const resume = () => {
-    pausedRef.current = false
-  }
 
   return (
     <div className="relative">
@@ -72,10 +65,6 @@ export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
 
       <div
         ref={scrollerRef}
-        onMouseEnter={pause}
-        onMouseLeave={resume}
-        onTouchStart={pause}
-        onTouchEnd={resume}
         className="flex gap-4 overflow-x-auto px-4 pb-1 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {doubled.map((item, i) => (
