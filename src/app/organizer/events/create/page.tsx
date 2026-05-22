@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -443,6 +444,7 @@ export default function CreateEventPage() {
             layoutId={layoutId}
             layoutDetail={layoutDetail}
             sectionTicketMap={sectionTicketMap}
+            eventTitle={details.title}
             onPickLayout={(id, detail) => {
               setLayoutId(id)
               setLayoutDetail(detail)
@@ -940,11 +942,44 @@ function TicketsStep({
 // template) or build a new one, then map each layout section to a ticket type.
 // ---------------------------------------------------------------------------
 
+// Reserved-mode setup paths. "template" reuses a pre-built map (admin templates
+// or the organizer's own saved layouts), "grid" opens the quick rectangular
+// builder, "custom" routes complex venues to the MyScope team (in-app request +
+// admin fulfilment is a later step — for now this is a contact hand-off).
+type LayoutChoice = "template" | "grid" | "custom"
+
+const LAYOUT_CHOICES: Array<{
+  value: LayoutChoice
+  label: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+}> = [
+  {
+    value: "template",
+    label: "Pick a venue template",
+    description: "Pre-built seat maps for common venues. Fastest — just assign prices.",
+    icon: LayoutGrid,
+  },
+  {
+    value: "grid",
+    label: "Build a simple grid",
+    description: "Rectangular hall? Enter rows and seats per section; we generate it.",
+    icon: Plus,
+  },
+  {
+    value: "custom",
+    label: "Request a custom layout",
+    description: "Unusual venue? Our team builds the seat map for you.",
+    icon: MessageSquare,
+  },
+]
+
 function SeatsStep({
   tickets,
   layoutId,
   layoutDetail,
   sectionTicketMap,
+  eventTitle,
   onPickLayout,
   onMapSection,
 }: {
@@ -952,14 +987,15 @@ function SeatsStep({
   layoutId: string | null
   layoutDetail: LayoutDetail | null
   sectionTicketMap: SectionTicketMap
+  eventTitle?: string
   onPickLayout: (id: string, detail: LayoutDetail) => void
   onMapSection: (sectionName: string, ticketIdx: number) => void
 }) {
+  const [choice, setChoice] = React.useState<LayoutChoice>("template")
   const [layouts, setLayouts] = React.useState<LayoutSummary[]>([])
   const [loadingList, setLoadingList] = React.useState(true)
   const [loadError, setLoadError] = React.useState("")
   const [pickingId, setPickingId] = React.useState<string | null>(null)
-  const [showBuilder, setShowBuilder] = React.useState(false)
 
   // Fetch the layout list once on mount.
   const refreshLayouts = React.useCallback(async () => {
@@ -1003,8 +1039,9 @@ function SeatsStep({
   }
 
   const handleBuiltLayout = (created: LayoutSummary) => {
-    setShowBuilder(false)
-    // Refresh list, then auto-pick the newly created layout.
+    // A freshly built grid becomes a selectable layout — switch to the template
+    // view and auto-pick it so the section→pricing step appears immediately.
+    setChoice("template")
     refreshLayouts().then(() => pickLayout(created.id))
   }
 
@@ -1012,9 +1049,34 @@ function SeatsStep({
     <div className="space-y-5">
       <StepHeader icon={Sparkles} title="Seats" />
       <p className="text-sm text-muted-foreground">
-        Pick a venue layout — your own, a public template, or build a new one.
-        Then assign each section a ticket type so seats have prices.
+        Choose how to set up your venue&rsquo;s seat map. For templates and grids, assign each
+        section a ticket type so every seat has a price.
       </p>
+
+      {/* Setup path — three tiers */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {LAYOUT_CHOICES.map((c) => {
+          const Icon = c.icon
+          const active = choice === c.value
+          return (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => setChoice(c.value)}
+              className={cn(
+                "rounded-xl border p-4 text-left transition-colors",
+                active
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",
+              )}
+            >
+              <Icon className={cn("h-5 w-5", active ? "text-primary" : "text-muted-foreground")} />
+              <div className="mt-2 text-sm font-semibold text-foreground">{c.label}</div>
+              <p className="mt-1 text-xs leading-snug text-muted-foreground">{c.description}</p>
+            </button>
+          )
+        })}
+      </div>
 
       {loadError && (
         <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -1023,14 +1085,34 @@ function SeatsStep({
         </div>
       )}
 
-      {/* Layout picker */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {loadingList ? (
-          <div className="col-span-full flex items-center justify-center py-8 text-muted-foreground">
+      {/* TEMPLATE — pick a public template or one of your saved layouts */}
+      {choice === "template" &&
+        (loadingList ? (
+          <div className="flex items-center justify-center py-8 text-muted-foreground">
             <Loader className="h-5 w-5 animate-spin" />
           </div>
+        ) : layouts.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            No venue templates available yet. Switch to{" "}
+            <button
+              type="button"
+              onClick={() => setChoice("grid")}
+              className="font-medium text-primary hover:underline"
+            >
+              Build a simple grid
+            </button>{" "}
+            or{" "}
+            <button
+              type="button"
+              onClick={() => setChoice("custom")}
+              className="font-medium text-primary hover:underline"
+            >
+              request a custom layout
+            </button>
+            .
+          </div>
         ) : (
-          <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {layouts.map((l) => {
               const selected = layoutId === l.id
               const loading = pickingId === l.id
@@ -1062,35 +1144,47 @@ function SeatsStep({
                 </button>
               )
             })}
-            <button
-              type="button"
-              onClick={() => setShowBuilder((s) => !s)}
-              className={cn(
-                "flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 text-center transition-colors",
-                showBuilder
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
-              )}
-            >
-              <Plus className="h-5 w-5" />
-              <span className="mt-1 text-sm font-medium">
-                {showBuilder ? "Cancel" : "Build custom layout"}
-              </span>
-            </button>
-          </>
-        )}
-      </div>
+          </div>
+        ))}
 
-      {/* Inline builder */}
-      {showBuilder && (
+      {/* GRID — quick rectangular builder */}
+      {choice === "grid" && (
         <SimpleLayoutBuilder
           onSaved={handleBuiltLayout}
           onError={(msg) => setLoadError(msg)}
         />
       )}
 
-      {/* Section -> ticket-type mapping */}
-      {layoutDetail && (
+      {/* CUSTOM — admin-assisted (Tier 3). In-app request + "waiting for layout"
+          state + admin queue is a later step; for now route to the team. */}
+      {choice === "custom" && (
+        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <MessageSquare className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-foreground">Request a custom seat map</h3>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Outdoor concerts, multi-level halls, curved seating — share your venue floor plan and
+                our team builds the seat map for you, usually within 24 hours.
+              </p>
+            </div>
+          </div>
+          <ContactCollaborate
+            variant="small"
+            eventTitle={eventTitle}
+            subtitle="Send us your venue floor plan and we'll build the seat map for your event."
+          />
+          <p className="text-xs text-muted-foreground">
+            In-app custom requests are coming soon. To publish straight away, pick a template or
+            build a simple grid above.
+          </p>
+        </div>
+      )}
+
+      {/* Section -> ticket-type mapping (template / freshly-built grid only) */}
+      {choice === "template" && layoutDetail && (
         <div className="rounded-xl border border-border bg-muted/30 p-4">
           <div className="mb-3 flex items-center gap-2">
             <Tag className="h-4 w-4 text-muted-foreground" />
