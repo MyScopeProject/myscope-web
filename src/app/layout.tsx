@@ -7,6 +7,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { SiteHeader } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
+import { AnnouncementBar } from "@/components/site/announcement-bar";
 
 // Body / default sans — IBM Plex Sans (preserves the original brand voice).
 const plexSans = IBM_Plex_Sans({
@@ -103,6 +104,9 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="system">
           <GoogleOAuthProvider clientId={googleClientId}>
             <AuthProvider>
+              {/* Moving announcement strip above the navbar. Scrolls away on
+                  page scroll; the sticky navbar then pins to the top. */}
+              <AnnouncementBar />
               {/* SiteHeader uses useSearchParams() — Next 16 requires a
                   Suspense boundary around any component that reads search
                   params, or static prerender of /404 fails. Fallback is
