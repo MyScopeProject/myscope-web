@@ -10,6 +10,7 @@ import {
   BarChart2,
   Bell,
   Calendar,
+  CalendarClock,
   CheckCircle2,
   ClipboardList,
   Edit3,
@@ -49,6 +50,7 @@ interface EventDetail {
   category?: string | null
   venue_name?: string | null
   start_time?: string | null
+  end_time?: string | null
   date?: string | null
   banner_url?: string | null
   approval_status: ApprovalStatus
@@ -200,6 +202,7 @@ export default function OrganizerEventControlPage() {
   // Header-action busy flags (one at a time is fine).
   const [headerBusy, setHeaderBusy] = React.useState<null | "pause" | "resume" | "cancel">(null)
   const [headerMsg, setHeaderMsg] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
+  const [postponeOpen, setPostponeOpen] = React.useState(false)
 
   // Auth + role guard.
   React.useEffect(() => {
@@ -426,6 +429,15 @@ export default function OrganizerEventControlPage() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setPostponeOpen(true)}
+                disabled={headerBusy !== null}
+              >
+                <CalendarClock />
+                Postpone
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={cancelEvent}
                 disabled={headerBusy !== null}
                 className="hover:bg-destructive/10 hover:text-destructive"
@@ -447,6 +459,20 @@ export default function OrganizerEventControlPage() {
         )}>
           {headerMsg.text}
         </div>
+      )}
+
+      {postponeOpen && (
+        <PostponeModal
+          eventId={eventId}
+          currentStart={event.start_time ?? event.date ?? null}
+          currentEnd={event.end_time ?? null}
+          onClose={() => setPostponeOpen(false)}
+          onDone={(msg) => {
+            setPostponeOpen(false)
+            setHeaderMsg({ text: msg, tone: "ok" })
+            fetchEvent()
+          }}
+        />
       )}
 
       {/* Tab bar */}
@@ -1420,6 +1446,168 @@ function ErrorBanner({ message }: { message: string }) {
     <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
       <span>{message}</span>
+    </div>
+  )
+}
+
+// ISO timestamp -> value for a <input type="datetime-local"> (local time).
+function toLocalInput(iso: string | null): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Postpone (reschedule) modal — pick a new date/time and optionally notify
+// attendees. Tickets stay valid; this only changes the date.
+function PostponeModal({
+  eventId,
+  currentStart,
+  currentEnd,
+  onClose,
+  onDone,
+}: {
+  eventId: string
+  currentStart: string | null
+  currentEnd: string | null
+  onClose: () => void
+  onDone: (message: string) => void
+}) {
+  const [start, setStart] = React.useState(toLocalInput(currentStart))
+  const [end, setEnd] = React.useState(toLocalInput(currentEnd))
+  const [reason, setReason] = React.useState("")
+  const [notify, setNotify] = React.useState(true)
+  const [busy, setBusy] = React.useState(false)
+  const [err, setErr] = React.useState("")
+
+  const submit = async () => {
+    if (!start) {
+      setErr("Pick a new date and time.")
+      return
+    }
+    if (end && end < start) {
+      setErr("End time must be after the new start time.")
+      return
+    }
+    setBusy(true)
+    setErr("")
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/postpone`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          new_start_time: start,
+          new_end_time: end || undefined,
+          reason: reason.trim() || undefined,
+          notify,
+        }),
+      })
+      const body = await res.json()
+      if (!body?.success) {
+        setErr(body?.message || "Failed to postpone.")
+        return
+      }
+      onDone(body.message || "Event postponed.")
+    } catch {
+      setErr("Network error.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={() => !busy && onClose()}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Postpone event</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Move this event to a new date. Existing tickets stay valid.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="rounded p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Close"
+          >
+            <XCircle className="h-5 w-5" />
+          </button>
+        </div>
+
+        {err && (
+          <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {err}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="postpone-start" className="mb-1.5 block text-sm font-medium text-foreground">
+              New start <span className="text-destructive">*</span>
+            </label>
+            <Input
+              id="postpone-start"
+              type="datetime-local"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="postpone-end" className="mb-1.5 block text-sm font-medium text-foreground">
+              New end <span className="text-muted-foreground">(optional)</span>
+            </label>
+            <Input
+              id="postpone-end"
+              type="datetime-local"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="postpone-reason" className="mb-1.5 block text-sm font-medium text-foreground">
+              Reason <span className="text-muted-foreground">(optional)</span>
+            </label>
+            <textarea
+              id="postpone-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={2}
+              maxLength={500}
+              placeholder="Shared with attendees in the notification."
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={notify}
+              onChange={(e) => setNotify(e.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
+            Notify confirmed attendees by email &amp; SMS
+          </label>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={submit} disabled={busy || !start}>
+            {busy ? <Loader className="animate-spin" /> : <CalendarClock />}
+            {busy ? "Postponing…" : "Postpone event"}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
