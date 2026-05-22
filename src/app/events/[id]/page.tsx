@@ -498,9 +498,10 @@ export default function EventDetailsPage() {
                 would be 0 (active tiers were filtered out server-side), and
                 rendering "Free" against a paused event misleads the buyer. */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
-              {/* Postpone tag — same red pill as the hero banner. Shown whether
-                  sales are open or closed so buyers always see the status. */}
-              {isPostponed && (
+              {/* Postpone tag — only when sales stay OPEN. When sales are closed
+                  the Status block + button below already say "Postponed", so the
+                  pill here would just repeat it. */}
+              {isPostponed && !event.sales_paused && (
                 <p className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-white shadow-lg">
                   <CalendarPlus className="h-4 w-4" />
                   {postponedTo
@@ -573,9 +574,7 @@ export default function EventDetailsPage() {
                     </Button>
                     <p className="text-center text-xs text-destructive">
                       {isPostponed
-                        ? postponedTo
-                          ? "This event has been postponed and ticket sales are closed for now."
-                          : "This event has been postponed (new date to be announced) and ticket sales are closed for now."
+                        ? "Ticket sales are closed while this event is postponed."
                         : "The organizer has temporarily paused ticket sales. Check back soon."}
                     </p>
                   </div>

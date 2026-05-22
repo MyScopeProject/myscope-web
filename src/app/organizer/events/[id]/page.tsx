@@ -1590,13 +1590,17 @@ function PostponeModal({
             <label htmlFor="postpone-reason" className="mb-1.5 block text-sm font-medium text-foreground">
               Reason <span className="text-muted-foreground">(optional)</span>
             </label>
+            <p className="mb-1.5 text-xs text-muted-foreground">
+              This message is included in the email and SMS sent to confirmed attendees, so please
+              word it formally and clearly.
+            </p>
             <textarea
               id="postpone-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              rows={2}
+              rows={3}
               maxLength={500}
-              placeholder="Shared with attendees in the notification."
+              placeholder="e.g. Due to adverse weather, the event has been rescheduled for everyone's safety."
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
             />
           </div>
