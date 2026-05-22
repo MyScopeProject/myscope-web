@@ -11,36 +11,64 @@ export interface PastEventItem {
 }
 
 // Continuously-scrolling, infinite strip of past-event photos that is ALSO a
-// native horizontal scroller — users can swipe / drag / wheel through it. The
-// items render twice; a requestAnimationFrame loop nudges scrollLeft and wraps
-// at the start of the second copy for a seamless loop. It never pauses (keeps
-// moving even on hover); auto-motion is only skipped under prefers-reduced-motion.
+// native horizontal scroller (swipe / drag / wheel). It never pauses.
+//
+// Robustness notes (why this isn't a plain CSS marquee):
+//   - We auto-duplicate the items enough times to always overflow the viewport,
+//     otherwise scrollLeft is pinned and nothing moves when there are few cards.
+//   - We advance scrollLeft by a time-based INTEGER step (browsers round
+//     scrollLeft to whole pixels — a 0.5px/frame nudge floors back to 0 and
+//     looks frozen).
+//   - We wrap with `% setWidth`; since every copy is identical the wrap is
+//     visually seamless from any scroll position, including after a manual swipe.
 export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
   const scrollerRef = React.useRef<HTMLDivElement>(null)
   const count = items?.length ?? 0
+  const [copies, setCopies] = React.useState(2)
 
   React.useEffect(() => {
     const el = scrollerRef.current
     if (!el || count === 0) return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
 
-    // Exact loop distance = offset of the first duplicated card. Using the DOM
-    // offset (not scrollWidth/2) keeps the wrap seamless regardless of gaps.
-    let loopWidth = 0
-    const measure = () => {
-      const first = el.children[0] as HTMLElement | undefined
-      const firstDup = el.children[count] as HTMLElement | undefined
-      loopWidth = first && firstDup ? firstDup.offsetLeft - first.offsetLeft : el.scrollWidth / 2
+    // Width of one original set (offset of the first duplicated card).
+    const oneSetWidth = () => {
+      const a = el.children[0] as HTMLElement | undefined
+      const b = el.children[count] as HTMLElement | undefined
+      return a && b ? b.offsetLeft - a.offsetLeft : 0
     }
-    measure()
-    window.addEventListener("resize", measure)
 
-    const SPEED = 0.5 // px per frame (~30px/s at 60fps)
+    // Grow copies until the track is at least one viewport wider than a set, so
+    // there's always real content under the viewport after a modulo-wrap.
+    const ensureCopies = () => {
+      const w = oneSetWidth()
+      if (w <= 0) return false
+      const need = Math.ceil(el.clientWidth / w) + 2
+      if (copies < need) {
+        setCopies(need)
+        return true
+      }
+      return false
+    }
+
+    if (ensureCopies()) return // grew → effect re-runs with more copies
+    window.addEventListener("resize", ensureCopies)
+
+    const setW = oneSetWidth()
+    if (setW <= 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return () => window.removeEventListener("resize", ensureCopies)
+    }
+
+    const SPEED = 0.03 // px per ms (~30px/s)
+    let carry = 0
+    let last = performance.now()
     let raf = 0
-    const tick = () => {
-      if (loopWidth > 0) {
-        el.scrollLeft += SPEED
-        if (el.scrollLeft >= loopWidth) el.scrollLeft -= loopWidth
+    const tick = (now: number) => {
+      carry += (now - last) * SPEED
+      last = now
+      const step = Math.floor(carry)
+      if (step > 0) {
+        carry -= step
+        el.scrollLeft = (el.scrollLeft + step) % setW
       }
       raf = requestAnimationFrame(tick)
     }
@@ -48,14 +76,13 @@ export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
 
     return () => {
       cancelAnimationFrame(raf)
-      window.removeEventListener("resize", measure)
+      window.removeEventListener("resize", ensureCopies)
     }
-  }, [count])
+  }, [count, copies])
 
   if (count === 0) return null
 
-  // Duplicate the list so the wrap has a second copy to land on.
-  const doubled = [...items, ...items]
+  const repeated = Array.from({ length: copies }, () => items).flat()
 
   return (
     <div className="relative">
@@ -67,7 +94,7 @@ export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
         ref={scrollerRef}
         className="flex gap-4 overflow-x-auto px-4 pb-1 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {doubled.map((item, i) => (
+        {repeated.map((item, i) => (
           <PastEventCard key={`${item.id}-${i}`} item={item} ariaHidden={i >= count} />
         ))}
       </div>
