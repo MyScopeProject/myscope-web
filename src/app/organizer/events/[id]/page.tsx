@@ -22,6 +22,7 @@ import {
   PlayCircle,
   QrCode,
   RefreshCw,
+  RotateCcw,
   Send,
   Tag,
   Ticket,
@@ -202,7 +203,7 @@ export default function OrganizerEventControlPage() {
   const [error, setError] = React.useState("")
   const [tab, setTab] = React.useState<Tab>("overview")
   // Header-action busy flags (one at a time is fine).
-  const [headerBusy, setHeaderBusy] = React.useState<null | "pause" | "resume" | "cancel">(null)
+  const [headerBusy, setHeaderBusy] = React.useState<null | "pause" | "resume" | "cancel" | "unpostpone">(null)
   const [headerMsg, setHeaderMsg] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
   const [postponeOpen, setPostponeOpen] = React.useState(false)
 
@@ -298,6 +299,32 @@ export default function OrganizerEventControlPage() {
         tone: body?.success ? "ok" : "err",
       })
       if (body?.success) await fetchEvent()
+    } catch {
+      setHeaderMsg({ text: "Network error.", tone: "err" })
+    } finally {
+      setHeaderBusy(null)
+    }
+  }
+
+  const unpostponeEvent = async () => {
+    if (!eventId) return
+    if (!confirm("Undo postpone? The event returns to its scheduled date and ticket sales reopen.")) return
+    setHeaderBusy("unpostpone")
+    setHeaderMsg(null)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/unpostpone`, {
+        method: "POST",
+        credentials: "include",
+      })
+      const body = await res.json()
+      setHeaderMsg({
+        text: body?.message || (body?.success ? "Reopened." : "Failed."),
+        tone: body?.success ? "ok" : "err",
+      })
+      if (body?.success) {
+        await fetchEvent()
+        await refreshTickets()
+      }
     } catch {
       setHeaderMsg({ text: "Network error.", tone: "err" })
     } finally {
@@ -433,15 +460,27 @@ export default function OrganizerEventControlPage() {
                   Pause sales
                 </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPostponeOpen(true)}
-                disabled={headerBusy !== null}
-              >
-                <CalendarClock />
-                Postpone
-              </Button>
+              {event.postponed ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={unpostponeEvent}
+                  disabled={headerBusy !== null}
+                >
+                  {headerBusy === "unpostpone" ? <Loader className="animate-spin" /> : <RotateCcw />}
+                  Undo postpone
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPostponeOpen(true)}
+                  disabled={headerBusy !== null}
+                >
+                  <CalendarClock />
+                  Postpone
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
