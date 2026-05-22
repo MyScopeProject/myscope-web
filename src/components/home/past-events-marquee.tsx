@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
 
 export interface PastEventItem {
@@ -9,24 +10,76 @@ export interface PastEventItem {
   link_url: string | null
 }
 
-// Auto-scrolling, infinite strip of past-event photos. The track renders the
-// items twice and translates -50% (see --animate-marquee in globals.css), so it
-// loops seamlessly. Pauses on hover; honours prefers-reduced-motion.
+// Auto-scrolling, infinite strip of past-event photos that is ALSO a native
+// horizontal scroller — users can swipe / drag / wheel through it. The items
+// render twice; a requestAnimationFrame loop nudges scrollLeft and wraps at the
+// start of the second copy for a seamless loop. Auto-scroll pauses while the
+// user interacts, and is disabled under prefers-reduced-motion.
 export function PastEventsMarquee({ items }: { items: PastEventItem[] }) {
-  if (!items || items.length === 0) return null
+  const scrollerRef = React.useRef<HTMLDivElement>(null)
+  const pausedRef = React.useRef(false)
+  const count = items?.length ?? 0
 
-  // Duplicate the list so the -50% translate lands exactly one full set over.
+  React.useEffect(() => {
+    const el = scrollerRef.current
+    if (!el || count === 0) return
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+
+    // Exact loop distance = offset of the first duplicated card. Using the DOM
+    // offset (not scrollWidth/2) keeps the wrap seamless regardless of gaps.
+    let loopWidth = 0
+    const measure = () => {
+      const first = el.children[0] as HTMLElement | undefined
+      const firstDup = el.children[count] as HTMLElement | undefined
+      loopWidth = first && firstDup ? firstDup.offsetLeft - first.offsetLeft : el.scrollWidth / 2
+    }
+    measure()
+    window.addEventListener("resize", measure)
+
+    const SPEED = 0.5 // px per frame (~30px/s at 60fps)
+    let raf = 0
+    const tick = () => {
+      if (!pausedRef.current && loopWidth > 0) {
+        el.scrollLeft += SPEED
+        if (el.scrollLeft >= loopWidth) el.scrollLeft -= loopWidth
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener("resize", measure)
+    }
+  }, [count])
+
+  if (count === 0) return null
+
+  // Duplicate the list so the wrap has a second copy to land on.
   const doubled = [...items, ...items]
+  const pause = () => {
+    pausedRef.current = true
+  }
+  const resume = () => {
+    pausedRef.current = false
+  }
 
   return (
-    <div className="group relative overflow-hidden">
+    <div className="relative">
       {/* Edge fades so cards slide in/out softly instead of clipping hard. */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-background to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-background to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-linear-to-r from-background to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-linear-to-l from-background to-transparent" />
 
-      <div className="flex w-max animate-marquee gap-4 group-hover:[animation-play-state:paused] motion-reduce:animate-none">
+      <div
+        ref={scrollerRef}
+        onMouseEnter={pause}
+        onMouseLeave={resume}
+        onTouchStart={pause}
+        onTouchEnd={resume}
+        className="flex gap-4 overflow-x-auto px-4 pb-1 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {doubled.map((item, i) => (
-          <PastEventCard key={`${item.id}-${i}`} item={item} ariaHidden={i >= items.length} />
+          <PastEventCard key={`${item.id}-${i}`} item={item} ariaHidden={i >= count} />
         ))}
       </div>
     </div>
@@ -41,11 +94,12 @@ function PastEventCard({ item, ariaHidden }: { item: PastEventItem; ariaHidden: 
         src={item.image_url}
         alt={item.title || "Past event"}
         loading="lazy"
+        draggable={false}
         className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"
         onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
       />
       {item.title && (
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-3">
           <p className="line-clamp-1 text-sm font-semibold text-white">{item.title}</p>
         </div>
       )}

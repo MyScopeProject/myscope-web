@@ -149,18 +149,6 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  /* Auto-scrolling strip (home "Past events"). The track duplicates its
-     content once, so translating -50% loops one full set seamlessly. */
-  --animate-marquee: marquee 45s linear infinite;
-}
-
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
 }
 
 @layer base {
