@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EventCard, type EventCardData } from "@/components/events/event-card"
 import { HeroCarousel, type HeroSlide } from "@/components/home/hero-carousel"
+import { PastEventsMarquee, type PastEventItem } from "@/components/home/past-events-marquee"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -39,6 +40,7 @@ export default function HomePage() {
   const [query, setQuery] = React.useState("")
   const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>([])
   const [heroLoading, setHeroLoading] = React.useState(true)
+  const [pastEvents, setPastEvents] = React.useState<PastEventItem[]>([])
 
   React.useEffect(() => {
     let cancelled = false
@@ -76,6 +78,26 @@ export default function HomePage() {
         // Soft-fail — default hero renders instead
       } finally {
         if (!cancelled) setHeroLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Past events — admin-curated photo strip. Soft-fails to nothing (the
+  // section just doesn't render when empty).
+  React.useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/past-events`)
+        const data = await res.json()
+        if (!cancelled && data?.success) {
+          setPastEvents(data.data.items || [])
+        }
+      } catch {
+        // Soft-fail — section stays hidden
       }
     })()
     return () => {
@@ -211,6 +233,19 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
+      {/* Past events — auto-scrolling photo strip (admin-curated). Hidden when empty. */}
+      {pastEvents.length > 0 && (
+        <section className="border-t border-border bg-card/30 py-12">
+          <div className="mx-auto mb-6 max-w-7xl px-4 sm:px-6">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Past events</h2>
+            <p className="text-sm text-muted-foreground">
+              A look back at shows that lit up the stage.
+            </p>
+          </div>
+          <PastEventsMarquee items={pastEvents} />
+        </section>
+      )}
 
       {/* Organizer CTA */}
       <section className="border-t border-border bg-card/40">
