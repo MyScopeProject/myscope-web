@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   AlertCircle,
   ArrowLeft,
+  CalendarClock,
   Check,
   Loader,
   Lock,
@@ -45,6 +46,8 @@ interface EventDetail {
   layout_image_url: string | null
   approval_status: string
   seating_mode?: SeatingMode | null
+  postponed?: boolean
+  postponed_to?: string | null
   ticket_types: TicketType[]
 }
 
@@ -382,6 +385,19 @@ function CheckoutPageInner() {
           </h1>
         </div>
       </div>
+
+      {/* Postpone tag — buy-ticket section. Buyers booking a postponed event see
+          the rescheduled status (or "date to be announced") before paying. */}
+      {event.postponed && (
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">
+          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            {event.postponed_to
+              ? `This event has been postponed to ${new Date(event.postponed_to).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}. Your tickets remain valid for the new date.`
+              : "This event has been postponed — a new date will be announced soon. Your tickets remain valid."}
+          </span>
+        </div>
+      )}
 
       {/* Inline error */}
       {submitError && (

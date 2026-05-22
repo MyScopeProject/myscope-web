@@ -98,7 +98,7 @@ export function EventCard({ event, className }: EventCardProps) {
 
         {/* Date stub — clean white tile, instant calendar recognition.
             Slightly smaller on phones since the whole card is now half-width. */}
-        {dateObj && (
+        {dateObj ? (
           <div className="absolute left-2 top-2 flex w-11 flex-col items-center overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-black/5 sm:left-3 sm:top-3 sm:w-14 sm:rounded-xl">
             <span className="w-full bg-primary py-0.5 text-center text-[9px] font-bold uppercase tracking-wider text-primary-foreground sm:py-1 sm:text-[10px]">
               {MONTHS[dateObj.getMonth()]}
@@ -107,7 +107,17 @@ export function EventCard({ event, className }: EventCardProps) {
               {dateObj.getDate()}
             </span>
           </div>
-        )}
+        ) : isPostponed ? (
+          // Postponed with no new date yet — a red "TBA" stub stands in for the date.
+          <div className="absolute left-2 top-2 flex w-11 flex-col items-center overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-black/5 sm:left-3 sm:top-3 sm:w-14 sm:rounded-xl">
+            <span className="w-full bg-destructive py-0.5 text-center text-[9px] font-bold uppercase tracking-wider text-white sm:py-1 sm:text-[10px]">
+              Date
+            </span>
+            <span className="py-1 text-sm font-bold leading-none text-destructive sm:py-1.5 sm:text-base">
+              TBA
+            </span>
+          </div>
+        ) : null}
 
         {/* Top-right floating badges */}
         {(event.featured || isSoldOut || event.sales_paused || isPostponed) && (
