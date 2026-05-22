@@ -202,9 +202,10 @@ export function EventCard({ event, className }: EventCardProps) {
             </>
           ) : (
             <>
-              {/* Postponed but still buyable — flag it, keep the buy CTA. */}
+              {/* Postponed but still buyable — solid red pill (matches the
+                  event detail hero banner), keep the buy CTA. */}
               {isPostponed && (
-                <div className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-2 py-1 text-[9px] font-semibold text-destructive sm:text-[10px]">
+                <div className="inline-flex w-fit items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[9px] font-semibold text-white shadow-sm sm:px-2.5 sm:text-[10px]">
                   <Clock className="h-2.5 w-2.5 shrink-0" />
                   {postponedLabel}
                 </div>

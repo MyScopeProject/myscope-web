@@ -498,15 +498,15 @@ export default function EventDetailsPage() {
                 would be 0 (active tiers were filtered out server-side), and
                 rendering "Free" against a paused event misleads the buyer. */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
-              {/* Postpone tag — shown in the buy-ticket card whether sales are
-                  open or closed, so buyers always see the rescheduled status. */}
+              {/* Postpone tag — same red pill as the hero banner. Shown whether
+                  sales are open or closed so buyers always see the status. */}
               {isPostponed && (
-                <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">
-                  <CalendarPlus className="h-4 w-4 shrink-0" />
+                <p className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-white shadow-lg">
+                  <CalendarPlus className="h-4 w-4" />
                   {postponedTo
-                    ? `Postponed to ${new Date(postponedTo).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                    ? `Postponed to ${new Date(postponedTo).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                     : "Postponed — new date to be announced"}
-                </div>
+                </p>
               )}
               {event.sales_paused ? (
                 <div className="mb-5">
