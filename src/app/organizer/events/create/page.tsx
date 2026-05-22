@@ -203,6 +203,11 @@ export default function CreateEventPage() {
   const [layoutId, setLayoutId] = React.useState<string | null>(null)
   const [layoutDetail, setLayoutDetail] = React.useState<LayoutDetail | null>(null)
   const [sectionTicketMap, setSectionTicketMap] = React.useState<SectionTicketMap>({})
+  // Reserved-mode setup path + custom-layout request fields (lifted here so the
+  // submit step can branch on them — see SeatsStep for the picker UI).
+  const [seatChoice, setSeatChoice] = React.useState<LayoutChoice>("template")
+  const [customNote, setCustomNote] = React.useState("")
+  const [customFloorPlanUrl, setCustomFloorPlanUrl] = React.useState("")
   const [error, setError] = React.useState("")
   const [busy, setBusy] = React.useState<null | "submit">(null)
 
@@ -287,6 +292,14 @@ export default function CreateEventPage() {
       }
     }
     if (s === stepIdx.seats && isReserved) {
+      // Custom-layout request: no layout yet — our team builds it. Just need
+      // something to work from (a floor plan or a note).
+      if (seatChoice === "custom") {
+        if (!customFloorPlanUrl && !customNote.trim()) {
+          return "Upload a floor plan or add a note so our team can build your seat map."
+        }
+        return ""
+      }
       if (!layoutId || !layoutDetail) return "Pick a venue layout."
       const sectionNames = layoutDetail.layout_data.sections.map(sec => sec.name)
       const unmapped = sectionNames.filter(n => sectionTicketMap[n] === undefined)
@@ -332,7 +345,16 @@ export default function CreateEventPage() {
     setBusy("submit")
 
     try {
-      const payload = buildPayload(details, tickets, media)
+      const payload: Record<string, unknown> = buildPayload(details, tickets, media)
+      // Custom-layout request: submit the reserved event without a seat map.
+      // The backend marks it pending-layout and notifies admin to build one.
+      const isCustomLayout = isReserved && seatChoice === "custom"
+      if (isCustomLayout) {
+        payload.layout_request = {
+          note: customNote.trim() || undefined,
+          floor_plan_url: customFloorPlanUrl || undefined,
+        }
+      }
       const createRes = await fetch(`${API_URL}/api/organizer/events`, {
         method: "POST",
         credentials: "include",
@@ -346,11 +368,12 @@ export default function CreateEventPage() {
       }
       const eventId = createData.data.event.id as string
 
-      // Reserved mode: now apply the picked layout to materialise event_seats.
+      // Reserved mode (template/grid): apply the picked layout to materialise
+      // event_seats. Custom-layout requests skip this — admin applies later.
       // The wizard stores section -> ticket index; resolve to real UUIDs by
       // matching on ticket name from the create response (names are unique
       // here — enforced in validateStep).
-      if (isReserved && layoutId && layoutDetail) {
+      if (isReserved && !isCustomLayout && layoutId && layoutDetail) {
         const createdTickets = (createData.data.ticket_types || []) as Array<{ id: string; name: string }>
         const resolvedMap: Record<string, string> = {}
         for (const [sectionName, ticketIdx] of Object.entries(sectionTicketMap)) {
@@ -445,6 +468,12 @@ export default function CreateEventPage() {
             layoutDetail={layoutDetail}
             sectionTicketMap={sectionTicketMap}
             eventTitle={details.title}
+            choice={seatChoice}
+            onChoiceChange={setSeatChoice}
+            customNote={customNote}
+            onCustomNoteChange={setCustomNote}
+            customFloorPlanUrl={customFloorPlanUrl}
+            onCustomFloorPlanChange={setCustomFloorPlanUrl}
             onPickLayout={(id, detail) => {
               setLayoutId(id)
               setLayoutDetail(detail)
@@ -464,6 +493,7 @@ export default function CreateEventPage() {
             media={media}
             layoutDetail={layoutDetail}
             sectionTicketMap={sectionTicketMap}
+            seatChoice={seatChoice}
           />
         )}
       </div>
@@ -980,6 +1010,12 @@ function SeatsStep({
   layoutDetail,
   sectionTicketMap,
   eventTitle,
+  choice,
+  onChoiceChange,
+  customNote,
+  onCustomNoteChange,
+  customFloorPlanUrl,
+  onCustomFloorPlanChange,
   onPickLayout,
   onMapSection,
 }: {
@@ -988,14 +1024,50 @@ function SeatsStep({
   layoutDetail: LayoutDetail | null
   sectionTicketMap: SectionTicketMap
   eventTitle?: string
+  choice: LayoutChoice
+  onChoiceChange: (c: LayoutChoice) => void
+  customNote: string
+  onCustomNoteChange: (v: string) => void
+  customFloorPlanUrl: string
+  onCustomFloorPlanChange: (v: string) => void
   onPickLayout: (id: string, detail: LayoutDetail) => void
   onMapSection: (sectionName: string, ticketIdx: number) => void
 }) {
-  const [choice, setChoice] = React.useState<LayoutChoice>("template")
   const [layouts, setLayouts] = React.useState<LayoutSummary[]>([])
   const [loadingList, setLoadingList] = React.useState(true)
   const [loadError, setLoadError] = React.useState("")
   const [pickingId, setPickingId] = React.useState<string | null>(null)
+  const [uploadingPlan, setUploadingPlan] = React.useState(false)
+
+  // Upload a venue floor-plan image for a custom-layout request. Reuses the
+  // organizer banner-upload endpoint (same bucket; just returns a public URL).
+  const handleFloorPlanUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setLoadError("Floor plan must be an image file.")
+      return
+    }
+    setLoadError("")
+    setUploadingPlan(true)
+    try {
+      const fd = new FormData()
+      fd.append("image", file)
+      const res = await fetch(`${API_URL}/api/organizer/events/upload-banner`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      })
+      const data = await res.json()
+      if (!data?.success) {
+        setLoadError(data?.message || "Floor plan upload failed.")
+        return
+      }
+      onCustomFloorPlanChange(data.data.url as string)
+    } catch {
+      setLoadError("Network error uploading the floor plan.")
+    } finally {
+      setUploadingPlan(false)
+    }
+  }
 
   // Fetch the layout list once on mount.
   const refreshLayouts = React.useCallback(async () => {
@@ -1041,7 +1113,7 @@ function SeatsStep({
   const handleBuiltLayout = (created: LayoutSummary) => {
     // A freshly built grid becomes a selectable layout — switch to the template
     // view and auto-pick it so the section→pricing step appears immediately.
-    setChoice("template")
+    onChoiceChange("template")
     refreshLayouts().then(() => pickLayout(created.id))
   }
 
@@ -1062,7 +1134,7 @@ function SeatsStep({
             <button
               key={c.value}
               type="button"
-              onClick={() => setChoice(c.value)}
+              onClick={() => onChoiceChange(c.value)}
               className={cn(
                 "rounded-xl border p-4 text-left transition-colors",
                 active
@@ -1096,7 +1168,7 @@ function SeatsStep({
             No venue templates available yet. Switch to{" "}
             <button
               type="button"
-              onClick={() => setChoice("grid")}
+              onClick={() => onChoiceChange("grid")}
               className="font-medium text-primary hover:underline"
             >
               Build a simple grid
@@ -1104,7 +1176,7 @@ function SeatsStep({
             or{" "}
             <button
               type="button"
-              onClick={() => setChoice("custom")}
+              onClick={() => onChoiceChange("custom")}
               className="font-medium text-primary hover:underline"
             >
               request a custom layout
@@ -1155,10 +1227,10 @@ function SeatsStep({
         />
       )}
 
-      {/* CUSTOM — admin-assisted (Tier 3). In-app request + "waiting for layout"
-          state + admin queue is a later step; for now route to the team. */}
+      {/* CUSTOM — admin-assisted (Tier 3). Submit the event without a seat map;
+          it waits in "pending layout" until our team builds and applies one. */}
       {choice === "custom" && (
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <div className="space-y-4 rounded-xl border border-border bg-card p-4">
           <div className="flex items-start gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <MessageSquare className="h-4 w-4" />
@@ -1167,19 +1239,82 @@ function SeatsStep({
               <h3 className="text-sm font-semibold text-foreground">Request a custom seat map</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 Outdoor concerts, multi-level halls, curved seating — share your venue floor plan and
-                our team builds the seat map for you, usually within 24 hours.
+                our team builds the seat map for you, usually within 24 hours. Your event is created
+                right away and goes on sale once the seat map is ready and approved.
               </p>
             </div>
           </div>
+
+          {/* Floor plan upload */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">
+              Venue floor plan
+            </label>
+            {customFloorPlanUrl ? (
+              <div className="relative overflow-hidden rounded-lg border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={customFloorPlanUrl}
+                  alt="Floor plan"
+                  className="max-h-64 w-full bg-muted object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={() => onCustomFloorPlanChange("")}
+                  className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-background/90 px-2 py-1 text-xs font-medium text-foreground shadow hover:bg-background"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Remove
+                </button>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary/40 hover:bg-muted/40">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handleFloorPlanUpload(f)
+                    e.target.value = ""
+                  }}
+                />
+                {uploadingPlan ? (
+                  <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                )}
+                <span className="mt-1.5 text-sm font-medium text-foreground">
+                  {uploadingPlan ? "Uploading…" : "Upload a floor plan image"}
+                </span>
+                <span className="mt-0.5 text-xs text-muted-foreground">PNG / JPG, up to 5 MB</span>
+              </label>
+            )}
+          </div>
+
+          {/* Note */}
+          <div>
+            <label htmlFor="layout-note" className="mb-1.5 block text-sm font-medium text-foreground">
+              Notes for our team
+            </label>
+            <textarea
+              id="layout-note"
+              value={customNote}
+              onChange={(e) => onCustomNoteChange(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              placeholder="Describe the seating — sections, approximate rows/seats, any tiers, accessible areas…"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Add a floor plan or a note (or both) so we have something to build from.
+            </p>
+          </div>
+
           <ContactCollaborate
             variant="small"
             eventTitle={eventTitle}
-            subtitle="Send us your venue floor plan and we'll build the seat map for your event."
+            subtitle="Prefer to chat it through? Message us on WhatsApp."
           />
-          <p className="text-xs text-muted-foreground">
-            In-app custom requests are coming soon. To publish straight away, pick a template or
-            build a simple grid above.
-          </p>
         </div>
       )}
 
@@ -1649,12 +1784,14 @@ function ReviewStep({
   media,
   layoutDetail,
   sectionTicketMap,
+  seatChoice,
 }: {
   details: DetailsForm
   tickets: TicketTypeForm[]
   media: MediaForm
   layoutDetail: LayoutDetail | null
   sectionTicketMap: SectionTicketMap
+  seatChoice: LayoutChoice
 }) {
   const totalSeats = tickets.reduce(
     (sum, t) => sum + (parseInt(t.quantity_total, 10) || 0),
@@ -1732,6 +1869,15 @@ function ReviewStep({
               </div>
             )
           })}
+        </ReviewBlock>
+      )}
+
+      {isReserved && seatChoice === "custom" && (
+        <ReviewBlock title="Venue layout — custom request">
+          <p className="py-1.5 text-sm text-muted-foreground">
+            Our team will build the seat map from your floor plan/notes. The event is created now and
+            goes on sale once the seat map is ready and approved.
+          </p>
         </ReviewBlock>
       )}
 
