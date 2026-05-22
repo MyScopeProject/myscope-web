@@ -11,12 +11,12 @@ const MESSAGES = [
 // messages twice and translates -50% (see --animate-marquee in globals.css),
 // so it loops seamlessly. Pauses on hover; respects prefers-reduced-motion.
 //
-// Light mode: a dark-violet bar (brand hue) with light text. Dark mode: flips to
-// a light bar via bg-foreground. text-background resolves to the contrasting
-// colour in both modes (white in light, dark in dark), so it stays legible.
+// Light mode: a dark-violet bar with white text. Dark mode: flips to a light
+// bar (bg-foreground) with dark-violet letters. The violet hue (~302) reads as
+// a true violet rather than blue.
 export function AnnouncementBar() {
   return (
-    <div className="w-full overflow-hidden border-b border-border bg-[#2e1065] text-background dark:bg-foreground">
+    <div className="w-full overflow-hidden border-b border-border bg-[oklch(0.37_0.17_302)] text-white dark:bg-foreground dark:text-[oklch(0.33_0.16_302)]">
       <div className="flex w-max animate-marquee whitespace-nowrap py-2 hover:paused">
         {/* Two identical sets back-to-back for the seamless -50% loop. */}
         {[0, 1].map((copy) => (
@@ -26,7 +26,7 @@ export function AnnouncementBar() {
                 <span className="text-[11px] font-semibold uppercase tracking-wider sm:text-xs">
                   {msg}
                 </span>
-                <span className="mx-5 text-background/45" aria-hidden>
+                <span className="mx-5 opacity-50" aria-hidden>
                   &bull;
                 </span>
               </span>
