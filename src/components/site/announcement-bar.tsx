@@ -18,7 +18,7 @@ const MESSAGES = [
 export function AnnouncementBar() {
   return (
     <div className="w-full overflow-hidden border-b border-border bg-foreground text-background">
-      <div className="flex w-max animate-marquee whitespace-nowrap py-2 hover:paused motion-reduce:animate-none">
+      <div className="flex w-max animate-marquee whitespace-nowrap py-2 hover:paused">
         {/* Two identical sets back-to-back for the seamless -50% loop. */}
         {[0, 1].map((copy) => (
           <div key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>

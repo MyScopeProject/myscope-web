@@ -83,8 +83,11 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
   return (
     <section
       className="relative overflow-hidden bg-background py-6 sm:py-14"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+      // Pause on hover for mouse users only. On touch devices a tap synthesizes
+      // pointerenter but no pointerleave, which would otherwise leave autoplay
+      // stuck paused on mobile.
+      onPointerEnter={(e) => { if (e.pointerType === "mouse") setPaused(true) }}
+      onPointerLeave={(e) => { if (e.pointerType === "mouse") setPaused(false) }}
       aria-roledescription="carousel"
       aria-label="Featured events"
     >
