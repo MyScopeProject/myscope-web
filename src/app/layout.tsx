@@ -114,7 +114,10 @@ export default function RootLayout({
               url: "https://www.myscope.lk",
               logo: "https://www.myscope.lk/Images/logo.png",
               description: "Sri Lanka's home for live events, concerts, theatre, and sports.",
-              sameAs: [],
+              sameAs: [
+                "https://www.facebook.com/profile.php?id=61583531460821",
+                "https://www.instagram.com/myscope.lk/",
+              ],
             }),
           }}
         />

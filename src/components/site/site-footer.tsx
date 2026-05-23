@@ -19,8 +19,8 @@ const COL_SUPPORT = [
 ]
 
 const SOCIAL = [
-  { icon: Instagram, href: "https://instagram.com", label: "Instagram" },
-  { icon: Facebook, href: "https://facebook.com", label: "Facebook" },
+  { icon: Instagram, href: "https://www.instagram.com/myscope.lk/", label: "Instagram" },
+  { icon: Facebook, href: "https://www.facebook.com/profile.php?id=61583531460821", label: "Facebook" },
   { icon: Mail, href: "mailto:hello.myscope@gmail.com", label: "Email" },
 ]
 
