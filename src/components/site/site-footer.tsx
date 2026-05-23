@@ -21,7 +21,7 @@ const COL_SUPPORT = [
 const SOCIAL = [
   { icon: Instagram, href: "https://instagram.com", label: "Instagram" },
   { icon: Facebook, href: "https://facebook.com", label: "Facebook" },
-  { icon: Mail, href: "mailto:hello@myscope.com", label: "Email" },
+  { icon: Mail, href: "mailto:hello.myscope@gmail.com", label: "Email" },
 ]
 
 export function SiteFooter() {

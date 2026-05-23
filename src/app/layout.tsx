@@ -101,6 +101,42 @@ export default function RootLayout({
       <body
         className={`${plexSans.variable} ${outfit.variable} ${inter.variable} antialiased min-h-screen bg-background text-foreground font-sans`}
       >
+        {/* Structured data: Organization (brand panel) + WebSite with a
+            SearchAction (enables the Google sitelinks search box). Update
+            `sameAs` with your real social profile URLs. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "MyScope",
+              url: "https://www.myscope.lk",
+              logo: "https://www.myscope.lk/Images/logo.png",
+              description: "Sri Lanka's home for live events, concerts, theatre, and sports.",
+              sameAs: [],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "MyScope",
+              url: "https://www.myscope.lk",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate: "https://www.myscope.lk/events?search={search_term_string}",
+                },
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
         <ThemeProvider defaultTheme="system">
           <GoogleOAuthProvider clientId={googleClientId}>
             <AuthProvider>
