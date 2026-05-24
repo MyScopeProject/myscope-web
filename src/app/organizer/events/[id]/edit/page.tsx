@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { type LayoutData } from "@/components/events/seat-grid-preview"
+import { EditSeatMap } from "@/components/events/edit-seat-map"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -42,6 +44,7 @@ interface EventRow {
   banner_url: string | null
   layout_image_url: string | null
   sms_reminders: boolean | null
+  seating_mode?: "none" | "free" | "zoned" | "reserved" | null
   approval_status: ApprovalStatus
   rejection_reason: string | null
 }
@@ -94,6 +97,7 @@ export default function EditEventPage() {
 
   const [event, setEvent] = React.useState<EventRow | null>(null)
   const [ticketTypes, setTicketTypes] = React.useState<TicketType[]>([])
+  const [seatsPreview, setSeatsPreview] = React.useState<LayoutData | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
   const [busy, setBusy] = React.useState<null | "save" | "submit">(null)
@@ -144,6 +148,7 @@ export default function EditEventPage() {
         const e = data.data.event as EventRow
         setEvent(e)
         setTicketTypes(data.data.ticket_types ?? [])
+        setSeatsPreview((data.data.seats_preview as LayoutData | null) ?? null)
         setForm({
           title: e.title ?? "",
           description: e.description ?? "",
@@ -168,6 +173,20 @@ export default function EditEventPage() {
       cancelled = true
     }
   }, [user, id])
+
+  // Re-pull the event after a seat map is applied so the preview + tickets refresh.
+  const reloadSeats = React.useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${id}`, { credentials: "include" })
+      const data = await res.json()
+      if (data?.success) {
+        setSeatsPreview((data.data.seats_preview as LayoutData | null) ?? null)
+        setTicketTypes(data.data.ticket_types ?? [])
+      }
+    } catch {
+      /* non-fatal — the apply already succeeded */
+    }
+  }, [id])
 
   // Editable statuses match the backend's PATCH gate
   // (organizerEvents.js — `['draft', 'pending', 'approved', 'rejected']`).
@@ -480,6 +499,22 @@ export default function EditEventPage() {
           </label>
         </fieldset>
       </div>
+
+      {/* Seat map (reserved events) */}
+      {event.seating_mode === "reserved" && (
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8">
+          <div className="mb-4 flex items-center gap-2">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-base font-semibold text-foreground">Seat map</h2>
+          </div>
+          <EditSeatMap
+            eventId={event.id}
+            ticketTypes={ticketTypes}
+            currentSeats={seatsPreview}
+            onApplied={reloadSeats}
+          />
+        </div>
+      )}
 
       {/* Ticket types editor */}
       <TicketTypesEditor

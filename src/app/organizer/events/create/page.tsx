@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
 import { cn } from "@/lib/utils"
+import { SeatGridPreview, type LayoutData } from "@/components/events/seat-grid-preview"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -111,20 +112,12 @@ interface LayoutSummary {
   total_seats: number
   is_template: boolean
   stage_position: string
+  // Now returned by GET /api/venue-layouts so cards can render a preview.
+  layout_data?: LayoutData
 }
 
 interface LayoutDetail extends LayoutSummary {
-  layout_data: {
-    sections: Array<{
-      id: string
-      name: string
-      color?: string
-      rows: Array<{
-        label: string
-        seats: Array<{ number: string; type?: string }>
-      }>
-    }>
-  }
+  layout_data: LayoutData
 }
 
 // section name -> index into the tickets[] array. Resolved to UUIDs at submit
@@ -1213,6 +1206,11 @@ function SeatsStep({
                   {l.description && (
                     <p className="mt-2 text-xs leading-snug text-muted-foreground">{l.description}</p>
                   )}
+                  {l.layout_data && l.layout_data.sections?.length > 0 && (
+                    <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-2">
+                      <SeatGridPreview layout={l.layout_data} stagePosition={l.stage_position} compact />
+                    </div>
+                  )}
                 </button>
               )
             })}
@@ -1321,6 +1319,10 @@ function SeatsStep({
       {/* Section -> ticket-type mapping (template / freshly-built grid only) */}
       {choice === "template" && layoutDetail && (
         <div className="rounded-xl border border-border bg-muted/30 p-4">
+          {/* Exact preview of the selected template's seat map. */}
+          <div className="mb-4 overflow-hidden rounded-lg border border-border/60 bg-background/60 p-3">
+            <SeatGridPreview layout={layoutDetail.layout_data} stagePosition={layoutDetail.stage_position} />
+          </div>
           <div className="mb-3 flex items-center gap-2">
             <Tag className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-foreground">
@@ -1415,6 +1417,29 @@ function SimpleLayoutBuilder({
     const seats = parseInt(s.seatsPerRow, 10) || 0
     return acc + rows * seats
   }, 0)
+
+  // Best-effort geometry for the live preview — mirrors buildLayoutData() but
+  // never throws (clamps to sane bounds) so it updates on every keystroke.
+  const previewData: LayoutData = React.useMemo(() => {
+    const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return {
+      sections: sections.map((s, i) => {
+        const rowCount = Math.max(0, Math.min(26, parseInt(s.rows, 10) || 0))
+        const seatsPerRow = Math.max(0, Math.min(100, parseInt(s.seatsPerRow, 10) || 0))
+        const startCh = (s.rowStart || "A").trim().toUpperCase().charAt(0)
+        const startIdx = Math.max(0, ALPHA.indexOf(/[A-Z]/.test(startCh) ? startCh : "A"))
+        return {
+          id: `s${i + 1}`,
+          name: s.name.trim() || `Section ${i + 1}`,
+          color: s.color,
+          rows: Array.from({ length: rowCount }, (_, r) => ({
+            label: ALPHA[Math.min(25, startIdx + r)],
+            seats: Array.from({ length: seatsPerRow }, (_, j) => ({ number: String(j + 1), type: "standard" })),
+          })),
+        }
+      }),
+    }
+  }, [sections])
 
   // Build the layout_data JSON the API expects.
   const buildLayoutData = (): LayoutDetail["layout_data"] | { error: string } => {
@@ -1513,6 +1538,7 @@ function SimpleLayoutBuilder({
           <FieldLabel htmlFor="stage-pos">Stage</FieldLabel>
           <select
             id="stage-pos"
+            aria-label="Stage position"
             value={stagePosition}
             onChange={(e) => setStagePosition(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
@@ -1606,6 +1632,23 @@ function SimpleLayoutBuilder({
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Live preview — redraws as you edit rows / seats / sections / stage */}
+      <div className="rounded-lg border border-border bg-background/40 p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Live preview
+          </span>
+        </div>
+        {totalSeats > 0 ? (
+          <SeatGridPreview layout={previewData} stagePosition={stagePosition} />
+        ) : (
+          <p className="py-4 text-center text-xs text-muted-foreground">
+            Enter rows and seats to see your seat map.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
