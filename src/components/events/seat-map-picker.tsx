@@ -1,10 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { AlertCircle, Armchair, Loader, RefreshCw, ZoomIn, ZoomOut } from "lucide-react"
+import { AlertCircle, Armchair, Clock, Loader, RefreshCw, ZoomIn, ZoomOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+
+// mm:ss for the hold countdown.
+const fmtMMSS = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`
 
 export type SeatStatus = "available" | "held" | "booked" | "disabled"
 export type SeatType = "standard" | "accessible" | "restricted_view" | "aisle"
@@ -382,6 +385,22 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
     }
   }, [eventId, selectedIds])
 
+  // Live hold countdown — the earliest held_until among seats this user holds is
+  // the deadline. Tick every second so the banner shows MM:SS remaining.
+  const [nowMs, setNowMs] = React.useState(() => Date.now())
+  React.useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const holdDeadline = React.useMemo(() => {
+    const times = allSeats
+      .filter(s => s.held_by_me && s.held_until)
+      .map(s => new Date(s.held_until as string).getTime())
+      .filter(t => Number.isFinite(t))
+    return times.length ? Math.min(...times) : null
+  }, [allSeats])
+  const holdSecondsLeft = holdDeadline !== null ? Math.max(0, Math.round((holdDeadline - nowMs) / 1000)) : null
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -419,6 +438,27 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
 
   return (
     <div className="space-y-5">
+      {/* Hold countdown — shows how long the picked seats stay reserved. */}
+      {holdSecondsLeft !== null && selectedIds.size > 0 && (
+        <div
+          className={cn(
+            "flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium",
+            holdSecondsLeft <= 60
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              : "border-primary/30 bg-primary/5 text-foreground",
+          )}
+        >
+          <Clock className="h-4 w-4 shrink-0" />
+          {holdSecondsLeft > 0 ? (
+            <span>
+              Your seats are held — <span className="tabular-nums font-semibold">{fmtMMSS(holdSecondsLeft)}</span> to check out
+            </span>
+          ) : (
+            <span>Your hold has expired — please re-select your seats.</span>
+          )}
+        </div>
+      )}
+
       {/* Stage */}
       <div className="rounded-lg border border-dashed border-border bg-muted/30 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         Stage / Screen

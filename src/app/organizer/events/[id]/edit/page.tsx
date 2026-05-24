@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Check,
   Edit3,
+  FileText,
   ImageIcon,
   Loader,
   MessageSquare,
@@ -23,7 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { type LayoutData } from "@/components/events/seat-grid-preview"
+import { SeatGridPreview, type LayoutData } from "@/components/events/seat-grid-preview"
 import { EditSeatMap } from "@/components/events/edit-seat-map"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -47,6 +48,17 @@ interface EventRow {
   seating_mode?: "none" | "free" | "zoned" | "reserved" | null
   approval_status: ApprovalStatus
   rejection_reason: string | null
+  // Reserved-seating layout state.
+  layout_source?: "grid" | "custom" | null
+  layout_status?: "ready" | "pending" | null
+  layout_request_note?: string | null
+  layout_documents?: LayoutDocument[] | null
+}
+
+interface LayoutDocument {
+  url: string
+  name: string
+  type: string
 }
 
 interface TicketType {
@@ -507,12 +519,18 @@ export default function EditEventPage() {
             <Tag className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-base font-semibold text-foreground">Seat map</h2>
           </div>
-          <EditSeatMap
-            eventId={event.id}
-            ticketTypes={ticketTypes}
-            currentSeats={seatsPreview}
-            onApplied={reloadSeats}
-          />
+          {event.layout_source === "custom" ? (
+            // Custom layouts are built by the MyScope team from the organizer's
+            // uploaded documents — shown read-only here.
+            <CustomLayoutPanel event={event} seats={seatsPreview} />
+          ) : (
+            <EditSeatMap
+              eventId={event.id}
+              ticketTypes={ticketTypes}
+              currentSeats={seatsPreview}
+              onApplied={reloadSeats}
+            />
+          )}
         </div>
       )}
 
@@ -569,6 +587,75 @@ function FieldGroup({
       </label>
       {children}
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// CustomLayoutPanel — read-only view for reserved events whose seat map is built
+// by the MyScope team from organizer-uploaded documents. Shows the built map
+// (once ready) or a "being built" status, plus the documents the organizer sent.
+// ---------------------------------------------------------------------------
+function CustomLayoutPanel({ event, seats }: { event: EventRow; seats: LayoutData | null }) {
+  const hasSeats = !!seats && seats.sections.length > 0
+  const docs = event.layout_documents ?? []
+  return (
+    <div className="space-y-4">
+      {hasSeats ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+            <Check className="h-4 w-4 shrink-0" />
+            <span>Your custom seat map is ready — built by the MyScope team.</span>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-3">
+            <SeatGridPreview layout={seats!} />
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+          <Loader className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+          <span>
+            Our team is building your seat map from the documents you uploaded. You&rsquo;ll see it here
+            once it&rsquo;s ready, and the event goes live after admin approval.
+          </span>
+        </div>
+      )}
+
+      {docs.length > 0 && (
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Your uploaded documents
+          </div>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {docs.map((doc) => (
+              <li key={doc.url} className="overflow-hidden rounded-lg border border-border bg-muted/30">
+                {doc.type === "application/pdf" ? (
+                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex h-28 flex-col items-center justify-center gap-1.5 p-2 text-center">
+                    <FileText className="h-6 w-6 text-primary" />
+                    <span className="line-clamp-2 text-[11px] text-muted-foreground">{doc.name}</span>
+                  </a>
+                ) : (
+                  <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={doc.url} alt={doc.name} className="h-28 w-full object-cover" />
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {event.layout_request_note && (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Your note to our team
+          </div>
+          <p className="rounded-md bg-muted/40 p-2 text-sm italic text-muted-foreground">
+            &ldquo;{event.layout_request_note}&rdquo;
+          </p>
+        </div>
+      )}
     </div>
   )
 }

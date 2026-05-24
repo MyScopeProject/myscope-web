@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertCircle, Check, LayoutGrid, Loader, Plus, Tag, Trash2 } from "lucide-react"
+import { AlertCircle, Check, LayoutGrid, Plus, Tag, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -9,25 +9,15 @@ import { SeatGridPreview, type LayoutData } from "@/components/events/seat-grid-
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-interface LayoutSummary {
-  id: string
-  name: string
-  description: string | null
-  total_seats: number
-  is_template: boolean
-  stage_position: string
-  layout_data?: LayoutData
-}
-interface LayoutDetail extends LayoutSummary {
-  layout_data: LayoutData
-}
 interface TicketLite { id: string; name: string; price: number }
+interface Built { layout_data: LayoutData; stage_position: string; total_seats: number }
 
 // ---------------------------------------------------------------------------
-// EditSeatMap — apply / replace the seat map of an EXISTING reserved event.
-// Repairs events whose seats never generated, and lets organizers swap layouts.
-// Uses real ticket_type ids (the event's tickets are already persisted), so no
-// name-resolution step like the create wizard needs.
+// EditSeatMap — build or replace a reserved event's seat map with a square/grid
+// layout. Seats are generated straight onto the event via POST /seat-grid; no
+// reusable venue_layout is saved. Used for organizer-built ("grid") events —
+// admin-built ("custom") events are shown read-only by the edit page instead.
+// Ticket types already exist, so section → ticket mapping uses real UUIDs.
 // ---------------------------------------------------------------------------
 export function EditSeatMap({
   eventId,
@@ -42,62 +32,29 @@ export function EditSeatMap({
 }) {
   const hasSeats = !!currentSeats && currentSeats.sections.length > 0
   const [open, setOpen] = React.useState(!hasSeats)
-  const [mode, setMode] = React.useState<"pick" | "grid">("pick")
-  const [layouts, setLayouts] = React.useState<LayoutSummary[]>([])
-  const [loadingList, setLoadingList] = React.useState(true)
-  const [picked, setPicked] = React.useState<LayoutDetail | null>(null)
-  const [pickedId, setPickedId] = React.useState<string | null>(null)
+  const [built, setBuilt] = React.useState<Built | null>(null)
   const [sectionMap, setSectionMap] = React.useState<Record<string, string>>({})
   const [err, setErr] = React.useState("")
   const [applying, setApplying] = React.useState(false)
 
-  const refresh = React.useCallback(async () => {
-    setLoadingList(true)
-    setErr("")
-    try {
-      const r = await fetch(`${API_URL}/api/venue-layouts`, { credentials: "include" })
-      const d = await r.json()
-      if (!d?.success) { setErr(d?.message || "Couldn't load layouts."); return }
-      setLayouts(d.data.layouts || [])
-    } catch {
-      setErr("Network error loading layouts.")
-    } finally {
-      setLoadingList(false)
+  const handleBuild = (layout: Built | null) => {
+    setBuilt(layout)
+    // Drop mappings for sections that no longer exist after a rebuild.
+    if (layout) {
+      setSectionMap((prev) => {
+        const names = new Set(layout.layout_data.sections.map((s) => s.name))
+        const next: Record<string, string> = {}
+        for (const [k, v] of Object.entries(prev)) if (names.has(k)) next[k] = v
+        return next
+      })
+    } else {
+      setSectionMap({})
     }
-  }, [])
-
-  React.useEffect(() => { if (open) refresh() }, [open, refresh])
-
-  const pick = async (id: string) => {
-    setErr("")
-    try {
-      const r = await fetch(`${API_URL}/api/venue-layouts/${id}`, { credentials: "include" })
-      const d = await r.json()
-      if (!d?.success) { setErr(d?.message || "Couldn't load that layout."); return }
-      const detail = d.data.layout as LayoutDetail
-      setPicked(detail)
-      setPickedId(id)
-      // Pre-map sections whose name matches a ticket tier.
-      const m: Record<string, string> = {}
-      for (const s of detail.layout_data.sections) {
-        const t = ticketTypes.find((t) => t.name.trim().toLowerCase() === s.name.trim().toLowerCase())
-        if (t) m[s.name] = t.id
-      }
-      setSectionMap(m)
-    } catch {
-      setErr("Network error loading layout.")
-    }
-  }
-
-  // A freshly built grid is saved as a layout, then auto-picked for mapping.
-  const onGridSaved = (created: LayoutSummary) => {
-    setMode("pick")
-    refresh().then(() => pick(created.id))
   }
 
   const apply = async () => {
-    if (!picked || !pickedId) return
-    const unmapped = picked.layout_data.sections.filter((s) => !sectionMap[s.name])
+    if (!built || built.total_seats === 0) { setErr("Build a seat map first."); return }
+    const unmapped = built.layout_data.sections.filter((s) => !sectionMap[s.name])
     if (unmapped.length) {
       setErr(`Assign a ticket type to section(s): ${unmapped.map((s) => s.name).join(", ")}.`)
       return
@@ -105,16 +62,16 @@ export function EditSeatMap({
     setApplying(true)
     setErr("")
     try {
-      const r = await fetch(`${API_URL}/api/venue-layouts/${pickedId}/apply-to-event`, {
+      const r = await fetch(`${API_URL}/api/organizer/events/${eventId}/seat-grid`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_id: eventId, section_ticket_map: sectionMap }),
+        body: JSON.stringify({ layout_data: built.layout_data, section_ticket_map: sectionMap }),
       })
       const d = await r.json()
       if (!d?.success) { setErr(d?.message || "Failed to apply seat map."); return }
-      setPicked(null)
-      setPickedId(null)
+      setBuilt(null)
+      setSectionMap({})
       setOpen(false)
       onApplied()
     } catch {
@@ -134,7 +91,7 @@ export function EditSeatMap({
           </div>
         )}
         <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-          {hasSeats ? "Replace seat map" : "Set up seat map"}
+          {hasSeats ? "Replace seat map" : "Build seat map"}
         </Button>
       </div>
     )
@@ -145,27 +102,9 @@ export function EditSeatMap({
       {!hasSeats && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>This reserved event has no seats yet, so attendees can&rsquo;t book. Pick a layout or build a grid, map each section to a ticket type, then apply.</span>
+          <span>This reserved event has no seats yet, so attendees can&rsquo;t book. Build a grid, map each section to a ticket type, then apply.</span>
         </div>
       )}
-
-      {/* Mode switch */}
-      <div className="grid grid-cols-2 gap-2">
-        {([["pick", "Pick a layout", LayoutGrid], ["grid", "Build a grid", Plus]] as const).map(([m, label, Icon]) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => { setMode(m); setPicked(null); setPickedId(null) }}
-            className={cn(
-              "flex items-center gap-2 rounded-xl border p-3 text-left text-sm font-semibold transition-colors",
-              mode === m ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border bg-card hover:border-primary/40",
-            )}
-          >
-            <Icon className={cn("h-4 w-4", mode === m ? "text-primary" : "text-muted-foreground")} />
-            {label}
-          </button>
-        ))}
-      </div>
 
       {err && (
         <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -174,101 +113,52 @@ export function EditSeatMap({
         </div>
       )}
 
-      {/* PICK */}
-      {mode === "pick" && !picked && (
-        loadingList ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader className="h-5 w-5 animate-spin" /></div>
-        ) : layouts.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-            No saved layouts or templates. Switch to{" "}
-            <button type="button" onClick={() => setMode("grid")} className="font-medium text-primary hover:underline">Build a grid</button>.
+      <GridBuilder onBuild={handleBuild} />
+
+      {/* Section -> ticket mapping for the built grid */}
+      {built && built.total_seats > 0 && (
+        <div className="rounded-xl border border-border bg-muted/30 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Assign pricing to each section</h3>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {layouts.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => pick(l.id)}
-                className="rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/40"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-semibold text-foreground">{l.name}</span>
-                  {l.is_template && (
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-secondary-foreground">Template</span>
-                  )}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">{l.total_seats} seats</div>
-                {l.layout_data && l.layout_data.sections?.length > 0 && (
-                  <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-2">
-                    <SeatGridPreview layout={l.layout_data} stagePosition={l.stage_position} compact />
-                  </div>
-                )}
-              </button>
+          <div className="space-y-2.5">
+            {built.layout_data.sections.map((section) => (
+              <div key={section.id} className="flex flex-wrap items-center gap-3">
+                <span className="h-3 w-3 shrink-0 rounded" style={{ background: section.color || "var(--muted)" }} aria-hidden />
+                <span className="w-32 shrink-0 text-sm font-medium text-foreground">{section.name}</span>
+                <select
+                  aria-label={`Ticket type for section ${section.name}`}
+                  value={sectionMap[section.name] ?? ""}
+                  onChange={(e) => setSectionMap((m) => ({ ...m, [section.name]: e.target.value }))}
+                  className="h-9 flex-1 min-w-[200px] rounded-md border border-input bg-background px-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+                >
+                  <option value="">Pick a ticket type…</option>
+                  {ticketTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}{t.price != null && ` — LKR ${Number(t.price).toLocaleString()}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ))}
           </div>
-        )
-      )}
-
-      {/* GRID builder */}
-      {mode === "grid" && !picked && (
-        <GridBuilder onSaved={onGridSaved} onError={setErr} />
-      )}
-
-      {/* Section -> ticket mapping for the chosen layout */}
-      {picked && (
-        <div className="space-y-4">
-          <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-3">
-            <SeatGridPreview layout={picked.layout_data} stagePosition={picked.stage_position} />
-          </div>
-          <div className="rounded-xl border border-border bg-muted/30 p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Tag className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Assign pricing to each section</h3>
-            </div>
-            <div className="space-y-2.5">
-              {picked.layout_data.sections.map((section) => (
-                <div key={section.id} className="flex flex-wrap items-center gap-3">
-                  <span className="h-3 w-3 shrink-0 rounded" style={{ background: section.color || "var(--muted)" }} aria-hidden />
-                  <span className="w-32 shrink-0 text-sm font-medium text-foreground">{section.name}</span>
-                  <select
-                    aria-label={`Ticket type for section ${section.name}`}
-                    value={sectionMap[section.name] ?? ""}
-                    onChange={(e) => setSectionMap((m) => ({ ...m, [section.name]: e.target.value }))}
-                    className="h-9 flex-1 min-w-[200px] rounded-md border border-input bg-background px-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
-                  >
-                    <option value="">Pick a ticket type…</option>
-                    {ticketTypes.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}{t.price != null && ` — LKR ${Number(t.price).toLocaleString()}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => { setPicked(null); setPickedId(null) }}>Back</Button>
-            <Button type="button" size="sm" onClick={apply} disabled={applying}>
-              {applying ? "Applying…" : <><Check /> Apply seat map</>}
-            </Button>
-          </div>
         </div>
       )}
 
-      {!picked && (
-        <div className="flex justify-end">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+        <Button type="button" size="sm" onClick={apply} disabled={applying || !built || built.total_seats === 0}>
+          {applying ? "Applying…" : <><Check /> Apply seat map</>}
+        </Button>
+      </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// GridBuilder — section-based rectangular generator with a live preview.
-// Saves a venue_layout, then hands the id back so the parent can map + apply.
+// GridBuilder — section-based square/grid generator with a live preview. Builds
+// layout_data in state and pushes it up via onBuild (no venue_layout is saved).
 // ---------------------------------------------------------------------------
 interface BuilderSection { name: string; color: string; rows: string; seatsPerRow: string; rowStart: string }
 const BUILDER_COLORS = ["#7F77DD", "#1D9E75", "#BA7517", "#D85A30", "#185FA5", "#993556"]
@@ -281,11 +171,10 @@ const emptySection = (i: number): BuilderSection => ({
 })
 const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-function GridBuilder({ onSaved, onError }: { onSaved: (l: LayoutSummary) => void; onError: (m: string) => void }) {
-  const [name, setName] = React.useState("")
+function GridBuilder({ onBuild }: { onBuild: (layout: Built | null) => void }) {
   const [stagePosition, setStagePosition] = React.useState("front")
   const [sections, setSections] = React.useState<BuilderSection[]>([emptySection(0)])
-  const [saving, setSaving] = React.useState(false)
+  const [buildError, setBuildError] = React.useState("")
 
   const upd = (i: number, patch: Partial<BuilderSection>) =>
     setSections((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)))
@@ -310,7 +199,7 @@ function GridBuilder({ onSaved, onError }: { onSaved: (l: LayoutSummary) => void
     }),
   }), [sections])
 
-  const buildLayoutData = (): LayoutData | { error: string } => {
+  const buildLayoutData = React.useCallback((): LayoutData | { error: string } => {
     const out: LayoutData = { sections: [] }
     const used = new Set<string>()
     for (let i = 0; i < sections.length; i++) {
@@ -337,37 +226,27 @@ function GridBuilder({ onSaved, onError }: { onSaved: (l: LayoutSummary) => void
       })
     }
     return out
-  }
+  }, [sections])
 
-  const save = async () => {
-    if (!name.trim()) { onError("Layout name is required."); return }
-    const built = buildLayoutData()
-    if ("error" in built) { onError(built.error); return }
-    setSaving(true)
-    try {
-      const r = await fetch(`${API_URL}/api/venue-layouts`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), stage_position: stagePosition, layout_data: built }),
-      })
-      const d = await r.json()
-      if (!d?.success) { onError(d?.message || "Failed to save layout."); return }
-      onSaved(d.data.layout as LayoutSummary)
-    } catch {
-      onError("Network error saving layout.")
-    } finally {
-      setSaving(false)
+  // Push the built layout up whenever geometry/stage change. A ref keeps the
+  // parent callback out of the dep array so we don't loop on parent re-renders.
+  const onBuildRef = React.useRef(onBuild)
+  React.useEffect(() => { onBuildRef.current = onBuild })
+  React.useEffect(() => {
+    const data = buildLayoutData()
+    if ("error" in data) {
+      setBuildError(totalSeats > 0 ? data.error : "")
+      onBuildRef.current(null)
+      return
     }
-  }
+    setBuildError("")
+    const total = data.sections.reduce((acc, sec) => acc + sec.rows.reduce((r, row) => r + row.seats.length, 0), 0)
+    onBuildRef.current({ layout_data: data, stage_position: stagePosition, total_seats: total })
+  }, [buildLayoutData, stagePosition, totalSeats])
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-[200px] space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Layout name</label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="My Conference Hall" />
-        </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">Stage</label>
           <select
@@ -379,6 +258,7 @@ function GridBuilder({ onSaved, onError }: { onSaved: (l: LayoutSummary) => void
             <option value="front">Front</option>
             <option value="back">Back</option>
             <option value="centre">Centre</option>
+            <option value="traverse">Traverse</option>
             <option value="none">No stage</option>
           </select>
         </div>
@@ -425,6 +305,13 @@ function GridBuilder({ onSaved, onError }: { onSaved: (l: LayoutSummary) => void
         ))}
       </div>
 
+      {buildError && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{buildError}</span>
+        </div>
+      )}
+
       {/* Live preview */}
       <div className="rounded-lg border border-border bg-background/40 p-3">
         <div className="mb-2 flex items-center gap-2">
@@ -438,10 +325,7 @@ function GridBuilder({ onSaved, onError }: { onSaved: (l: LayoutSummary) => void
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground">≈ {totalSeats.toLocaleString()} seats</div>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => setSections((p) => [...p, emptySection(p.length)])}><Plus /> Add section</Button>
-          <Button type="button" size="sm" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save & continue"}</Button>
-        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => setSections((p) => [...p, emptySection(p.length)])}><Plus /> Add section</Button>
       </div>
     </div>
   )

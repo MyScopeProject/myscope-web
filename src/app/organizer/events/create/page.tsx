@@ -10,6 +10,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  FileText,
   ImageIcon,
   LayoutGrid,
   Loader,
@@ -105,19 +106,20 @@ const STEPS_RESERVED = ["Details", "Tickets", "Seats", "Media", "Review"] as con
 const stepsForMode = (mode: SeatingMode): readonly string[] =>
   mode === "reserved" ? STEPS_RESERVED : STEPS_DEFAULT
 
-interface LayoutSummary {
-  id: string
-  name: string
-  description: string | null
-  total_seats: number
-  is_template: boolean
+// A grid the organizer builds in the wizard. Held in state and applied straight
+// to the event after it's created (no reusable venue_layout is ever saved).
+interface BuiltLayout {
+  layout_data: LayoutData
   stage_position: string
-  // Now returned by GET /api/venue-layouts so cards can render a preview.
-  layout_data?: LayoutData
+  total_seats: number
 }
 
-interface LayoutDetail extends LayoutSummary {
-  layout_data: LayoutData
+// A custom venue document the organizer uploads for the admin team to build the
+// seat map from (image or PDF).
+interface LayoutDocument {
+  url: string
+  name: string
+  type: string
 }
 
 // section name -> index into the tickets[] array. Resolved to UUIDs at submit
@@ -193,14 +195,13 @@ export default function CreateEventPage() {
   const [details, setDetails] = React.useState<DetailsForm>(emptyDetails)
   const [tickets, setTickets] = React.useState<TicketTypeForm[]>([emptyTicket()])
   const [media, setMedia] = React.useState<MediaForm>(emptyMedia)
-  const [layoutId, setLayoutId] = React.useState<string | null>(null)
-  const [layoutDetail, setLayoutDetail] = React.useState<LayoutDetail | null>(null)
+  const [builtLayout, setBuiltLayout] = React.useState<BuiltLayout | null>(null)
   const [sectionTicketMap, setSectionTicketMap] = React.useState<SectionTicketMap>({})
   // Reserved-mode setup path + custom-layout request fields (lifted here so the
-  // submit step can branch on them — see SeatsStep for the picker UI).
-  const [seatChoice, setSeatChoice] = React.useState<LayoutChoice>("template")
+  // submit step can branch on them — see SeatsStep for the UI).
+  const [seatChoice, setSeatChoice] = React.useState<LayoutChoice>("grid")
   const [customNote, setCustomNote] = React.useState("")
-  const [customFloorPlanUrl, setCustomFloorPlanUrl] = React.useState("")
+  const [customDocuments, setCustomDocuments] = React.useState<LayoutDocument[]>([])
   const [error, setError] = React.useState("")
   const [busy, setBusy] = React.useState<null | "submit">(null)
 
@@ -219,12 +220,11 @@ export default function CreateEventPage() {
   // Switching out of reserved mode after picking a layout: clear stale state
   // so the user doesn't accidentally submit a reserved-only payload.
   React.useEffect(() => {
-    if (!isReserved && (layoutId || Object.keys(sectionTicketMap).length > 0)) {
-      setLayoutId(null)
-      setLayoutDetail(null)
+    if (!isReserved && (builtLayout || Object.keys(sectionTicketMap).length > 0)) {
+      setBuiltLayout(null)
       setSectionTicketMap({})
     }
-  }, [isReserved, layoutId, sectionTicketMap])
+  }, [isReserved, builtLayout, sectionTicketMap])
 
   // Clamp step when mode changes — switching to reserved adds a step, switching
   // away can leave us past the new end. Snap back to the current section.
@@ -285,17 +285,20 @@ export default function CreateEventPage() {
       }
     }
     if (s === stepIdx.seats && isReserved) {
-      // Custom-layout request: no layout yet — our team builds it. Just need
-      // something to work from (a floor plan or a note).
+      // Custom layout: our team builds it from the organizer's uploaded
+      // documents. Require at least one so there's something to work from.
       if (seatChoice === "custom") {
-        if (!customFloorPlanUrl && !customNote.trim()) {
-          return "Upload a floor plan or add a note so our team can build your seat map."
+        if (customDocuments.length === 0) {
+          return "Upload at least one layout document (image or PDF) so our team can build your seat map."
         }
         return ""
       }
-      if (!layoutId || !layoutDetail) return "Pick a venue layout."
-      const sectionNames = layoutDetail.layout_data.sections.map(sec => sec.name)
-      const unmapped = sectionNames.filter(n => sectionTicketMap[n] === undefined)
+      // Square/grid layout: a seat map must be built and every section mapped.
+      if (!builtLayout || builtLayout.total_seats === 0) {
+        return "Build your seat map — enter rows and seats for each section."
+      }
+      const sectionNames = builtLayout.layout_data.sections.map((sec) => sec.name)
+      const unmapped = sectionNames.filter((n) => sectionTicketMap[n] === undefined)
       if (unmapped.length > 0) {
         return `Assign a ticket type to section(s): ${unmapped.join(", ")}.`
       }
@@ -339,13 +342,14 @@ export default function CreateEventPage() {
 
     try {
       const payload: Record<string, unknown> = buildPayload(details, tickets, media)
-      // Custom-layout request: submit the reserved event without a seat map.
-      // The backend marks it pending-layout and notifies admin to build one.
+      // Custom layout: submit the reserved event without a seat map. The backend
+      // marks it pending-layout and routes it to the admin Reserved Seating
+      // Events section, where the team builds the map from these documents.
       const isCustomLayout = isReserved && seatChoice === "custom"
       if (isCustomLayout) {
         payload.layout_request = {
           note: customNote.trim() || undefined,
-          floor_plan_url: customFloorPlanUrl || undefined,
+          documents: customDocuments,
         }
       }
       const createRes = await fetch(`${API_URL}/api/organizer/events`, {
@@ -361,19 +365,17 @@ export default function CreateEventPage() {
       }
       const eventId = createData.data.event.id as string
 
-      // Reserved mode (template/grid): apply the picked layout to materialise
-      // event_seats. Custom-layout requests skip this — admin applies later.
-      // The wizard stores section -> ticket index; resolve to real UUIDs by
-      // matching on ticket name from the create response (names are unique
-      // here — enforced in validateStep).
-      if (isReserved && !isCustomLayout && layoutId && layoutDetail) {
+      // Square/grid layout: generate event_seats straight onto the event (no
+      // saved layout). Resolve section -> ticket index into real ticket_type
+      // UUIDs by matching on ticket name (unique — enforced in validateStep).
+      if (isReserved && !isCustomLayout && builtLayout) {
         const createdTickets = (createData.data.ticket_types || []) as Array<{ id: string; name: string }>
         const resolvedMap: Record<string, string> = {}
         for (const [sectionName, ticketIdx] of Object.entries(sectionTicketMap)) {
           const ticketName = tickets[ticketIdx]?.name?.trim()
-          const created = createdTickets.find(c => c.name === ticketName)
+          const created = createdTickets.find((c) => c.name === ticketName)
           if (!created) {
-            setError(`Couldn't link section "${sectionName}" to a ticket type — please retry.`)
+            setError(`Couldn't link section "${sectionName}" to a ticket type — finish the seat map from the event's edit page.`)
             router.push("/organizer/events")
             return
           }
@@ -381,19 +383,19 @@ export default function CreateEventPage() {
         }
 
         const applyRes = await fetch(
-          `${API_URL}/api/venue-layouts/${layoutId}/apply-to-event`,
+          `${API_URL}/api/organizer/events/${eventId}/seat-grid`,
           {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ event_id: eventId, section_ticket_map: resolvedMap }),
+            body: JSON.stringify({ layout_data: builtLayout.layout_data, section_ticket_map: resolvedMap }),
           },
         )
         const applyData = await applyRes.json()
         if (!applyData?.success) {
-          // Event was created but seats failed — surface the error and bounce
-          // to the events list so the organizer can retry from the edit screen.
-          setError(applyData?.message || "Event saved but seat map failed to apply.")
+          // Event was created but seats failed — surface the error and bounce to
+          // the events list so the organizer can finish from the edit screen.
+          setError(applyData?.message || "Event saved but the seat map failed to apply. Finish it from the event's edit page.")
           router.push("/organizer/events")
           return
         }
@@ -457,24 +459,31 @@ export default function CreateEventPage() {
         {step === stepIdx.seats && isReserved && (
           <SeatsStep
             tickets={tickets}
-            layoutId={layoutId}
-            layoutDetail={layoutDetail}
+            builtLayout={builtLayout}
             sectionTicketMap={sectionTicketMap}
             eventTitle={details.title}
             choice={seatChoice}
             onChoiceChange={setSeatChoice}
             customNote={customNote}
             onCustomNoteChange={setCustomNote}
-            customFloorPlanUrl={customFloorPlanUrl}
-            onCustomFloorPlanChange={setCustomFloorPlanUrl}
-            onPickLayout={(id, detail) => {
-              setLayoutId(id)
-              setLayoutDetail(detail)
-              // Drop any stale mapping when the layout changes.
-              setSectionTicketMap({})
+            customDocuments={customDocuments}
+            onCustomDocumentsChange={setCustomDocuments}
+            onBuildLayout={(layout) => {
+              setBuiltLayout(layout)
+              // Drop mappings for sections that no longer exist after a rebuild.
+              if (layout) {
+                setSectionTicketMap((prev) => {
+                  const names = new Set(layout.layout_data.sections.map((s) => s.name))
+                  const next: SectionTicketMap = {}
+                  for (const [k, v] of Object.entries(prev)) if (names.has(k)) next[k] = v
+                  return next
+                })
+              } else {
+                setSectionTicketMap({})
+              }
             }}
             onMapSection={(sectionName, ticketIdx) =>
-              setSectionTicketMap(prev => ({ ...prev, [sectionName]: ticketIdx }))
+              setSectionTicketMap((prev) => ({ ...prev, [sectionName]: ticketIdx }))
             }
           />
         )}
@@ -484,9 +493,10 @@ export default function CreateEventPage() {
             details={details}
             tickets={tickets}
             media={media}
-            layoutDetail={layoutDetail}
+            builtLayout={builtLayout}
             sectionTicketMap={sectionTicketMap}
             seatChoice={seatChoice}
+            customDocuments={customDocuments}
           />
         )}
       </div>
@@ -961,15 +971,13 @@ function TicketsStep({
 }
 
 // ---------------------------------------------------------------------------
-// SeatsStep — reserved-mode wizard step. Lets organizer pick a layout (own or
-// template) or build a new one, then map each layout section to a ticket type.
+// SeatsStep — reserved-mode wizard step. Two paths only:
+//   • "grid"   — build a square/grid seat map here; it's applied straight to the
+//                event on submit (no reusable layout is ever saved).
+//   • "custom" — upload venue documents (images/PDFs); the MyScope team builds
+//                the seat map from the admin side, then approves the event.
 // ---------------------------------------------------------------------------
-
-// Reserved-mode setup paths. "template" reuses a pre-built map (admin templates
-// or the organizer's own saved layouts), "grid" opens the quick rectangular
-// builder, "custom" routes complex venues to the MyScope team (in-app request +
-// admin fulfilment is a later step — for now this is a contact hand-off).
-type LayoutChoice = "template" | "grid" | "custom"
+type LayoutChoice = "grid" | "custom"
 
 const LAYOUT_CHOICES: Array<{
   value: LayoutChoice
@@ -978,148 +986,102 @@ const LAYOUT_CHOICES: Array<{
   icon: React.ComponentType<{ className?: string }>
 }> = [
   {
-    value: "template",
-    label: "Pick a venue template",
-    description: "Pre-built seat maps for common venues. Fastest — just assign prices.",
+    value: "grid",
+    label: "Square / grid layout",
+    description: "Rows × seats per section — built here and ready instantly.",
     icon: LayoutGrid,
   },
   {
-    value: "grid",
-    label: "Build a simple grid",
-    description: "Rectangular hall? Enter rows and seats per section; we generate it.",
-    icon: Plus,
-  },
-  {
     value: "custom",
-    label: "Request a custom layout",
-    description: "Unusual venue? Our team builds the seat map for you.",
+    label: "Upload a custom layout",
+    description: "Unusual venue? Upload images or a PDF and our team builds the seat map for you.",
     icon: MessageSquare,
   },
 ]
 
+// Max custom-layout documents an organizer can attach (kept in sync with the API).
+const LAYOUT_DOC_MAX = 10
+
 function SeatsStep({
   tickets,
-  layoutId,
-  layoutDetail,
+  builtLayout,
   sectionTicketMap,
   eventTitle,
   choice,
   onChoiceChange,
   customNote,
   onCustomNoteChange,
-  customFloorPlanUrl,
-  onCustomFloorPlanChange,
-  onPickLayout,
+  customDocuments,
+  onCustomDocumentsChange,
+  onBuildLayout,
   onMapSection,
 }: {
   tickets: TicketTypeForm[]
-  layoutId: string | null
-  layoutDetail: LayoutDetail | null
+  builtLayout: BuiltLayout | null
   sectionTicketMap: SectionTicketMap
   eventTitle?: string
   choice: LayoutChoice
   onChoiceChange: (c: LayoutChoice) => void
   customNote: string
   onCustomNoteChange: (v: string) => void
-  customFloorPlanUrl: string
-  onCustomFloorPlanChange: (v: string) => void
-  onPickLayout: (id: string, detail: LayoutDetail) => void
+  customDocuments: LayoutDocument[]
+  onCustomDocumentsChange: (docs: LayoutDocument[]) => void
+  onBuildLayout: (layout: BuiltLayout | null) => void
   onMapSection: (sectionName: string, ticketIdx: number) => void
 }) {
-  const [layouts, setLayouts] = React.useState<LayoutSummary[]>([])
-  const [loadingList, setLoadingList] = React.useState(true)
-  const [loadError, setLoadError] = React.useState("")
-  const [pickingId, setPickingId] = React.useState<string | null>(null)
-  const [uploadingPlan, setUploadingPlan] = React.useState(false)
+  const [uploadError, setUploadError] = React.useState("")
+  const [uploading, setUploading] = React.useState(false)
 
-  // Upload a venue floor-plan image for a custom-layout request. Reuses the
-  // organizer banner-upload endpoint (same bucket; just returns a public URL).
-  const handleFloorPlanUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setLoadError("Floor plan must be an image file.")
+  // Upload one-or-more custom-layout documents (images / PDFs) and append the
+  // returned references to the list. Reuses /upload-layout-doc once per file.
+  const handleDocUpload = async (files: FileList) => {
+    setUploadError("")
+    const room = LAYOUT_DOC_MAX - customDocuments.length
+    if (room <= 0) {
+      setUploadError(`You can attach up to ${LAYOUT_DOC_MAX} documents.`)
       return
     }
-    setLoadError("")
-    setUploadingPlan(true)
+    const picked = Array.from(files).slice(0, room)
+    setUploading(true)
+    const added: LayoutDocument[] = []
     try {
-      const fd = new FormData()
-      fd.append("image", file)
-      const res = await fetch(`${API_URL}/api/organizer/events/upload-banner`, {
-        method: "POST",
-        credentials: "include",
-        body: fd,
-      })
-      const data = await res.json()
-      if (!data?.success) {
-        setLoadError(data?.message || "Floor plan upload failed.")
-        return
+      for (const file of picked) {
+        const isImg = file.type.startsWith("image/")
+        const isPdf = file.type === "application/pdf"
+        if (!isImg && !isPdf) { setUploadError("Only images and PDF files are allowed."); continue }
+        if (file.size > 15 * 1024 * 1024) { setUploadError(`"${file.name}" is over 15 MB.`); continue }
+        const fd = new FormData()
+        fd.append("file", file)
+        const res = await fetch(`${API_URL}/api/organizer/events/upload-layout-doc`, {
+          method: "POST",
+          credentials: "include",
+          body: fd,
+        })
+        const data = await res.json()
+        if (!data?.success) { setUploadError(data?.message || `Upload failed for "${file.name}".`); continue }
+        added.push(data.data as LayoutDocument)
       }
-      onCustomFloorPlanChange(data.data.url as string)
+      if (added.length) onCustomDocumentsChange([...customDocuments, ...added])
     } catch {
-      setLoadError("Network error uploading the floor plan.")
+      setUploadError("Network error uploading documents.")
     } finally {
-      setUploadingPlan(false)
+      setUploading(false)
     }
   }
 
-  // Fetch the layout list once on mount.
-  const refreshLayouts = React.useCallback(async () => {
-    setLoadError("")
-    setLoadingList(true)
-    try {
-      const res = await fetch(`${API_URL}/api/venue-layouts`, { credentials: "include" })
-      const data = await res.json()
-      if (!data?.success) {
-        setLoadError(data?.message || "Couldn't load layouts.")
-        return
-      }
-      setLayouts(data.data.layouts || [])
-    } catch {
-      setLoadError("Network error loading layouts.")
-    } finally {
-      setLoadingList(false)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    refreshLayouts()
-  }, [refreshLayouts])
-
-  const pickLayout = async (id: string) => {
-    setLoadError("")
-    setPickingId(id)
-    try {
-      const res = await fetch(`${API_URL}/api/venue-layouts/${id}`, { credentials: "include" })
-      const data = await res.json()
-      if (!data?.success) {
-        setLoadError(data?.message || "Couldn't load that layout.")
-        return
-      }
-      onPickLayout(id, data.data.layout as LayoutDetail)
-    } catch {
-      setLoadError("Network error loading layout.")
-    } finally {
-      setPickingId(null)
-    }
-  }
-
-  const handleBuiltLayout = (created: LayoutSummary) => {
-    // A freshly built grid becomes a selectable layout — switch to the template
-    // view and auto-pick it so the section→pricing step appears immediately.
-    onChoiceChange("template")
-    refreshLayouts().then(() => pickLayout(created.id))
-  }
+  const removeDoc = (url: string) =>
+    onCustomDocumentsChange(customDocuments.filter((d) => d.url !== url))
 
   return (
     <div className="space-y-5">
       <StepHeader icon={Sparkles} title="Seats" />
       <p className="text-sm text-muted-foreground">
-        Choose how to set up your venue&rsquo;s seat map. For templates and grids, assign each
-        section a ticket type so every seat has a price.
+        Reserved seating lets attendees pick their exact seat. Build a square/grid seat map now, or
+        upload your venue layout for our team to build.
       </p>
 
-      {/* Setup path — three tiers */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Setup path — two options */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {LAYOUT_CHOICES.map((c) => {
           const Icon = c.icon
           const active = choice === c.value
@@ -1143,90 +1105,58 @@ function SeatsStep({
         })}
       </div>
 
-      {loadError && (
-        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{loadError}</span>
-        </div>
-      )}
-
-      {/* TEMPLATE — pick a public template or one of your saved layouts */}
-      {choice === "template" &&
-        (loadingList ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground">
-            <Loader className="h-5 w-5 animate-spin" />
-          </div>
-        ) : layouts.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-            No venue templates available yet. Switch to{" "}
-            <button
-              type="button"
-              onClick={() => onChoiceChange("grid")}
-              className="font-medium text-primary hover:underline"
-            >
-              Build a simple grid
-            </button>{" "}
-            or{" "}
-            <button
-              type="button"
-              onClick={() => onChoiceChange("custom")}
-              className="font-medium text-primary hover:underline"
-            >
-              request a custom layout
-            </button>
-            .
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {layouts.map((l) => {
-              const selected = layoutId === l.id
-              const loading = pickingId === l.id
-              return (
-                <button
-                  key={l.id}
-                  type="button"
-                  onClick={() => pickLayout(l.id)}
-                  disabled={loading}
-                  className={cn(
-                    "rounded-xl border p-4 text-left transition-colors disabled:opacity-60",
-                    selected
-                      ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                      : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm font-semibold text-foreground">{l.name}</span>
-                    {l.is_template && (
-                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-secondary-foreground">
-                        Template
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">{l.total_seats} seats</div>
-                  {l.description && (
-                    <p className="mt-2 text-xs leading-snug text-muted-foreground">{l.description}</p>
-                  )}
-                  {l.layout_data && l.layout_data.sections?.length > 0 && (
-                    <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-2">
-                      <SeatGridPreview layout={l.layout_data} stagePosition={l.stage_position} compact />
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        ))}
-
-      {/* GRID — quick rectangular builder */}
+      {/* GRID — build a square/grid seat map (held in state, applied on submit) */}
       {choice === "grid" && (
-        <SimpleLayoutBuilder
-          onSaved={handleBuiltLayout}
-          onError={(msg) => setLoadError(msg)}
-        />
+        <>
+          <SimpleLayoutBuilder onBuild={onBuildLayout} />
+
+          {/* Section -> ticket-type mapping for the built grid */}
+          {builtLayout && builtLayout.total_seats > 0 && (
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-foreground">Assign pricing to each section</h3>
+              </div>
+              <div className="space-y-2.5">
+                {builtLayout.layout_data.sections.map((section) => {
+                  const value = sectionTicketMap[section.name]
+                  return (
+                    <div key={section.id} className="flex flex-wrap items-center gap-3">
+                      <span
+                        className="h-3 w-3 shrink-0 rounded"
+                        style={{ background: section.color || "var(--muted)" }}
+                        aria-hidden
+                      />
+                      <span className="w-32 shrink-0 text-sm font-medium text-foreground">
+                        {section.name}
+                      </span>
+                      <select
+                        aria-label={`Ticket type for section ${section.name}`}
+                        value={value !== undefined ? String(value) : ""}
+                        onChange={(e) => {
+                          const idx = e.target.value === "" ? -1 : parseInt(e.target.value, 10)
+                          if (idx >= 0) onMapSection(section.name, idx)
+                        }}
+                        className="h-9 flex-1 min-w-[200px] rounded-md border border-input bg-background px-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+                      >
+                        <option value="">Pick a ticket type…</option>
+                        {tickets.map((t, i) => (
+                          <option key={i} value={i} disabled={!t.name.trim()}>
+                            {t.name.trim() || `Ticket #${i + 1}`}
+                            {t.price !== "" && ` — LKR ${Number(t.price).toLocaleString()}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      {/* CUSTOM — admin-assisted (Tier 3). Submit the event without a seat map;
-          it waits in "pending layout" until our team builds and applies one. */}
+      {/* CUSTOM — upload documents; the admin team builds the seat map */}
       {choice === "custom" && (
         <div className="space-y-4 rounded-xl border border-border bg-card p-4">
           <div className="flex items-start gap-3">
@@ -1234,65 +1164,87 @@ function SeatsStep({
               <MessageSquare className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-foreground">Request a custom seat map</h3>
+              <h3 className="text-sm font-semibold text-foreground">Upload your venue layout</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Outdoor concerts, multi-level halls, curved seating — share your venue floor plan and
-                our team builds the seat map for you, usually within 24 hours. Your event is created
-                right away and goes on sale once the seat map is ready and approved.
+                Outdoor concerts, multi-level halls, curved seating — upload images or a PDF of your
+                seating plan. Our team builds the exact seat map and you&rsquo;ll see it on this
+                event&rsquo;s edit page. The event goes on sale once the seat map is ready and approved.
               </p>
             </div>
           </div>
 
-          {/* Floor plan upload */}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Venue floor plan
+          {uploadError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{uploadError}</span>
+            </div>
+          )}
+
+          {/* Uploaded documents */}
+          {customDocuments.length > 0 && (
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {customDocuments.map((doc) => (
+                <li key={doc.url} className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
+                  {doc.type === "application/pdf" ? (
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-32 flex-col items-center justify-center gap-1.5 p-2 text-center"
+                    >
+                      <FileText className="h-7 w-7 text-primary" />
+                      <span className="line-clamp-2 text-[11px] text-muted-foreground">{doc.name}</span>
+                    </a>
+                  ) : (
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={doc.url} alt={doc.name} className="h-32 w-full object-cover" />
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeDoc(doc.url)}
+                    className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-md bg-background/90 px-1.5 py-1 text-[11px] font-medium text-foreground shadow hover:bg-background"
+                    aria-label={`Remove ${doc.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Upload tile */}
+          {customDocuments.length < LAYOUT_DOC_MAX && (
+            <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary/40 hover:bg-muted/40">
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.length) handleDocUpload(e.target.files)
+                  e.target.value = ""
+                }}
+              />
+              {uploading ? (
+                <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : (
+                <ImageIcon className="h-5 w-5 text-muted-foreground" />
+              )}
+              <span className="mt-1.5 text-sm font-medium text-foreground">
+                {uploading ? "Uploading…" : "Upload images or PDF"}
+              </span>
+              <span className="mt-0.5 text-xs text-muted-foreground">
+                PNG / JPG / PDF, up to 15 MB each · {customDocuments.length}/{LAYOUT_DOC_MAX}
+              </span>
             </label>
-            {customFloorPlanUrl ? (
-              <div className="relative overflow-hidden rounded-lg border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={customFloorPlanUrl}
-                  alt="Floor plan"
-                  className="max-h-64 w-full bg-muted object-contain"
-                />
-                <button
-                  type="button"
-                  onClick={() => onCustomFloorPlanChange("")}
-                  className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-background/90 px-2 py-1 text-xs font-medium text-foreground shadow hover:bg-background"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Remove
-                </button>
-              </div>
-            ) : (
-              <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary/40 hover:bg-muted/40">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) handleFloorPlanUpload(f)
-                    e.target.value = ""
-                  }}
-                />
-                {uploadingPlan ? (
-                  <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
-                ) : (
-                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                )}
-                <span className="mt-1.5 text-sm font-medium text-foreground">
-                  {uploadingPlan ? "Uploading…" : "Upload a floor plan image"}
-                </span>
-                <span className="mt-0.5 text-xs text-muted-foreground">PNG / JPG, up to 5 MB</span>
-              </label>
-            )}
-          </div>
+          )}
 
           {/* Note */}
           <div>
             <label htmlFor="layout-note" className="mb-1.5 block text-sm font-medium text-foreground">
-              Notes for our team
+              Notes for our team (optional)
             </label>
             <textarea
               id="layout-note"
@@ -1303,9 +1255,6 @@ function SeatsStep({
               placeholder="Describe the seating — sections, approximate rows/seats, any tiers, accessible areas…"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Add a floor plan or a note (or both) so we have something to build from.
-            </p>
           </div>
 
           <ContactCollaborate
@@ -1315,63 +1264,15 @@ function SeatsStep({
           />
         </div>
       )}
-
-      {/* Section -> ticket-type mapping (template / freshly-built grid only) */}
-      {choice === "template" && layoutDetail && (
-        <div className="rounded-xl border border-border bg-muted/30 p-4">
-          {/* Exact preview of the selected template's seat map. */}
-          <div className="mb-4 overflow-hidden rounded-lg border border-border/60 bg-background/60 p-3">
-            <SeatGridPreview layout={layoutDetail.layout_data} stagePosition={layoutDetail.stage_position} />
-          </div>
-          <div className="mb-3 flex items-center gap-2">
-            <Tag className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">
-              Assign pricing to each section
-            </h3>
-          </div>
-          <div className="space-y-2.5">
-            {layoutDetail.layout_data.sections.map((section) => {
-              const value = sectionTicketMap[section.name]
-              return (
-                <div key={section.id} className="flex flex-wrap items-center gap-3">
-                  <span
-                    className="h-3 w-3 shrink-0 rounded"
-                    style={{ background: section.color || "var(--muted)" }}
-                    aria-hidden
-                  />
-                  <span className="w-32 shrink-0 text-sm font-medium text-foreground">
-                    {section.name}
-                  </span>
-                  <select
-                    aria-label={`Ticket type for section ${section.name}`}
-                    value={value !== undefined ? String(value) : ""}
-                    onChange={(e) => {
-                      const idx = e.target.value === "" ? -1 : parseInt(e.target.value, 10)
-                      if (idx >= 0) onMapSection(section.name, idx)
-                    }}
-                    className="h-9 flex-1 min-w-[200px] rounded-md border border-input bg-background px-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
-                  >
-                    <option value="">Pick a ticket type…</option>
-                    {tickets.map((t, i) => (
-                      <option key={i} value={i} disabled={!t.name.trim()}>
-                        {t.name.trim() || `Ticket #${i + 1}`}
-                        {t.price !== "" && ` — LKR ${Number(t.price).toLocaleString()}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// SimpleLayoutBuilder — inline form to POST a new venue_layout. Section-based
-// grid generator (no drag-and-drop). Section name + colour + rows + seats/row.
+// SimpleLayoutBuilder — section-based square/grid generator with a live preview.
+// Builds layout_data in component state and pushes it up via onBuild; it does
+// NOT persist a reusable venue_layout (the wizard applies it straight to the
+// event after creation).
 // ---------------------------------------------------------------------------
 
 interface BuilderSection {
@@ -1392,17 +1293,16 @@ const emptyBuilderSection = (idx: number): BuilderSection => ({
   rowStart: "A",
 })
 
+const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 function SimpleLayoutBuilder({
-  onSaved,
-  onError,
+  onBuild,
 }: {
-  onSaved: (layout: LayoutSummary) => void
-  onError: (msg: string) => void
+  onBuild: (layout: BuiltLayout | null) => void
 }) {
-  const [name, setName] = React.useState("")
   const [stagePosition, setStagePosition] = React.useState("front")
   const [sections, setSections] = React.useState<BuilderSection[]>([emptyBuilderSection(0)])
-  const [saving, setSaving] = React.useState(false)
+  const [buildError, setBuildError] = React.useState("")
 
   const updSection = (i: number, patch: Partial<BuilderSection>) => {
     setSections((prev) => {
@@ -1418,33 +1318,29 @@ function SimpleLayoutBuilder({
     return acc + rows * seats
   }, 0)
 
-  // Best-effort geometry for the live preview — mirrors buildLayoutData() but
-  // never throws (clamps to sane bounds) so it updates on every keystroke.
-  const previewData: LayoutData = React.useMemo(() => {
-    const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    return {
-      sections: sections.map((s, i) => {
-        const rowCount = Math.max(0, Math.min(26, parseInt(s.rows, 10) || 0))
-        const seatsPerRow = Math.max(0, Math.min(100, parseInt(s.seatsPerRow, 10) || 0))
-        const startCh = (s.rowStart || "A").trim().toUpperCase().charAt(0)
-        const startIdx = Math.max(0, ALPHA.indexOf(/[A-Z]/.test(startCh) ? startCh : "A"))
-        return {
-          id: `s${i + 1}`,
-          name: s.name.trim() || `Section ${i + 1}`,
-          color: s.color,
-          rows: Array.from({ length: rowCount }, (_, r) => ({
-            label: ALPHA[Math.min(25, startIdx + r)],
-            seats: Array.from({ length: seatsPerRow }, (_, j) => ({ number: String(j + 1), type: "standard" })),
-          })),
-        }
-      }),
-    }
-  }, [sections])
+  // Best-effort geometry for the live preview — clamps to sane bounds so it
+  // updates on every keystroke without throwing.
+  const previewData: LayoutData = React.useMemo(() => ({
+    sections: sections.map((s, i) => {
+      const rowCount = Math.max(0, Math.min(26, parseInt(s.rows, 10) || 0))
+      const seatsPerRow = Math.max(0, Math.min(100, parseInt(s.seatsPerRow, 10) || 0))
+      const startCh = (s.rowStart || "A").trim().toUpperCase().charAt(0)
+      const startIdx = Math.max(0, ALPHA.indexOf(/[A-Z]/.test(startCh) ? startCh : "A"))
+      return {
+        id: `s${i + 1}`,
+        name: s.name.trim() || `Section ${i + 1}`,
+        color: s.color,
+        rows: Array.from({ length: rowCount }, (_, r) => ({
+          label: ALPHA[Math.min(25, startIdx + r)],
+          seats: Array.from({ length: seatsPerRow }, (_, j) => ({ number: String(j + 1), type: "standard" })),
+        })),
+      }
+    }),
+  }), [sections])
 
-  // Build the layout_data JSON the API expects.
-  const buildLayoutData = (): LayoutDetail["layout_data"] | { error: string } => {
-    const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    const out: LayoutDetail["layout_data"] = { sections: [] }
+  // Validate + build the layout_data JSON the API expects, or return an error.
+  const buildLayoutData = React.useCallback((): LayoutData | { error: string } => {
+    const out: LayoutData = { sections: [] }
     const usedNames = new Set<string>()
     for (let i = 0; i < sections.length; i++) {
       const s = sections[i]
@@ -1484,56 +1380,31 @@ function SimpleLayoutBuilder({
       })
     }
     return out
-  }
+  }, [sections])
 
-  const save = async () => {
-    if (!name.trim()) {
-      onError("Layout name is required.")
+  // Push the built layout up whenever geometry or stage change. A ref keeps the
+  // parent callback out of the dependency array so we don't re-emit (and loop)
+  // on every parent re-render.
+  const onBuildRef = React.useRef(onBuild)
+  React.useEffect(() => { onBuildRef.current = onBuild })
+  React.useEffect(() => {
+    const data = buildLayoutData()
+    if ("error" in data) {
+      setBuildError(totalSeats > 0 ? data.error : "")
+      onBuildRef.current(null)
       return
     }
-    const built = buildLayoutData()
-    if ("error" in built) {
-      onError(built.error)
-      return
-    }
-    setSaving(true)
-    try {
-      const res = await fetch(`${API_URL}/api/venue-layouts`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          stage_position: stagePosition,
-          layout_data: built,
-        }),
-      })
-      const data = await res.json()
-      if (!data?.success) {
-        onError(data?.message || "Failed to save layout.")
-        return
-      }
-      onSaved(data.data.layout as LayoutSummary)
-    } catch {
-      onError("Network error saving layout.")
-    } finally {
-      setSaving(false)
-    }
-  }
+    setBuildError("")
+    const total = data.sections.reduce(
+      (acc, sec) => acc + sec.rows.reduce((r, row) => r + row.seats.length, 0),
+      0,
+    )
+    onBuildRef.current({ layout_data: data, stage_position: stagePosition, total_seats: total })
+  }, [buildLayoutData, stagePosition, totalSeats])
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-[200px] space-y-1.5">
-          <FieldLabel htmlFor="layout-name" required>Layout name</FieldLabel>
-          <Input
-            id="layout-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="My Conference Hall"
-          />
-        </div>
         <div className="space-y-1.5">
           <FieldLabel htmlFor="stage-pos">Stage</FieldLabel>
           <select
@@ -1634,6 +1505,13 @@ function SimpleLayoutBuilder({
         ))}
       </div>
 
+      {buildError && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{buildError}</span>
+        </div>
+      )}
+
       {/* Live preview — redraws as you edit rows / seats / sections / stage */}
       <div className="rounded-lg border border-border bg-background/40 p-3">
         <div className="mb-2 flex items-center gap-2">
@@ -1655,21 +1533,14 @@ function SimpleLayoutBuilder({
         <div className="text-xs text-muted-foreground">
           ≈ {totalSeats.toLocaleString()} bookable seats
         </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setSections((prev) => [...prev, emptyBuilderSection(prev.length)])
-            }
-          >
-            <Plus /> Add section
-          </Button>
-          <Button type="button" size="sm" onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save layout"}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setSections((prev) => [...prev, emptyBuilderSection(prev.length)])}
+        >
+          <Plus /> Add section
+        </Button>
       </div>
     </div>
   )
@@ -1825,16 +1696,18 @@ function ReviewStep({
   details,
   tickets,
   media,
-  layoutDetail,
+  builtLayout,
   sectionTicketMap,
   seatChoice,
+  customDocuments,
 }: {
   details: DetailsForm
   tickets: TicketTypeForm[]
   media: MediaForm
-  layoutDetail: LayoutDetail | null
+  builtLayout: BuiltLayout | null
   sectionTicketMap: SectionTicketMap
   seatChoice: LayoutChoice
+  customDocuments: LayoutDocument[]
 }) {
   const totalSeats = tickets.reduce(
     (sum, t) => sum + (parseInt(t.quantity_total, 10) || 0),
@@ -1884,11 +1757,11 @@ function ReviewStep({
         ))}
       </ReviewBlock>
 
-      {isReserved && layoutDetail && (
+      {isReserved && seatChoice === "grid" && builtLayout && (
         <ReviewBlock
-          title={`Venue layout — ${layoutDetail.name} · ${layoutDetail.total_seats} seats`}
+          title={`Venue layout — square/grid · ${builtLayout.total_seats} seats`}
         >
-          {layoutDetail.layout_data.sections.map((section) => {
+          {builtLayout.layout_data.sections.map((section) => {
             const ticketIdx = sectionTicketMap[section.name]
             const ticketName =
               ticketIdx !== undefined ? tickets[ticketIdx]?.name?.trim() : null
@@ -1916,9 +1789,9 @@ function ReviewStep({
       )}
 
       {isReserved && seatChoice === "custom" && (
-        <ReviewBlock title="Venue layout — custom request">
+        <ReviewBlock title={`Venue layout — custom (${customDocuments.length} document${customDocuments.length === 1 ? "" : "s"})`}>
           <p className="py-1.5 text-sm text-muted-foreground">
-            Our team will build the seat map from your floor plan/notes. The event is created now and
+            Our team will build the seat map from your uploaded documents. The event is created now and
             goes on sale once the seat map is ready and approved.
           </p>
         </ReviewBlock>
