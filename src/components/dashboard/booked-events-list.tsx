@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
-  ExternalLink,
+  Download,
   Loader2,
   MapPin,
   QrCode,
@@ -32,6 +32,8 @@ interface EventLite {
   image?: string | null
   category?: string | null
   seating_mode?: "none" | "free" | "zoned" | "reserved" | null
+  postponed?: boolean | null
+  postponed_to?: string | null
 }
 
 interface BookingRow {
@@ -69,9 +71,32 @@ type Filter = (typeof FILTERS)[number]
 
 const lkr = (n: number) => `LKR ${Number(n || 0).toLocaleString()}`
 
-const eventWhen = (b: BookingRow) => b.event?.start_time || b.event?.date || null
+// Fetch a ticket PNG (with the QR) from the API and save it to disk. Uses the
+// authenticated endpoints so the download works straight from the card without
+// visiting the booking detail page.
+async function downloadPng(url: string, filename: string) {
+  const res = await fetch(url, { credentials: "include" })
+  if (!res.ok) throw new Error("Download failed")
+  const blob = await res.blob()
+  const href = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = href
+  a.download = filename.replace(/[^a-z0-9.-]+/gi, "-")
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(href)
+}
+
 const isPast = (b: BookingRow) => {
-  const w = eventWhen(b)
+  const ev = b.event
+  if (!ev) return false
+  // A postponed event with no new date yet ("to be announced") is NOT over — it
+  // stays in the upcoming/Confirmed section. Its stored date is the stale
+  // original, so ignore it. Once a new date is set, postpone updates the date
+  // and this falls through to the normal check (future = upcoming, past = past).
+  if (ev.postponed && !ev.postponed_to) return false
+  const w = ev.start_time || ev.date
   if (!w) return false
   const d = new Date(w)
   return !Number.isNaN(d.getTime()) && d.getTime() < Date.now()
@@ -236,7 +261,15 @@ function BookingCard({ booking }: { booking: BookingRow }) {
   const meta = STATUS_META[booking.status] ?? { label: booking.status, variant: "outline" as const }
   const isConfirmed = booking.status === "Confirmed"
   const isReserved = ev?.seating_mode === "reserved"
-  const past = dateObj ? dateObj.getTime() < Date.now() : false
+  const past = isPast(booking)
+  const postponed = !!ev?.postponed
+  // Postponed with no rescheduled date yet → its stored date is stale.
+  const dateTba = postponed && !ev?.postponed_to
+  const dateLabel = dateTba
+    ? "New date to be announced"
+    : dateObj
+      ? dateObj.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })
+      : null
 
   const [showQr, setShowQr] = React.useState(false)
   const [seatTickets, setSeatTickets] = React.useState<SeatTicket[] | null>(null)
@@ -285,6 +318,7 @@ function BookingCard({ booking }: { booking: BookingRow }) {
         <div className="min-w-0 flex-1 p-4">
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant={meta.variant} className="text-xs">{meta.label}</Badge>
+            {postponed && <Badge variant="warning" className="text-xs">Postponed</Badge>}
             {past && <Badge variant="outline" className="text-xs">Ended</Badge>}
             {ev?.category && <Badge variant="outline" className="text-xs">{ev.category}</Badge>}
             {booking.checked_in_at && (
@@ -299,12 +333,10 @@ function BookingCard({ booking }: { booking: BookingRow }) {
           </p>
 
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            {dateObj && (
+            {dateLabel && (
               <span className="inline-flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {dateObj.toLocaleString("en-US", {
-                  month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit",
-                })}
+                {dateLabel}
               </span>
             )}
             {venue && (
@@ -346,12 +378,6 @@ function BookingCard({ booking }: { booking: BookingRow }) {
                 <Clock className="h-3.5 w-3.5" /> Complete payment
               </Link>
             )}
-            <Link
-              href={`/bookings/event/${booking.id}`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              <ExternalLink className="h-3.5 w-3.5" /> Manage / download
-            </Link>
           </div>
         </div>
       </div>
@@ -368,21 +394,30 @@ function BookingCard({ booking }: { booking: BookingRow }) {
               <p className="py-4 text-center text-sm text-destructive">{ticketsError}</p>
             ) : seatTickets && seatTickets.length > 0 ? (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                {seatTickets.map((t) => (
-                  <QrTile
-                    key={t.id}
-                    url={t.qr_image_url}
-                    label={t.seat?.seat_label || [t.seat?.section, t.seat?.row_label && `${t.seat.row_label}${t.seat.seat_number ?? ""}`].filter(Boolean).join(" ") || "Seat"}
-                    used={t.check_in_status === "used" || !!t.checked_in_at}
-                  />
-                ))}
+                {seatTickets.map((t) => {
+                  const seatLabel = t.seat?.seat_label || [t.seat?.section, t.seat?.row_label && `${t.seat.row_label}${t.seat.seat_number ?? ""}`].filter(Boolean).join(" ") || "Seat"
+                  return (
+                    <QrTile
+                      key={t.id}
+                      url={t.qr_image_url}
+                      label={seatLabel}
+                      used={t.check_in_status === "used" || !!t.checked_in_at}
+                      onDownload={() => downloadPng(`${API_URL}/api/checkout/${booking.id}/tickets/${t.id}/png`, `myscope-ticket-${seatLabel}.png`)}
+                    />
+                  )
+                })}
               </div>
             ) : (
               <p className="py-4 text-center text-sm text-muted-foreground">No seat tickets found for this booking.</p>
             )
           ) : booking.ticket_url ? (
             <div className="flex flex-col items-center gap-2">
-              <QrTile url={booking.ticket_url} label={`${booking.number_of_tickets} ticket${booking.number_of_tickets === 1 ? "" : "s"}`} used={!!booking.checked_in_at} />
+              <QrTile
+                url={booking.ticket_url}
+                label={`${booking.number_of_tickets} ticket${booking.number_of_tickets === 1 ? "" : "s"}`}
+                used={!!booking.checked_in_at}
+                onDownload={() => downloadPng(`${API_URL}/api/checkout/${booking.id}/ticket`, `myscope-ticket-${booking.short_code || booking.booking_reference}.png`)}
+              />
               <p className="text-center text-xs text-muted-foreground">Show this QR at the gate. One scan admits your whole booking.</p>
             </div>
           ) : (
@@ -400,7 +435,33 @@ function BookingCard({ booking }: { booking: BookingRow }) {
   )
 }
 
-function QrTile({ url, label, used }: { url: string | null; label: string; used?: boolean }) {
+function QrTile({
+  url,
+  label,
+  used,
+  onDownload,
+}: {
+  url: string | null
+  label: string
+  used?: boolean
+  onDownload?: () => Promise<void> | void
+}) {
+  const [downloading, setDownloading] = React.useState(false)
+  const [failed, setFailed] = React.useState(false)
+
+  const handleDownload = async () => {
+    if (!onDownload || downloading) return
+    setDownloading(true)
+    setFailed(false)
+    try {
+      await onDownload()
+    } catch {
+      setFailed(true)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative rounded-lg border border-border bg-white p-2">
@@ -421,6 +482,17 @@ function QrTile({ url, label, used }: { url: string | null; label: string; used?
         )}
       </div>
       <span className="max-w-32 truncate text-center text-xs font-medium text-foreground">{label}</span>
+      {onDownload && (
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="inline-flex h-7 items-center gap-1 rounded-md border border-border px-2 text-[11px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+        >
+          {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+          {failed ? "Retry" : "Download QR"}
+        </button>
+      )}
     </div>
   )
 }
