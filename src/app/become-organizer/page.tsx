@@ -6,6 +6,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertCircle,
+  ArrowLeft,
+  Check,
   CheckCircle,
   Clock,
   ImageIcon,
@@ -26,7 +28,13 @@ interface OrganizerProfile {
   business_name: string
   business_type: string | null
   nic_or_br: string | null
+  // `phone` holds the witness's WhatsApp number (the organizer's own contact
+  // field was removed from registration). Other witness fields are below.
   phone: string | null
+  witness_name: string | null
+  witness_nic: string | null
+  witness_email: string | null
+  witness_mobile: string | null
   profile_image_url: string | null
   bank_name: string | null
   bank_account_number: string | null
@@ -42,13 +50,20 @@ interface OrganizerProfile {
 
 // Bank/payout fields are intentionally omitted here — organizers fill them in
 // from the dashboard after approval. Keeps the application form short.
+// `phone` is the witness's WhatsApp number (see OrganizerProfile above).
 const emptyForm = {
   business_name: "",
   business_type: "company",
   nic_or_br: "",
-  phone: "",
   profile_image_url: "",
+  witness_name: "",
+  witness_nic: "",
+  witness_email: "",
+  phone: "",
+  witness_mobile: "",
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function BecomeOrganizerPage() {
   const router = useRouter()
@@ -57,6 +72,7 @@ export default function BecomeOrganizerPage() {
   const [profile, setProfile] = React.useState<OrganizerProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = React.useState(true)
   const [form, setForm] = React.useState(emptyForm)
+  const [step, setStep] = React.useState<1 | 2>(1)
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState("")
   const [success, setSuccess] = React.useState("")
@@ -117,8 +133,12 @@ export default function BecomeOrganizerPage() {
               business_name: p.business_name,
               business_type: p.business_type ?? "company",
               nic_or_br: p.nic_or_br ?? "",
-              phone: p.phone ?? "",
               profile_image_url: p.profile_image_url ?? "",
+              witness_name: p.witness_name ?? "",
+              witness_nic: p.witness_nic ?? "",
+              witness_email: p.witness_email ?? "",
+              phone: p.phone ?? "",
+              witness_mobile: p.witness_mobile ?? "",
             })
           }
         }
@@ -131,13 +151,41 @@ export default function BecomeOrganizerPage() {
     }
   }, [user])
 
+  // Step 1 → 2 gate. Business name is the only required field in step 1
+  // (type defaults to company; image and NIC are optional).
+  const goToStep2 = () => {
+    setError("")
+    if (!form.business_name.trim()) {
+      setError("Business / organization name is required.")
+      return
+    }
+    setStep(2)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setSuccess("")
 
     if (!form.business_name.trim()) {
-      setError("Business name is required.")
+      setStep(1)
+      setError("Business / organization name is required.")
+      return
+    }
+
+    // All witness fields are mandatory.
+    if (
+      !form.witness_name.trim() ||
+      !form.witness_nic.trim() ||
+      !form.witness_email.trim() ||
+      !form.phone.trim() ||
+      !form.witness_mobile.trim()
+    ) {
+      setError("All witness fields are required.")
+      return
+    }
+    if (!EMAIL_RE.test(form.witness_email.trim())) {
+      setError("Enter a valid witness email address.")
       return
     }
 
@@ -249,137 +297,239 @@ export default function BecomeOrganizerPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Profile image — circular avatar uploader. Shown on event pages
-                as the organizer's brand image, so encourage a logo. */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Profile image
-              </label>
-              <div className="flex items-center gap-4">
-                <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-muted-foreground">
-                  {form.profile_image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={form.profile_image_url}
-                      alt="Organizer"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <ImageIcon className="h-7 w-7" />
-                  )}
-                </span>
-                <div className="flex-1">
-                  <label
-                    className={cn(
-                      "inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted",
-                      uploadingImage && "pointer-events-none opacity-60",
-                    )}
-                  >
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                      title="Upload organizer profile image"
-                    />
-                    {uploadingImage ? (
-                      <>
-                        <Loader className="h-3.5 w-3.5 animate-spin" />
-                        Uploading…
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-3.5 w-3.5" />
-                        {form.profile_image_url ? "Replace image" : "Upload image"}
-                      </>
-                    )}
-                  </label>
-                  {form.profile_image_url && !uploadingImage && (
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, profile_image_url: "" })}
-                      className="ml-2 text-xs text-muted-foreground hover:text-destructive"
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Step indicator */}
+            <ol className="flex items-center gap-3 text-xs font-medium">
+              {[
+                { n: 1, label: "Business details" },
+                { n: 2, label: "Witness information" },
+              ].map((s, i) => (
+                <React.Fragment key={s.n}>
+                  <li className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold",
+                        step === s.n
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : step > s.n
+                            ? "border-emerald-500 bg-emerald-500 text-white"
+                            : "border-border bg-muted text-muted-foreground",
+                      )}
                     >
-                      Remove
-                    </button>
-                  )}
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    PNG, JPG, or WebP — under 5 MB. Use your brand logo if you have one.
-                  </p>
+                      {step > s.n ? <Check className="h-3.5 w-3.5" /> : s.n}
+                    </span>
+                    <span className={cn(step === s.n ? "text-foreground" : "text-muted-foreground")}>
+                      {s.label}
+                    </span>
+                  </li>
+                  {i === 0 && <li className="h-px w-6 flex-none bg-border sm:w-10" aria-hidden />}
+                </React.Fragment>
+              ))}
+            </ol>
+
+            {/* Step 1 — Business / organization details */}
+            {step === 1 && (
+              <div className="space-y-5">
+                {/* Profile image — circular avatar uploader. Shown on event pages
+                    as the organizer's brand image, so encourage a logo. */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    Profile image
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-muted-foreground">
+                      {form.profile_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={form.profile_image_url}
+                          alt="Organizer"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="h-7 w-7" />
+                      )}
+                    </span>
+                    <div className="flex-1">
+                      <label
+                        className={cn(
+                          "inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted",
+                          uploadingImage && "pointer-events-none opacity-60",
+                        )}
+                      >
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                          title="Upload organizer profile image"
+                        />
+                        {uploadingImage ? (
+                          <>
+                            <Loader className="h-3.5 w-3.5 animate-spin" />
+                            Uploading…
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-3.5 w-3.5" />
+                            {form.profile_image_url ? "Replace image" : "Upload image"}
+                          </>
+                        )}
+                      </label>
+                      {form.profile_image_url && !uploadingImage && (
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, profile_image_url: "" })}
+                          className="ml-2 text-xs text-muted-foreground hover:text-destructive"
+                        >
+                          Remove
+                        </button>
+                      )}
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        PNG, JPG, or WebP — under 5 MB. Use your brand logo if you have one.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Business name */}
+                <Field label="Business / organization name" htmlFor="business_name" required>
+                  <input
+                    id="business_name"
+                    type="text"
+                    value={form.business_name}
+                    onChange={(e) => setForm({ ...form, business_name: e.target.value })}
+                    placeholder="Acme Events"
+                    className={inputCls}
+                  />
+                </Field>
+
+                {/* Type + NIC */}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field label="Business type" htmlFor="business_type">
+                    <select
+                      id="business_type"
+                      title="Business type"
+                      value={form.business_type}
+                      onChange={(e) => setForm({ ...form, business_type: e.target.value })}
+                      className={inputCls}
+                    >
+                      <option value="individual">Individual</option>
+                      <option value="company">Company</option>
+                      <option value="ngo">NGO</option>
+                    </select>
+                  </Field>
+
+                  <Field label="NIC or Business Reg. no." htmlFor="nic_or_br">
+                    <input
+                      id="nic_or_br"
+                      type="text"
+                      value={form.nic_or_br}
+                      onChange={(e) => setForm({ ...form, nic_or_br: e.target.value })}
+                      placeholder="PV 12345"
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
+
+                <Button type="button" className="w-full" size="lg" onClick={goToStep2}>
+                  Continue
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2 — Witness information */}
+            {step === 2 && (
+              <div className="space-y-5">
+                <p className="text-sm text-muted-foreground">
+                  Provide the details of a witness who can vouch for your organization. All fields are required.
+                </p>
+
+                <Field label="Organization Witness Name" htmlFor="witness_name" required>
+                  <input
+                    id="witness_name"
+                    type="text"
+                    value={form.witness_name}
+                    onChange={(e) => setForm({ ...form, witness_name: e.target.value })}
+                    placeholder="Full name"
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Witness NIC" htmlFor="witness_nic" required>
+                  <input
+                    id="witness_nic"
+                    type="text"
+                    value={form.witness_nic}
+                    onChange={(e) => setForm({ ...form, witness_nic: e.target.value })}
+                    placeholder="200012345678"
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Email Address" htmlFor="witness_email" required>
+                  <input
+                    id="witness_email"
+                    type="email"
+                    value={form.witness_email}
+                    onChange={(e) => setForm({ ...form, witness_email: e.target.value })}
+                    placeholder="witness@example.com"
+                    className={inputCls}
+                  />
+                </Field>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field label="Contact WhatsApp Number" htmlFor="phone" required>
+                    <input
+                      id="phone"
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="+94 77 123 4567"
+                      className={inputCls}
+                    />
+                  </Field>
+
+                  <Field label="Contact Mobile Number" htmlFor="witness_mobile" required>
+                    <input
+                      id="witness_mobile"
+                      type="tel"
+                      value={form.witness_mobile}
+                      onChange={(e) => setForm({ ...form, witness_mobile: e.target.value })}
+                      placeholder="+94 11 234 5678"
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
+
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => {
+                      setStep(1)
+                      setError("")
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                  <Button type="submit" className="sm:flex-1" size="lg" disabled={submitting}>
+                    {submitting ? (
+                      <>
+                        <Loader className="h-4 w-4 animate-spin" />
+                        Submitting…
+                      </>
+                    ) : profile?.verification_status === "rejected" ? (
+                      "Re-submit application"
+                    ) : (
+                      "Submit application"
+                    )}
+                  </Button>
                 </div>
               </div>
-            </div>
-
-            {/* Business name */}
-            <Field label="Business / organization name" htmlFor="business_name" required>
-              <input
-                id="business_name"
-                type="text"
-                value={form.business_name}
-                onChange={(e) => setForm({ ...form, business_name: e.target.value })}
-                placeholder="Acme Events"
-                required
-                className={inputCls}
-              />
-            </Field>
-
-            {/* Type + NIC */}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field label="Business type" htmlFor="business_type">
-                <select
-                  id="business_type"
-                  title="Business type"
-                  value={form.business_type}
-                  onChange={(e) => setForm({ ...form, business_type: e.target.value })}
-                  className={inputCls}
-                >
-                  <option value="individual">Individual</option>
-                  <option value="company">Company</option>
-                  <option value="ngo">NGO</option>
-                </select>
-              </Field>
-
-              <Field label="NIC or Business Reg. no." htmlFor="nic_or_br">
-                <input
-                  id="nic_or_br"
-                  type="text"
-                  value={form.nic_or_br}
-                  onChange={(e) => setForm({ ...form, nic_or_br: e.target.value })}
-                  placeholder="PV 12345"
-                  className={inputCls}
-                />
-              </Field>
-            </div>
-
-            {/* WhatsApp — primary contact channel for organizers in SL */}
-            <Field label="WhatsApp number" htmlFor="phone">
-              <input
-                id="phone"
-                type="tel"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+94 77 123 4567"
-                className={inputCls}
-              />
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Attendees will use this to reach you about bookings.
-              </p>
-            </Field>
-
-            <Button type="submit" className="w-full" size="lg" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader className="h-4 w-4 animate-spin" />
-                  Submitting…
-                </>
-              ) : profile?.verification_status === "rejected" ? (
-                "Re-submit application"
-              ) : (
-                "Submit application"
-              )}
-            </Button>
+            )}
           </form>
         </div>
       )}
