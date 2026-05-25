@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Mail, MessageCircle, MapPin } from "lucide-react"
+import { SiGmail, SiWhatsapp, SiGooglemaps } from "react-icons/si"
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -24,8 +24,8 @@ export default function ContactPage() {
           href="mailto:hello.myscope@gmail.com"
           className="flex items-start gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Mail className="h-5 w-5" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EA4335]/10 text-[#EA4335]">
+            <SiGmail className="h-5 w-5" />
           </span>
           <span className="min-w-0">
             <span className="block font-semibold text-foreground">Email</span>
@@ -39,8 +39,8 @@ export default function ContactPage() {
           rel="noopener noreferrer"
           className="flex items-start gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <MessageCircle className="h-5 w-5" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-[#25D366]">
+            <SiWhatsapp className="h-5 w-5" />
           </span>
           <span className="min-w-0">
             <span className="block font-semibold text-foreground">WhatsApp</span>
@@ -49,9 +49,14 @@ export default function ContactPage() {
         </a>
       </div>
 
-      <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-card p-5">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <MapPin className="h-5 w-5" />
+      <a
+        href="https://www.google.com/maps/search/?api=1&query=Sri+Lanka"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1A73E8]/10 text-[#1A73E8]">
+          <SiGooglemaps className="h-5 w-5" />
         </span>
         <span className="min-w-0">
           <span className="block font-semibold text-foreground">Based in Sri Lanka</span>
@@ -59,7 +64,7 @@ export default function ContactPage() {
             Serving event-goers and organizers island-wide.
           </span>
         </span>
-      </div>
+      </a>
     </div>
   )
 }

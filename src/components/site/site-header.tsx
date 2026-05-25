@@ -9,7 +9,6 @@ import {
   Calendar,
   ChevronDown,
   Drama,
-  LayoutDashboard,
   LogOut,
   Menu,
   Music2,
@@ -185,8 +184,7 @@ export function SiteHeader() {
                     <div className="truncate text-xs text-muted-foreground">{user.email}</div>
                   </div>
                   <div className="py-1">
-                    <UserMenuLink href="/dashboard" icon={LayoutDashboard}>Dashboard</UserMenuLink>
-                    <UserMenuLink href="/dashboard/events" icon={Calendar}>My Events</UserMenuLink>
+                    <UserMenuLink href="/dashboard" icon={Calendar}>My Events</UserMenuLink>
                     {(user.role === "organizer" || user.role === "superadmin") && (
                       <UserMenuLink href="/organizer" icon={Ticket}>Organizer</UserMenuLink>
                     )}
@@ -338,10 +336,7 @@ export function SiteHeader() {
                     Account
                   </p>
                   <div className="space-y-0.5">
-                    <DrawerLink href="/dashboard" icon={LayoutDashboard} onNavigate={() => setMobileOpen(false)}>
-                      Dashboard
-                    </DrawerLink>
-                    <DrawerLink href="/dashboard/events" icon={Calendar} onNavigate={() => setMobileOpen(false)}>
+                    <DrawerLink href="/dashboard" icon={Calendar} onNavigate={() => setMobileOpen(false)}>
                       My Events
                     </DrawerLink>
                     {(user.role === "organizer" || user.role === "superadmin") && (

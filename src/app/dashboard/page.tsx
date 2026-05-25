@@ -6,8 +6,10 @@ import Image from "next/image"
 import {
   AlertCircle,
   Calendar,
+  ChevronRight,
   Eye,
   MapPin,
+  QrCode,
   Search,
   Ticket,
   Trash2,
@@ -31,6 +33,23 @@ interface UserEvent {
   status?: string
 }
 
+interface BookedEvent {
+  id: string
+  booking_reference: string
+  short_code?: string | null
+  number_of_tickets: number
+  total_amount: number
+  status: string
+  checked_in_at?: string | null
+  event: {
+    title?: string
+    date?: string | null
+    start_time?: string | null
+    location?: string | null
+    venue_name?: string | null
+  } | null
+}
+
 function DashboardContent() {
   const { user, token } = useAuth()
 
@@ -40,6 +59,10 @@ function DashboardContent() {
   const [myError, setMyError] = React.useState<string | null>(null)
   const [unregisteringId, setUnregisteringId] = React.useState<string | null>(null)
   const [search, setSearch] = React.useState("")
+
+  // Booked events (paid event bookings — distinct from free registrations)
+  const [booked, setBooked] = React.useState<BookedEvent[]>([])
+  const [bookedLoading, setBookedLoading] = React.useState(true)
 
   // Fetch my registered events
   const fetchMyEvents = React.useCallback(async () => {
@@ -56,9 +79,26 @@ function DashboardContent() {
     }
   }, [])
 
+  const fetchBooked = React.useCallback(async () => {
+    try {
+      setBookedLoading(true)
+      const res = await fetch(`${API_URL}/api/event-bookings`, { credentials: "include" })
+      const data = await res.json()
+      setBooked(data?.success ? (data.data ?? []) : [])
+    } catch {
+      // Non-fatal on the overview; the dedicated section surfaces errors.
+      setBooked([])
+    } finally {
+      setBookedLoading(false)
+    }
+  }, [])
+
   React.useEffect(() => {
-    if (token) fetchMyEvents()
-  }, [token, fetchMyEvents])
+    if (token) {
+      fetchMyEvents()
+      fetchBooked()
+    }
+  }, [token, fetchMyEvents, fetchBooked])
 
   const handleUnregister = async (event: UserEvent) => {
     const id = event.id ?? event._id
@@ -114,6 +154,78 @@ function DashboardContent() {
           <p className="text-sm text-muted-foreground">{user.email}</p>
         </div>
       </section>
+
+      {/* Booked events preview */}
+      {(bookedLoading || booked.length > 0) && (
+        <section>
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Booked events</h2>
+              <p className="text-sm text-muted-foreground">Your tickets &amp; QR codes</p>
+            </div>
+            <Link
+              href="/dashboard/booked-events"
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              View all <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          {bookedLoading ? (
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <div key={i} className="h-20 animate-pulse rounded-xl border border-border bg-card" />
+              ))}
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {booked.slice(0, 3).map((b) => {
+                const when = b.event?.start_time || b.event?.date
+                const dateObj = when ? new Date(when) : null
+                const variant =
+                  b.status === "Confirmed" ? "success"
+                  : b.status === "Pending" ? "warning"
+                  : b.status === "Cancelled" || b.status === "Refunded" ? "destructive"
+                  : "outline"
+                return (
+                  <li key={b.id}>
+                    <Link
+                      href="/dashboard/booked-events"
+                      className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-xs transition-colors hover:bg-muted/40"
+                    >
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <QrCode className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
+                          <Badge variant={variant} className="text-xs">
+                            {b.status === "Pending" ? "Payment pending" : b.status}
+                          </Badge>
+                          {b.checked_in_at && <Badge variant="outline" className="text-xs">Checked in</Badge>}
+                        </div>
+                        <p className="truncate font-semibold text-foreground">{b.event?.title ?? "Event"}</p>
+                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                          {dateObj && (
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1">
+                            <Ticket className="h-3 w-3" />
+                            {b.number_of_tickets} ticket{b.number_of_tickets === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+      )}
 
       {/* My registrations */}
       <section>
