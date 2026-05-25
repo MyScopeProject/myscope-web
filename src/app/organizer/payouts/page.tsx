@@ -292,7 +292,7 @@ export default function OrganizerPayoutsPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Track event revenue and payouts. MyScope retains a{" "}
           <span className="font-semibold text-foreground">
-            {balance ? (balance.platform_fee_pct * 100).toFixed(1) : "5.0"}%
+            {balance ? (balance.platform_fee_pct * 100).toFixed(1) : "4.0"}%
           </span>{" "}
           platform fee.
         </p>
