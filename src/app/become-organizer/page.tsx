@@ -28,13 +28,12 @@ interface OrganizerProfile {
   business_name: string
   business_type: string | null
   nic_or_br: string | null
-  // `phone` holds the witness's WhatsApp number (the organizer's own contact
-  // field was removed from registration). Other witness fields are below.
+  // `phone` holds the witness's single mobile/WhatsApp number (the organizer's
+  // own contact field was removed from registration). Other witness fields below.
   phone: string | null
   witness_name: string | null
   witness_nic: string | null
   witness_email: string | null
-  witness_mobile: string | null
   profile_image_url: string | null
   bank_name: string | null
   bank_account_number: string | null
@@ -50,7 +49,7 @@ interface OrganizerProfile {
 
 // Bank/payout fields are intentionally omitted here — organizers fill them in
 // from the dashboard after approval. Keeps the application form short.
-// `phone` is the witness's WhatsApp number (see OrganizerProfile above).
+// `phone` is the witness's single mobile/WhatsApp number (see OrganizerProfile above).
 const emptyForm = {
   business_name: "",
   business_type: "company",
@@ -60,7 +59,6 @@ const emptyForm = {
   witness_nic: "",
   witness_email: "",
   phone: "",
-  witness_mobile: "",
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -138,7 +136,6 @@ export default function BecomeOrganizerPage() {
               witness_nic: p.witness_nic ?? "",
               witness_email: p.witness_email ?? "",
               phone: p.phone ?? "",
-              witness_mobile: p.witness_mobile ?? "",
             })
           }
         }
@@ -178,8 +175,7 @@ export default function BecomeOrganizerPage() {
       !form.witness_name.trim() ||
       !form.witness_nic.trim() ||
       !form.witness_email.trim() ||
-      !form.phone.trim() ||
-      !form.witness_mobile.trim()
+      !form.phone.trim()
     ) {
       setError("All witness fields are required.")
       return
@@ -478,29 +474,19 @@ export default function BecomeOrganizerPage() {
                   />
                 </Field>
 
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <Field label="Contact WhatsApp Number" htmlFor="phone" required>
-                    <input
-                      id="phone"
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="+94 77 123 4567"
-                      className={inputCls}
-                    />
-                  </Field>
-
-                  <Field label="Contact Mobile Number" htmlFor="witness_mobile" required>
-                    <input
-                      id="witness_mobile"
-                      type="tel"
-                      value={form.witness_mobile}
-                      onChange={(e) => setForm({ ...form, witness_mobile: e.target.value })}
-                      placeholder="+94 11 234 5678"
-                      className={inputCls}
-                    />
-                  </Field>
-                </div>
+                <Field label="Mobile Number (WhatsApp)" htmlFor="phone" required>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="+94 77 123 4567"
+                    className={inputCls}
+                  />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    One number for both calls and WhatsApp.
+                  </p>
+                </Field>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row">
                   <Button

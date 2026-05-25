@@ -32,9 +32,13 @@ interface OrganizerProfile {
   id: string
   business_name: string
   business_type: BusinessType
+  // `phone` is the witness's mobile/WhatsApp number (registration step 2).
   phone: string | null
   nic_or_br: string | null
   profile_image_url: string | null
+  witness_name: string | null
+  witness_nic: string | null
+  witness_email: string | null
   bank_name: string | null
   bank_account_number: string | null
   bank_account_name: string | null
@@ -95,6 +99,9 @@ export default function OrganizerProfilePage() {
     business_type: "" as "" | NonNullable<BusinessType>,
     phone: "",
     profile_image_url: "",
+    witness_name: "",
+    witness_nic: "",
+    witness_email: "",
   })
   const [bankForm, setBankForm] = React.useState({
     bank_name: "",
@@ -137,6 +144,9 @@ export default function OrganizerProfilePage() {
             business_type: (p.business_type ?? "") as "" | NonNullable<BusinessType>,
             phone: p.phone ?? "",
             profile_image_url: p.profile_image_url ?? "",
+            witness_name: p.witness_name ?? "",
+            witness_nic: p.witness_nic ?? "",
+            witness_email: p.witness_email ?? "",
           })
           setBankForm({
             bank_name: p.bank_name ?? "",
@@ -214,6 +224,9 @@ export default function OrganizerProfilePage() {
           business_type: form.business_type || null,
           phone: form.phone.trim() || null,
           profile_image_url: form.profile_image_url || null,
+          witness_name: form.witness_name.trim() || null,
+          witness_nic: form.witness_nic.trim() || null,
+          witness_email: form.witness_email.trim() || null,
         }),
       })
       const body = await res.json()
@@ -523,15 +536,6 @@ export default function OrganizerProfilePage() {
                 <option value="ngo">NGO</option>
               </select>
             </Field>
-            <Field label="Contact phone" helper="WhatsApp-friendly. Used as the venue contact channel.">
-              <Input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+94 77 123 4567"
-                autoComplete="tel"
-              />
-            </Field>
           </div>
 
           {/* Read-only context */}
@@ -552,6 +556,55 @@ export default function OrganizerProfilePage() {
                 value={new Date(profile.deactivated_at).toLocaleDateString()}
               />
             )}
+          </div>
+        </section>
+
+        {/* Witness information — collected at registration (step 2); editable
+            here. `phone` is the witness's single mobile/WhatsApp number. */}
+        <section className="rounded-xl border border-border bg-card p-5">
+          <header className="mb-4">
+            <h2 className="text-base font-semibold text-foreground">Witness information</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Details of a witness who can vouch for your organization.
+            </p>
+          </header>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Organization witness name">
+              <Input
+                type="text"
+                value={form.witness_name}
+                onChange={(e) => setForm({ ...form, witness_name: e.target.value })}
+                placeholder="Full name"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Witness NIC">
+              <Input
+                type="text"
+                value={form.witness_nic}
+                onChange={(e) => setForm({ ...form, witness_nic: e.target.value })}
+                placeholder="200012345678"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Email address">
+              <Input
+                type="email"
+                value={form.witness_email}
+                onChange={(e) => setForm({ ...form, witness_email: e.target.value })}
+                placeholder="witness@example.com"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Mobile number (WhatsApp)" helper="One number for both calls and WhatsApp.">
+              <Input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="+94 77 123 4567"
+                autoComplete="tel"
+              />
+            </Field>
           </div>
         </section>
 
