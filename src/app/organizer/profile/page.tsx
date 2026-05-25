@@ -38,6 +38,9 @@ interface OrganizerProfile {
   bank_name: string | null
   bank_account_number: string | null
   bank_account_name: string | null
+  branch_name: string | null
+  bank_code: string | null
+  branch_code: string | null
   verification_status: VerificationStatus
   rejection_reason: string | null
   deactivated_at: string | null
@@ -97,6 +100,9 @@ export default function OrganizerProfilePage() {
     bank_name: "",
     bank_account_number: "",
     bank_account_name: "",
+    branch_name: "",
+    bank_code: "",
+    branch_code: "",
   })
   const [saving, setSaving] = React.useState(false)
   const [bankSaving, setBankSaving] = React.useState(false)
@@ -136,6 +142,9 @@ export default function OrganizerProfilePage() {
             bank_name: p.bank_name ?? "",
             bank_account_number: p.bank_account_number ?? "",
             bank_account_name: p.bank_account_name ?? "",
+            branch_name: p.branch_name ?? "",
+            bank_code: p.bank_code ?? "",
+            branch_code: p.branch_code ?? "",
           })
         }
       } else {
@@ -224,13 +233,21 @@ export default function OrganizerProfilePage() {
 
   const saveBank = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Either all three or all three blank — bank details only make sense as
-    // a complete set. (Server side accepts partial, but UX-wise we don't want
-    // half-filled rows that block payouts.)
-    const anyFilled = !!(bankForm.bank_name.trim() || bankForm.bank_account_number.trim() || bankForm.bank_account_name.trim())
-    const allFilled = !!(bankForm.bank_name.trim() && bankForm.bank_account_number.trim() && bankForm.bank_account_name.trim())
-    if (anyFilled && !allFilled) {
-      setBankResult({ text: "Fill all three bank fields, or leave all three blank.", tone: "err" })
+    // Either the required set in full or everything blank — bank details only
+    // make sense as a complete set. (Server side accepts partial, but UX-wise
+    // we don't want half-filled rows that block payouts.) Bank code and branch
+    // code are optional, but typing only a code with no account is a dead end,
+    // so any input at all requires the four core fields.
+    const required = [
+      bankForm.bank_name,
+      bankForm.bank_account_number,
+      bankForm.bank_account_name,
+      bankForm.branch_name,
+    ]
+    const anyFilled = [...required, bankForm.bank_code, bankForm.branch_code].some((v) => v.trim())
+    const requiredFilled = required.every((v) => v.trim())
+    if (anyFilled && !requiredFilled) {
+      setBankResult({ text: "Fill bank, branch, account name and account number, or leave them all blank.", tone: "err" })
       return
     }
     setBankSaving(true)
@@ -244,6 +261,9 @@ export default function OrganizerProfilePage() {
           bank_name: bankForm.bank_name.trim() || null,
           bank_account_number: bankForm.bank_account_number.trim() || null,
           bank_account_name: bankForm.bank_account_name.trim() || null,
+          branch_name: bankForm.branch_name.trim() || null,
+          bank_code: bankForm.bank_code.trim() || null,
+          branch_code: bankForm.branch_code.trim() || null,
         }),
       })
       const body = await res.json()
@@ -574,6 +594,15 @@ export default function OrganizerProfilePage() {
               autoComplete="off"
             />
           </Field>
+          <Field label="Branch name">
+            <Input
+              type="text"
+              value={bankForm.branch_name}
+              onChange={(e) => setBankForm({ ...bankForm, branch_name: e.target.value })}
+              placeholder="Colombo Fort"
+              autoComplete="off"
+            />
+          </Field>
           <Field label="Account holder name">
             <Input
               type="text"
@@ -590,6 +619,24 @@ export default function OrganizerProfilePage() {
               value={bankForm.bank_account_number}
               onChange={(e) => setBankForm({ ...bankForm, bank_account_number: e.target.value.replace(/[^\d]/g, "") })}
               placeholder="8001234567890"
+              autoComplete="off"
+            />
+          </Field>
+          <Field label="Bank code" helper="Optional">
+            <Input
+              type="text"
+              value={bankForm.bank_code}
+              onChange={(e) => setBankForm({ ...bankForm, bank_code: e.target.value })}
+              placeholder="7056"
+              autoComplete="off"
+            />
+          </Field>
+          <Field label="Branch code" helper="Optional">
+            <Input
+              type="text"
+              value={bankForm.branch_code}
+              onChange={(e) => setBankForm({ ...bankForm, branch_code: e.target.value })}
+              placeholder="001"
               autoComplete="off"
             />
           </Field>

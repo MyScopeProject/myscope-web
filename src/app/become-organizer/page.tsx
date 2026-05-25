@@ -31,6 +31,9 @@ interface OrganizerProfile {
   bank_name: string | null
   bank_account_number: string | null
   bank_account_name: string | null
+  branch_name: string | null
+  bank_code: string | null
+  branch_code: string | null
   verification_status: VerificationStatus
   rejection_reason: string | null
   created_at: string

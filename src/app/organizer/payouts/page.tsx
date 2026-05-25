@@ -38,6 +38,9 @@ interface BankDetails {
   bank_name: string | null
   bank_account_number: string | null
   bank_account_name: string | null
+  branch_name: string | null
+  bank_code: string | null
+  branch_code: string | null
 }
 
 interface Payout {
@@ -82,6 +85,9 @@ export default function OrganizerPayoutsPage() {
     bank_name: "",
     bank_account_number: "",
     bank_account_name: "",
+    branch_name: "",
+    bank_code: "",
+    branch_code: "",
   })
   const [bankEditing, setBankEditing] = React.useState(false)
   const [bankSaving, setBankSaving] = React.useState(false)
@@ -133,6 +139,9 @@ export default function OrganizerPayoutsPage() {
             bank_name: p.bank_name ?? "",
             bank_account_number: p.bank_account_number ?? "",
             bank_account_name: p.bank_account_name ?? "",
+            branch_name: p.branch_name ?? "",
+            bank_code: p.bank_code ?? "",
+            branch_code: p.branch_code ?? "",
           }
           setBank(initial)
           setBankForm(initial)
@@ -147,8 +156,8 @@ export default function OrganizerPayoutsPage() {
 
   const handleSaveBank = async () => {
     setBankError("")
-    if (!bankForm.bank_name?.trim() || !bankForm.bank_account_number?.trim() || !bankForm.bank_account_name?.trim()) {
-      setBankError("All three fields are required.")
+    if (!bankForm.bank_name?.trim() || !bankForm.bank_account_number?.trim() || !bankForm.bank_account_name?.trim() || !bankForm.branch_name?.trim()) {
+      setBankError("Bank, branch, account holder name and account number are required.")
       return
     }
     setBankSaving(true)
@@ -168,6 +177,9 @@ export default function OrganizerPayoutsPage() {
         bank_name: data.data.profile.bank_name ?? "",
         bank_account_number: data.data.profile.bank_account_number ?? "",
         bank_account_name: data.data.profile.bank_account_name ?? "",
+        branch_name: data.data.profile.branch_name ?? "",
+        bank_code: data.data.profile.bank_code ?? "",
+        branch_code: data.data.profile.branch_code ?? "",
       }
       setBank(saved)
       setBankForm(saved)
@@ -357,8 +369,11 @@ export default function OrganizerPayoutsPage() {
           {!bankEditing && bank && (bank.bank_name || bank.bank_account_number) && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <BankRow label="Bank" value={bank.bank_name || "—"} />
-              <BankRow label="Account number" value={maskedAccount(bank.bank_account_number)} mono />
+              <BankRow label="Branch" value={bank.branch_name || "—"} />
               <BankRow label="Account holder" value={bank.bank_account_name || "—"} />
+              <BankRow label="Account number" value={maskedAccount(bank.bank_account_number)} mono />
+              {bank.bank_code && <BankRow label="Bank code" value={bank.bank_code} mono />}
+              {bank.branch_code && <BankRow label="Branch code" value={bank.branch_code} mono />}
             </div>
           )}
 
@@ -381,6 +396,23 @@ export default function OrganizerPayoutsPage() {
                   onChange={(v) => setBankForm((f) => ({ ...f, bank_name: v }))}
                 />
                 <BankField
+                  id="bank-branch"
+                  label="Branch"
+                  placeholder="Colombo Fort"
+                  value={bankForm.branch_name ?? ""}
+                  onChange={(v) => setBankForm((f) => ({ ...f, branch_name: v }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <BankField
+                  id="bank-acct-name"
+                  label="Account holder name"
+                  placeholder="Acme Events Pvt Ltd"
+                  value={bankForm.bank_account_name ?? ""}
+                  onChange={(v) => setBankForm((f) => ({ ...f, bank_account_name: v }))}
+                />
+                <BankField
                   id="bank-acct-num"
                   label="Account number"
                   placeholder="1234567890"
@@ -389,13 +421,24 @@ export default function OrganizerPayoutsPage() {
                 />
               </div>
 
-              <BankField
-                id="bank-acct-name"
-                label="Account holder name"
-                placeholder="Acme Events Pvt Ltd"
-                value={bankForm.bank_account_name ?? ""}
-                onChange={(v) => setBankForm((f) => ({ ...f, bank_account_name: v }))}
-              />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <BankField
+                  id="bank-code"
+                  label="Bank code"
+                  placeholder="7056"
+                  optional
+                  value={bankForm.bank_code ?? ""}
+                  onChange={(v) => setBankForm((f) => ({ ...f, bank_code: v }))}
+                />
+                <BankField
+                  id="branch-code"
+                  label="Branch code"
+                  placeholder="001"
+                  optional
+                  value={bankForm.branch_code ?? ""}
+                  onChange={(v) => setBankForm((f) => ({ ...f, branch_code: v }))}
+                />
+              </div>
 
               <div className="flex items-center justify-end gap-2 pt-1">
                 {bank && (bank.bank_name || bank.bank_account_number) && (
@@ -666,18 +709,24 @@ function BankField({
   value,
   placeholder,
   onChange,
+  optional = false,
 }: {
   id: string
   label: string
   value: string
   placeholder?: string
   onChange: (v: string) => void
+  optional?: boolean
 }) {
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-foreground">
         {label}
-        <span className="ml-0.5 text-destructive">*</span>
+        {optional ? (
+          <span className="ml-1.5 text-xs font-normal text-muted-foreground">Optional</span>
+        ) : (
+          <span className="ml-0.5 text-destructive">*</span>
+        )}
       </label>
       <input
         id={id}
