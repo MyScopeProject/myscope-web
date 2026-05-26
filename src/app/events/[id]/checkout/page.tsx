@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { CheckoutSteps } from "@/components/checkout/checkout-steps"
 import { SeatMapPicker, type SelectedSeat } from "@/components/events/seat-map-picker"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -406,6 +407,12 @@ function CheckoutPageInner() {
           <span>{submitError}</span>
         </div>
       )}
+
+      {/* Progress strip — small orientation aid for the three logical phases
+          of the checkout: pick a ticket, enter attendee details, pay. Static
+          (step 1 active) on purpose: the page is a single-screen form, not a
+          routed wizard. Visual states match the home page step indicator. */}
+      <CheckoutSteps activeIndex={0} />
 
       <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: ticket selection + attendee form */}
@@ -892,3 +899,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
+
+// CheckoutSteps + CHECKOUT_STEPS moved to @/components/checkout/checkout-steps
+// so the same strip can render on the payment page (/bookings/event/[id])
+// with activeIndex={2}, keeping the flow visually continuous.

@@ -21,6 +21,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { CheckoutSteps } from '@/components/checkout/checkout-steps';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -574,6 +575,12 @@ export default function EventBookingDetailPage() {
   return (
     <div className="min-h-screen px-4 py-12 bg-background">
       <div className="max-w-2xl mx-auto">
+        {/* Progress strip — third step (Pay) of the event checkout flow.
+            Steps 1 (Choose) and 2 (Details) happened on /events/[id]/checkout
+            and render here as completed. Hidden once the booking is confirmed
+            (paid + reconciled) since the strip is no longer informative. */}
+        {!isConfirmed && <CheckoutSteps activeIndex={2} />}
+
         {/* Payment result banners (shown after PayHere redirect-back) */}
         {paymentResult === 'success' && !isConfirmed && (
           <div className="mb-4 flex items-center gap-2 p-3 rounded-xl text-sm font-inter border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
