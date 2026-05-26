@@ -342,39 +342,39 @@ export default function EventDetailsPage() {
                 />
               )}
             </div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              <span>{roleLabel}</span>
-              {hasSocial && (
-                <>
-                  <span aria-hidden className="text-border">·</span>
-                  <span className="inline-flex items-center gap-1.5">
-                    {facebookHref && (
-                      <a
-                        href={facebookHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${brandName} on Facebook`}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                      >
-                        <Facebook className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                    {instagramHref && (
-                      <a
-                        href={instagramHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${brandName} on Instagram`}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                      >
-                        <Instagram className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                  </span>
-                </>
+            <div className="mt-0.5 text-xs text-muted-foreground">{roleLabel}</div>
+          </div>
+
+          {/* Social-link chips — sit on the right edge of the card. Sibling
+              of the info block (not nested in the role-label line), so the
+              middle `flex-1` pushes them flush right regardless of brand-
+              name length. Suppressed entirely when no links are set. */}
+          {hasSocial && (
+            <div className="flex shrink-0 items-center gap-1.5">
+              {facebookHref && (
+                <a
+                  href={facebookHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${brandName} on Facebook`}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                >
+                  <Facebook className="h-4 w-4" />
+                </a>
+              )}
+              {instagramHref && (
+                <a
+                  href={instagramHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${brandName} on Instagram`}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                >
+                  <Instagram className="h-4 w-4" />
+                </a>
               )}
             </div>
-          </div>
+          )}
         </div>
       </section>
     )
