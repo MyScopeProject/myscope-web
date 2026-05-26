@@ -94,6 +94,9 @@ interface TicketTypeForm {
 interface MediaForm {
   banner_url: string
   layout_image_url: string
+  // Optional YouTube link — rendered as an embedded, playable iframe on the
+  // public event detail page when present.
+  trailer_url: string
 }
 
 type Step = number
@@ -148,7 +151,7 @@ const emptyTicket = (): TicketTypeForm => ({
   per_order_limit: "10",
 })
 
-const emptyMedia: MediaForm = { banner_url: "", layout_image_url: "" }
+const emptyMedia: MediaForm = { banner_url: "", layout_image_url: "", trailer_url: "" }
 
 const localToIso = (v: string): string | null => {
   if (!v) return null
@@ -174,6 +177,7 @@ const buildPayload = (
   sms_reminders: details.sms_reminders,
   banner_url: media.banner_url.trim() || null,
   layout_image_url: media.layout_image_url.trim() || null,
+  trailer_url: media.trailer_url.trim() || null,
   ticket_types: tickets.map((t) => ({
     name: t.name.trim(),
     description: t.description.trim() || null,
@@ -1579,6 +1583,21 @@ function MediaStep({
           value={value.layout_image_url}
           onChange={(url) => onChange({ ...value, layout_image_url: url })}
           previewAlt="Layout preview"
+        />
+      </div>
+
+      <div className="space-y-2.5">
+        <FieldLabel>YouTube trailer (optional)</FieldLabel>
+        <p className="-mt-1 text-xs text-muted-foreground">
+          Paste a YouTube link — watch URL, youtu.be short link, or Shorts.
+          Attendees will see it as a playable video on your event page.
+        </p>
+        <Input
+          type="url"
+          inputMode="url"
+          placeholder="https://www.youtube.com/watch?v=…"
+          value={value.trailer_url}
+          onChange={(e) => onChange({ ...value, trailer_url: e.target.value })}
         />
       </div>
     </div>

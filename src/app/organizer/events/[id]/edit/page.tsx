@@ -44,6 +44,7 @@ interface EventRow {
   capacity: number | null
   banner_url: string | null
   layout_image_url: string | null
+  trailer_url: string | null
   sms_reminders: boolean | null
   seating_mode?: "none" | "free" | "zoned" | "reserved" | null
   approval_status: ApprovalStatus
@@ -126,6 +127,7 @@ export default function EditEventPage() {
     capacity: "",
     banner_url: "",
     layout_image_url: "",
+    trailer_url: "",
     sms_reminders: true,
   })
 
@@ -173,6 +175,7 @@ export default function EditEventPage() {
           capacity: e.capacity != null ? String(e.capacity) : "",
           banner_url: e.banner_url ?? "",
           layout_image_url: e.layout_image_url ?? "",
+          trailer_url: e.trailer_url ?? "",
           sms_reminders: e.sms_reminders ?? true,
         })
       } catch {
@@ -237,6 +240,7 @@ export default function EditEventPage() {
           capacity: form.capacity ? parseInt(form.capacity, 10) : null,
           banner_url: form.banner_url.trim() || null,
           layout_image_url: form.layout_image_url.trim() || null,
+          trailer_url: form.trailer_url.trim() || null,
           sms_reminders: form.sms_reminders,
         }),
       })
@@ -465,6 +469,22 @@ export default function EditEventPage() {
             onChange={(url) => setForm({ ...form, layout_image_url: url })}
             disabled={!canEdit || busy !== null}
           />
+
+          <FieldGroup
+            id="trailer_url"
+            label="YouTube trailer (optional)"
+            hint="Paste a YouTube link — watch URL, youtu.be short link, or Shorts. Attendees will see it as a playable video on your event page."
+          >
+            <Input
+              id="trailer_url"
+              type="url"
+              inputMode="url"
+              value={form.trailer_url}
+              onChange={(e) => setForm({ ...form, trailer_url: e.target.value })}
+              placeholder="https://www.youtube.com/watch?v=…"
+              disabled={!canEdit || busy !== null}
+            />
+          </FieldGroup>
 
           <label
             className={cn(

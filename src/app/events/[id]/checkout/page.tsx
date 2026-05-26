@@ -410,33 +410,6 @@ function CheckoutPageInner() {
       <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: ticket selection + attendee form */}
         <div className="space-y-6 lg:col-span-2">
-          {/* Seating / zone layout — a reference map the organizer uploaded.
-              Opens full-size in a new tab for zooming. */}
-          {event.layout_image_url && (
-            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-              <header className="border-b border-border px-5 py-4">
-                <h2 className="text-base font-semibold text-foreground">Seating layout</h2>
-              </header>
-              <div className="p-4">
-                <a
-                  href={event.layout_image_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                  title="Open full-size layout"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={event.layout_image_url}
-                    alt="Seating layout"
-                    className="w-full rounded-lg border border-border bg-muted object-contain"
-                    onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-                  />
-                </a>
-              </div>
-            </section>
-          )}
-
           {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
           {isReserved ? (
             <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs">
@@ -536,6 +509,35 @@ function CheckoutPageInner() {
           </section>
             )
           })()
+          )}
+
+          {/* Seating / zone layout — a reference map the organizer uploaded.
+              Opens full-size in a new tab for zooming. Placed below the ticket
+              picker so users see the picker first, then can consult the map
+              before confirming their choice. */}
+          {event.layout_image_url && (
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+              <header className="border-b border-border px-5 py-4">
+                <h2 className="text-base font-semibold text-foreground">Seating layout</h2>
+              </header>
+              <div className="p-4">
+                <a
+                  href={event.layout_image_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                  title="Open full-size layout"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={event.layout_image_url}
+                    alt="Seating layout"
+                    className="w-full rounded-lg border border-border bg-muted object-contain"
+                    onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                  />
+                </a>
+              </div>
+            </section>
           )}
 
           {/* Attendee details */}

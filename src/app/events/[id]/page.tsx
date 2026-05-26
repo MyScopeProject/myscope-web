@@ -18,12 +18,14 @@ import {
   Tag,
   Ticket,
   User,
+  Youtube,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/context/AuthContext"
 import { cn } from "@/lib/utils"
+import { getYouTubeEmbedUrl } from "@/lib/youtube"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -54,6 +56,9 @@ interface Event {
   venue_address?: string | null
   venue_location_url?: string | null
   banner_url?: string | null
+  // Optional YouTube trailer (watch / youtu.be / embed / shorts). Rendered as
+  // an embedded iframe in a dedicated section below the About block.
+  trailer_url?: string | null
   price: number
   tickets_available: number
   tickets_sold: number
@@ -424,6 +429,32 @@ export default function EventDetailsPage() {
               {event.description || "No description provided."}
             </p>
           </section>
+
+          {/* Trailer — embedded YouTube iframe so attendees can play the
+              promo video right on the page. Rendered only when the organizer
+              attached a parseable YouTube URL (getYouTubeEmbedUrl returns
+              null otherwise, which suppresses the whole section). The iframe
+              uses youtube-nocookie + loading="lazy" so unrelated visits don't
+              pay the embed cost or pick up tracking cookies. */}
+          {(() => {
+            const embedSrc = getYouTubeEmbedUrl(event.trailer_url)
+            if (!embedSrc) return null
+            return (
+              <section>
+                <SectionHeading icon={Youtube}>Trailer</SectionHeading>
+                <div className="relative mt-3 aspect-video overflow-hidden rounded-2xl border border-border bg-black">
+                  <iframe
+                    src={embedSrc}
+                    title={`${event.title} — trailer`}
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    className="absolute inset-0 h-full w-full"
+                  />
+                </div>
+              </section>
+            )
+          })()}
 
           {/* Venue location */}
           {(event.venue_address || event.venue_location_url) && (
