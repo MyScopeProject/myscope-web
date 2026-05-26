@@ -41,6 +41,9 @@ interface OrganizerProfile {
   branch_name: string | null
   bank_code: string | null
   branch_code: string | null
+  // Optional social links displayed on the public "Organized by" card.
+  facebook_url: string | null
+  instagram_url: string | null
   verification_status: VerificationStatus
   rejection_reason: string | null
   created_at: string
@@ -55,6 +58,8 @@ const emptyForm = {
   business_type: "company",
   nic_or_br: "",
   profile_image_url: "",
+  facebook_url: "",
+  instagram_url: "",
   witness_name: "",
   witness_nic: "",
   witness_email: "",
@@ -132,6 +137,8 @@ export default function BecomeOrganizerPage() {
               business_type: p.business_type ?? "company",
               nic_or_br: p.nic_or_br ?? "",
               profile_image_url: p.profile_image_url ?? "",
+              facebook_url: p.facebook_url ?? "",
+              instagram_url: p.instagram_url ?? "",
               witness_name: p.witness_name ?? "",
               witness_nic: p.witness_nic ?? "",
               witness_email: p.witness_email ?? "",
@@ -423,6 +430,33 @@ export default function BecomeOrganizerPage() {
                       value={form.nic_or_br}
                       onChange={(e) => setForm({ ...form, nic_or_br: e.target.value })}
                       placeholder="PV 12345"
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
+
+                {/* Optional social-media links — surfaced on the public
+                    "Organized by" card so attendees can verify + follow. */}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field label="Facebook page (optional)" htmlFor="facebook_url">
+                    <input
+                      id="facebook_url"
+                      type="url"
+                      inputMode="url"
+                      value={form.facebook_url}
+                      onChange={(e) => setForm({ ...form, facebook_url: e.target.value })}
+                      placeholder="https://facebook.com/yourpage"
+                      className={inputCls}
+                    />
+                  </Field>
+                  <Field label="Instagram (optional)" htmlFor="instagram_url">
+                    <input
+                      id="instagram_url"
+                      type="url"
+                      inputMode="url"
+                      value={form.instagram_url}
+                      onChange={(e) => setForm({ ...form, instagram_url: e.target.value })}
+                      placeholder="https://instagram.com/yourhandle"
                       className={inputCls}
                     />
                   </Field>

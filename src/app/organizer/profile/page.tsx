@@ -39,6 +39,10 @@ interface OrganizerProfile {
   witness_name: string | null
   witness_nic: string | null
   witness_email: string | null
+  // Optional social links shown on the public "Organized by" card. Editable
+  // here so organizers can update them post-approval.
+  facebook_url: string | null
+  instagram_url: string | null
   bank_name: string | null
   bank_account_number: string | null
   bank_account_name: string | null
@@ -102,6 +106,8 @@ export default function OrganizerProfilePage() {
     witness_name: "",
     witness_nic: "",
     witness_email: "",
+    facebook_url: "",
+    instagram_url: "",
   })
   const [bankForm, setBankForm] = React.useState({
     bank_name: "",
@@ -147,6 +153,8 @@ export default function OrganizerProfilePage() {
             witness_name: p.witness_name ?? "",
             witness_nic: p.witness_nic ?? "",
             witness_email: p.witness_email ?? "",
+            facebook_url: p.facebook_url ?? "",
+            instagram_url: p.instagram_url ?? "",
           })
           setBankForm({
             bank_name: p.bank_name ?? "",
@@ -227,6 +235,8 @@ export default function OrganizerProfilePage() {
           witness_name: form.witness_name.trim() || null,
           witness_nic: form.witness_nic.trim() || null,
           witness_email: form.witness_email.trim() || null,
+          facebook_url: form.facebook_url.trim() || null,
+          instagram_url: form.instagram_url.trim() || null,
         }),
       })
       const body = await res.json()
@@ -535,6 +545,26 @@ export default function OrganizerProfilePage() {
                 <option value="company">Company</option>
                 <option value="ngo">NGO</option>
               </select>
+            </Field>
+            {/* Optional social links — surfaced on the public "Organized by"
+                card as small icon chips. Leave blank to hide. */}
+            <Field label="Facebook page" helper="Optional. Paste your page URL or @handle.">
+              <Input
+                type="url"
+                inputMode="url"
+                value={form.facebook_url}
+                onChange={(e) => setForm({ ...form, facebook_url: e.target.value })}
+                placeholder="https://facebook.com/yourpage"
+              />
+            </Field>
+            <Field label="Instagram" helper="Optional. Paste your profile URL or @handle.">
+              <Input
+                type="url"
+                inputMode="url"
+                value={form.instagram_url}
+                onChange={(e) => setForm({ ...form, instagram_url: e.target.value })}
+                placeholder="https://instagram.com/yourhandle"
+              />
             </Field>
           </div>
 

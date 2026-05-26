@@ -10,8 +10,10 @@ import {
   CalendarPlus,
   CheckCircle2,
   ExternalLink,
+  Facebook,
   ImageIcon,
   Info,
+  Instagram,
   Loader,
   MapPin,
   ShieldCheck,
@@ -72,6 +74,10 @@ interface Event {
     business_type?: string | null
     phone?: string | null
     profile_image_url?: string | null
+    // Optional social-media links displayed as icon chips below the brand
+    // name. The frontend normalizes them safely before using as an href.
+    facebook_url?: string | null
+    instagram_url?: string | null
     verified?: boolean
     // True when the organizer has resigned or been revoked by an admin. The
     // event itself stays public; we just relabel the organizer card.
@@ -97,6 +103,33 @@ const formatLkr = (n: number) =>
   n === 0
     ? "Free"
     : `LKR ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+/**
+ * Build a safe href for an organizer-supplied social URL.
+ *   - "https://…" / "http://…"  → used as-is (http upgraded to https)
+ *   - "@handle"                  → prepended with the platform's base URL
+ *   - "facebook.com/x"           → upgraded to "https://" so it can navigate
+ *   - bare handle ("yourpage")   → treated as a path on the platform
+ *
+ * Returns null for empty input AND for anything containing a colon outside
+ * an http(s) scheme, so a `javascript:` payload stored in the DB can never
+ * end up in an `href` attribute.
+ */
+const normalizeSocialUrl = (raw: string | null | undefined, platform: "facebook" | "instagram"): string | null => {
+  if (!raw) return null
+  const v = raw.trim()
+  if (!v) return null
+  const base = platform === "facebook" ? "https://www.facebook.com/" : "https://www.instagram.com/"
+  if (v.startsWith("https://") || v.startsWith("http://")) {
+    return v.replace(/^http:\/\//i, "https://")
+  }
+  // Reject anything with a custom scheme (mailto:, javascript:, data:, …).
+  if (/^[a-z][a-z0-9+.-]*:/i.test(v)) return null
+  if (v.startsWith("@")) return base + v.slice(1)
+  if (/^(?:www\.)?(facebook|instagram)\.com\//i.test(v)) return "https://" + v.replace(/^www\./i, "www.")
+  // Plain handle / path — prepend the platform base.
+  return base + v.replace(/^\//, "")
+}
 
 const ticketRemaining = (t: TicketType) =>
   Math.max(0, (t.quantity_total ?? 0) - (t.quantity_sold ?? 0))
@@ -265,6 +298,10 @@ export default function EventDetailsPage() {
     const initial = brandName.charAt(0).toUpperCase()
     const avatarSrc = o.profile_image_url || null
     const roleLabel = o.deactivated ? "Former organizer" : "Organizer"
+    // Social links — normalized for safe href use; nulls suppress the chip.
+    const facebookHref = normalizeSocialUrl(o.facebook_url, "facebook")
+    const instagramHref = normalizeSocialUrl(o.instagram_url, "instagram")
+    const hasSocial = !!(facebookHref || instagramHref)
 
     return (
       <section>
@@ -305,7 +342,38 @@ export default function EventDetailsPage() {
                 />
               )}
             </div>
-            <div className="text-xs text-muted-foreground">{roleLabel}</div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span>{roleLabel}</span>
+              {hasSocial && (
+                <>
+                  <span aria-hidden className="text-border">·</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    {facebookHref && (
+                      <a
+                        href={facebookHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${brandName} on Facebook`}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                      >
+                        <Facebook className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                    {instagramHref && (
+                      <a
+                        href={instagramHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${brandName} on Instagram`}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                      >
+                        <Instagram className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </section>
