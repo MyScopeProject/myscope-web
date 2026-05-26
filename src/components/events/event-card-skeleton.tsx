@@ -16,8 +16,10 @@ export function EventCardSkeleton({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* Poster — same aspect as the real card */}
-      <div className="relative aspect-3/4 overflow-hidden bg-muted">
+      {/* Poster — same responsive aspect as the real card (portrait on phones,
+          square from md+). Keeps the loading footprint identical so nothing
+          jumps when real cards swap in. */}
+      <div className="relative aspect-3/4 overflow-hidden bg-muted md:aspect-square">
         <div className="absolute inset-0 animate-pulse bg-muted" />
         {/* Date stub silhouette — matches the real white tile so the eye
             doesn't see anything jump when the real card arrives. */}

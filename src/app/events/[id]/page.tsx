@@ -613,6 +613,77 @@ export default function EventDetailsPage() {
           </div>
         </aside>
       </div>
+
+      {/* Mobile-only sticky CTA bar — on lg+ the right-rail aside is sticky
+          and always visible. Below that breakpoint the aside falls below the
+          fold, so we surface a compact action bar pinned to the viewport
+          bottom with the price + primary CTA. Waitlist / Unregister flows
+          still live in the full aside below for the cases that need a form. */}
+      <div className="h-20 lg:hidden" aria-hidden />
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+        role="region"
+        aria-label="Event actions"
+      >
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+          {/* Left: price or status — mirrors the aside's branches at smaller size */}
+          {event.sales_paused ? (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</div>
+              <div className="text-sm font-bold leading-tight text-destructive">
+                {isPostponed ? "Postponed" : "On hold"}
+              </div>
+            </div>
+          ) : isRegistered ? (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</div>
+              <div className="text-sm font-semibold leading-tight text-emerald-600 dark:text-emerald-400">Registered</div>
+            </div>
+          ) : isSoldOut ? (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</div>
+              <div className="text-sm font-bold leading-tight text-destructive">Sold out</div>
+            </div>
+          ) : hasTicketTypes ? (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {hasMultipleTiers ? "From" : "Price"}
+              </div>
+              <div className="font-heading text-xl font-bold leading-tight text-foreground">
+                {formatLkr(minTierPrice)}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Entry</div>
+              <div className="font-heading text-xl font-bold leading-tight text-emerald-600 dark:text-emerald-400">Free</div>
+            </div>
+          )}
+
+          {/* Right: primary action — disabled for paused/sold-out states so
+              users still see the full waitlist form in the aside below. */}
+          {isRegistered ? (
+            <Button variant="outline" size="lg" onClick={handleUnregister} disabled={busy} className="shrink-0">
+              {busy ? "Working…" : "Unregister"}
+            </Button>
+          ) : event.sales_paused || isSoldOut ? (
+            <Button size="lg" disabled className="shrink-0">
+              <Ticket />
+              Unavailable
+            </Button>
+          ) : hasTicketTypes ? (
+            <Button size="lg" onClick={handleContinueToCheckout} className="shrink-0">
+              <Ticket />
+              Buy Tickets
+            </Button>
+          ) : (
+            <Button size="lg" onClick={handleRegister} disabled={busy} className="shrink-0">
+              <Ticket />
+              {busy ? "Processing…" : "Register"}
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

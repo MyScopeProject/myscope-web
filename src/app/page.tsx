@@ -22,6 +22,7 @@ import { EventCard, type EventCardData } from "@/components/events/event-card"
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton"
 import { HeroCarousel, type HeroSlide } from "@/components/home/hero-carousel"
 import { PastEventsMarquee, type PastEventItem } from "@/components/home/past-events-marquee"
+import { RevealOnScroll } from "@/components/site/reveal-on-scroll"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -200,6 +201,7 @@ export default function HomePage() {
 
       {/* Featured events */}
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+        <RevealOnScroll>
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">Upcoming events</h2>
@@ -232,11 +234,13 @@ export default function HomePage() {
             ))}
           </div>
         )}
+        </RevealOnScroll>
       </section>
 
       {/* Past events — auto-scrolling photo strip (admin-curated). Hidden when empty. */}
       {pastEvents.length > 0 && (
         <section className="border-t border-border bg-card/30 py-12">
+          <RevealOnScroll>
           <div className="mx-auto mb-6 max-w-7xl px-4 sm:px-6">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">Past events</h2>
             <p className="text-sm text-muted-foreground">
@@ -244,11 +248,13 @@ export default function HomePage() {
             </p>
           </div>
           <PastEventsMarquee items={pastEvents} />
+          </RevealOnScroll>
         </section>
       )}
 
       {/* Organizer CTA */}
       <section className="border-t border-border bg-card/40">
+        <RevealOnScroll>
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16">
           {/* Flat card — no gradient, just border + bg-card. Tighter padding
               + smaller type on phones so it doesn't dominate the scroll. */}
@@ -298,6 +304,7 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+        </RevealOnScroll>
       </section>
     </div>
   )

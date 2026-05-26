@@ -76,10 +76,13 @@ export function EventCard({ event, className }: EventCardProps) {
         className,
       )}
     >
-      {/* Poster image — portrait orientation, the visual hero of the card */}
+      {/* Poster image — portrait on phones (suits the 2-up grid), square from
+          md+ so 3- and 4-up grids on tablet/desktop don't stack into very tall
+          cards. `object-cover` handles the orientation switch for both portrait
+          and landscape source images. */}
       <Link
         href={`/events/${event.id}`}
-        className="relative block aspect-3/4 overflow-hidden bg-muted"
+        className="relative block aspect-3/4 overflow-hidden bg-muted md:aspect-square"
         aria-label={event.title}
       >
         {event.banner_url ? (
