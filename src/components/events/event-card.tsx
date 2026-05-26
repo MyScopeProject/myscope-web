@@ -71,7 +71,7 @@ export function EventCard({ event, className }: EventCardProps) {
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200",
+        "group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200",
         "hover:shadow-md hover:ring-primary/25",
         className,
       )}
@@ -199,7 +199,7 @@ export function EventCard({ event, className }: EventCardProps) {
               {/* "View details" matches the default Get-tickets CTA so the
                   card stays visually consistent; the signal lives in the
                   badge + status text above. */}
-              <Button asChild size="sm" className="w-full rounded-lg text-xs sm:text-sm">
+              <Button asChild size="sm" className="w-full rounded-none text-xs sm:text-sm">
                 <Link href={`/events/${event.id}`}>View details</Link>
               </Button>
             </>
@@ -238,7 +238,7 @@ export function EventCard({ event, className }: EventCardProps) {
                 asChild
                 size="sm"
                 variant={isSoldOut ? "outline" : "default"}
-                className="w-full rounded-lg text-xs sm:text-sm"
+                className="w-full rounded-none text-xs sm:text-sm"
                 disabled={isSoldOut}
               >
                 <Link href={`/events/${event.id}`}>

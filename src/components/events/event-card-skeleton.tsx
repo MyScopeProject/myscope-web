@@ -12,7 +12,7 @@ export function EventCardSkeleton({ className }: { className?: string }) {
     <article
       aria-hidden
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border/60",
+        "relative flex flex-col overflow-hidden bg-card shadow-sm ring-1 ring-border/60",
         className,
       )}
     >
@@ -54,7 +54,7 @@ export function EventCardSkeleton({ className }: { className?: string }) {
             <div className="h-2.5 w-8 animate-pulse rounded bg-muted" />
             <div className="h-5 w-20 animate-pulse rounded bg-muted sm:h-7 sm:w-24" />
           </div>
-          <div className="h-8 w-full animate-pulse rounded-lg bg-muted sm:h-9" />
+          <div className="h-8 w-full animate-pulse bg-muted sm:h-9" />
         </div>
       </div>
     </article>
