@@ -137,6 +137,7 @@ type Tab =
   | "promo"
   | "waitlist"
   | "comms"
+  | "invite"
 
 const TABS: Array<{ value: Tab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { value: "overview",  label: "Overview",   icon: BarChart2 },
@@ -147,6 +148,7 @@ const TABS: Array<{ value: Tab; label: string; icon: React.ComponentType<{ class
   { value: "promo",     label: "Promo codes", icon: Tag },
   { value: "waitlist",  label: "Waitlist",   icon: Bell },
   { value: "comms",     label: "Comms",      icon: Mail },
+  { value: "invite",    label: "Invite",     icon: Send },
 ]
 
 const STATUS_VARIANT: Record<ApprovalStatus, "default" | "warning" | "success" | "destructive" | "outline"> = {
@@ -554,6 +556,7 @@ export default function OrganizerEventControlPage() {
         {tab === "promo"     && <PromoTab     eventId={eventId!} />}
         {tab === "waitlist"  && <WaitlistTab  eventId={eventId!} />}
         {tab === "comms"     && <CommsTab     eventId={eventId!} />}
+        {tab === "invite"    && <InviteTab    eventId={eventId!} />}
       </div>
     </div>
   )
@@ -1456,6 +1459,238 @@ function CommsTab({ eventId }: { eventId: string }) {
         </p>
       )}
     </form>
+  )
+}
+
+// ===========================================================================
+// Invite — paste emails, send invitations, see what's gone out
+// ===========================================================================
+
+interface Invitation {
+  id: string
+  email: string
+  status: "sent" | "failed" | string
+  error_message: string | null
+  created_at: string
+}
+
+function InviteTab({ eventId }: { eventId: string }) {
+  const [emails, setEmails] = React.useState("")
+  const [sending, setSending] = React.useState(false)
+  const [result, setResult] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
+  const [list, setList] = React.useState<Invitation[]>([])
+  const [listLoading, setListLoading] = React.useState(true)
+  const [listError, setListError] = React.useState<string | null>(null)
+
+  // Roughly count addresses as the user types so the button + helper text
+  // can show a live count. Mirrors the server's split-on-whitespace-or-comma.
+  const parsed = React.useMemo(() => {
+    const seen = new Set<string>()
+    const valid: string[] = []
+    const invalid: string[] = []
+    for (const raw of emails.split(/[\s,;]+/)) {
+      const v = raw.trim().toLowerCase()
+      if (!v) continue
+      if (seen.has(v)) continue
+      seen.add(v)
+      // Same regex shape as the API — kept loose, server is the source of truth.
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) valid.push(v)
+      else invalid.push(v)
+    }
+    return { valid, invalid }
+  }, [emails])
+
+  const loadList = React.useCallback(async () => {
+    try {
+      setListError(null)
+      setListLoading(true)
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/invitations`, {
+        credentials: "include",
+      })
+      const body = await res.json()
+      if (body?.success) {
+        setList((body.data?.invitations ?? []) as Invitation[])
+      } else {
+        setListError(body?.message || "Couldn't load invitations.")
+      }
+    } catch {
+      setListError("Network error loading invitations.")
+    } finally {
+      setListLoading(false)
+    }
+  }, [eventId])
+
+  React.useEffect(() => {
+    loadList()
+  }, [loadList])
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (parsed.valid.length === 0) {
+      setResult({ text: "Enter at least one valid email address.", tone: "err" })
+      return
+    }
+    setSending(true)
+    setResult(null)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/invitations`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: parsed.valid }),
+      })
+      const body = await res.json()
+      setResult({
+        text: body?.message || (body?.success ? "Sent." : "Failed."),
+        tone: body?.success ? "ok" : "err",
+      })
+      if (body?.success) {
+        setEmails("")
+        await loadList()
+      }
+    } catch {
+      setResult({ text: "Network error sending invitations.", tone: "err" })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Composer */}
+      <form
+        onSubmit={send}
+        className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-xs"
+      >
+        <header className="flex items-center gap-2">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Send className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Invite people by email</h2>
+            <p className="text-xs text-muted-foreground">
+              Paste a list of email addresses — separated by commas, spaces, or new lines.
+              Each invitee gets one email with a link to your event page.
+            </p>
+          </div>
+        </header>
+
+        <textarea
+          value={emails}
+          onChange={(e) => setEmails(e.target.value)}
+          placeholder={"jane@example.com, john@example.com\nsam@example.com"}
+          rows={6}
+          className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+        />
+
+        {/* Live parse hint */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            <strong className="font-semibold text-foreground">{parsed.valid.length}</strong>{" "}
+            valid address{parsed.valid.length === 1 ? "" : "es"}
+          </span>
+          {parsed.invalid.length > 0 && (
+            <>
+              <span aria-hidden className="text-border">·</span>
+              <span className="text-amber-700 dark:text-amber-400">
+                {parsed.invalid.length} skipped (invalid format)
+              </span>
+            </>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
+          {result && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 text-sm",
+                result.tone === "ok"
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : "text-destructive",
+              )}
+            >
+              {result.tone === "ok" ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              {result.text}
+            </span>
+          )}
+          <Button type="submit" disabled={sending || parsed.valid.length === 0}>
+            {sending ? <Loader className="animate-spin" /> : <Send />}
+            {sending
+              ? "Sending…"
+              : `Send invitation${parsed.valid.length === 1 ? "" : "s"}${parsed.valid.length ? ` (${parsed.valid.length})` : ""}`}
+          </Button>
+        </div>
+      </form>
+
+      {/* History */}
+      <section className="rounded-2xl border border-border bg-card shadow-xs">
+        <header className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Invitations sent</h2>
+          </div>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {list.length}
+          </span>
+        </header>
+
+        {listLoading ? (
+          <div className="px-5 py-6 text-sm text-muted-foreground">Loading…</div>
+        ) : listError ? (
+          <div className="px-5 py-6 text-sm text-destructive">{listError}</div>
+        ) : list.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-5 py-10 text-center">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Send className="h-4 w-4" />
+            </span>
+            <p className="text-sm text-muted-foreground">
+              No invitations sent yet. Paste a list above to get started.
+            </p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {list.map((inv) => (
+              <li key={inv.id} className="flex items-center gap-3 px-5 py-3">
+                <span
+                  className={cn(
+                    "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
+                    inv.status === "sent"
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                      : "bg-destructive/15 text-destructive",
+                  )}
+                  aria-hidden
+                  title={inv.status === "sent" ? "Delivered to gateway" : inv.error_message || "Failed"}
+                >
+                  {inv.status === "sent" ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm text-foreground">{inv.email}</div>
+                  {inv.status !== "sent" && inv.error_message && (
+                    <div className="truncate text-xs text-destructive">{inv.error_message}</div>
+                  )}
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {new Date(inv.created_at).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   )
 }
 
