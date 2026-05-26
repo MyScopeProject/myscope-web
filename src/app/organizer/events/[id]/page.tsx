@@ -579,16 +579,40 @@ interface OverviewData {
 
 function OverviewTab({ eventId }: { eventId: string }) {
   const [data, setData] = React.useState<OverviewData | null>(null)
+  // Invitation counts surfaced as a 5th tile (sent / failed split). Fetched
+  // alongside analytics so the Overview reflects outreach at a glance. Soft-
+  // fails: a network error here doesn't block the rest of the tab.
+  const [invites, setInvites] = React.useState<{ sent: number; failed: number } | null>(null)
   const [err, setErr] = React.useState("")
   React.useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/analytics`, { credentials: "include" })
-        const body = await res.json()
+        // Two independent fetches in parallel — neither blocks the other.
+        const [analyticsRes, invitesRes] = await Promise.all([
+          fetch(`${API_URL}/api/organizer/events/${eventId}/analytics`, { credentials: "include" }),
+          fetch(`${API_URL}/api/organizer/events/${eventId}/invitations`, { credentials: "include" }),
+        ])
         if (cancelled) return
-        if (body?.success) setData(body.data as OverviewData)
-        else setErr(body?.message || "Couldn't load overview.")
+        const analyticsBody = await analyticsRes.json()
+        if (analyticsBody?.success) setData(analyticsBody.data as OverviewData)
+        else setErr(analyticsBody?.message || "Couldn't load overview.")
+        // Invitations: soft-fail. Aggregate sent vs failed for the tile.
+        try {
+          const invBody = await invitesRes.json()
+          if (!cancelled && invBody?.success) {
+            const rows = (invBody.data?.invitations ?? []) as Array<{ status: string }>
+            let sent = 0
+            let failed = 0
+            for (const r of rows) {
+              if (r.status === "sent") sent += 1
+              else failed += 1
+            }
+            setInvites({ sent, failed })
+          }
+        } catch {
+          /* leave invites null — its tile just shows "—" */
+        }
       } catch {
         if (!cancelled) setErr("Network error loading overview.")
       }
@@ -601,13 +625,26 @@ function OverviewTab({ eventId }: { eventId: string }) {
 
   const s = data.summary
   const checkinPct = s.total_sold > 0 ? Math.round((s.total_checked_in / s.total_sold) * 100) : 0
+  // Build the invitations cell — total with a small note if any failed.
+  const invitesValue = invites ? String(invites.sent + invites.failed) : "—"
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Revenue" value={formatLkr(s.total_revenue)} />
         <Stat label="Tickets sold" value={String(s.total_sold)} />
         <Stat label="Occupancy" value={`${s.occupancy_pct}%`} />
         <Stat label="Check-in" value={`${checkinPct}%`} />
+        {/* Invitations: total invited via the Invite tab. Shows a tiny note
+            below the number when some failed so the organizer notices. */}
+        <Stat
+          label="Invitations"
+          value={invitesValue}
+          note={
+            invites && invites.failed > 0
+              ? `${invites.sent} sent · ${invites.failed} failed`
+              : undefined
+          }
+        />
       </div>
       <Button asChild variant="outline" size="sm">
         <Link href={`/organizer/events/${eventId}/analytics`}>
@@ -1481,6 +1518,33 @@ function InviteTab({ eventId }: { eventId: string }) {
   const [list, setList] = React.useState<Invitation[]>([])
   const [listLoading, setListLoading] = React.useState(true)
   const [listError, setListError] = React.useState<string | null>(null)
+  // Ref on the composer textarea so Resend can scroll + focus the prefill
+  // back into view (the history list can sit below the fold on long events).
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
+
+  // Resend from a history row → append the address to the composer (with a
+  // newline separator) instead of clobbering a draft the user is typing,
+  // and skip if it's already in the list. Then focus + scroll the textarea.
+  const handleResend = React.useCallback((email: string) => {
+    setEmails((prev) => {
+      const trimmed = prev.trim()
+      const already = trimmed
+        .split(/[\s,;]+/)
+        .map((s) => s.trim().toLowerCase())
+        .includes(email.toLowerCase())
+      if (already) return prev
+      return trimmed ? `${prev}\n${email}` : email
+    })
+    // Defer so the textarea has the updated value before we move the caret.
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.focus()
+      // Place caret at the end and bring the composer into view.
+      el.setSelectionRange(el.value.length, el.value.length)
+      el.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
+  }, [])
 
   // Roughly count addresses as the user types so the button + helper text
   // can show a live count. Mirrors the server's split-on-whitespace-or-comma.
@@ -1576,6 +1640,7 @@ function InviteTab({ eventId }: { eventId: string }) {
         </header>
 
         <textarea
+          ref={textareaRef}
           value={emails}
           onChange={(e) => setEmails(e.target.value)}
           placeholder={"jane@example.com, john@example.com\nsam@example.com"}
@@ -1685,6 +1750,20 @@ function InviteTab({ eventId }: { eventId: string }) {
                     minute: "2-digit",
                   })}
                 </span>
+                {/* Append the row's email to the composer above (no clobber,
+                    deduped). The user still clicks "Send" to actually fire
+                    the email — a one-click resend would be too easy to
+                    trigger by mistake. */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => handleResend(inv.email)}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Resend
+                </Button>
               </li>
             ))}
           </ul>
@@ -1698,11 +1777,14 @@ function InviteTab({ eventId }: { eventId: string }) {
 // Tiny shared primitives
 // ===========================================================================
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 text-xl font-bold text-foreground">{value}</div>
+      {note && (
+        <div className="mt-0.5 text-[10px] font-medium text-muted-foreground">{note}</div>
+      )}
     </div>
   )
 }
