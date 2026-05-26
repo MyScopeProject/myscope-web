@@ -214,7 +214,7 @@ export function EventCard({ event, className }: EventCardProps) {
                 {hasPrice && priceNum! > 0 ? (
                   <div>
                     <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">LKR</div>
-                    <div className="truncate text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
+                    <div className="truncate font-heading text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
                       {formatPrice(priceNum!)}
                     </div>
                     {event.has_multiple_tiers && (
@@ -224,7 +224,7 @@ export function EventCard({ event, className }: EventCardProps) {
                 ) : hasPrice && priceNum === 0 ? (
                   <div>
                     <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">Entry</div>
-                    <div className="text-base font-bold leading-tight text-emerald-600 dark:text-emerald-400 sm:text-xl">Free</div>
+                    <div className="font-heading text-base font-bold leading-tight text-emerald-600 dark:text-emerald-400 sm:text-xl">Free</div>
                   </div>
                 ) : (
                   <span className="text-sm text-muted-foreground">—</span>

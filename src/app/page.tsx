@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EventCard, type EventCardData } from "@/components/events/event-card"
+import { EventCardSkeleton } from "@/components/events/event-card-skeleton"
 import { HeroCarousel, type HeroSlide } from "@/components/home/hero-carousel"
 import { PastEventsMarquee, type PastEventItem } from "@/components/home/past-events-marquee"
 
@@ -215,12 +216,11 @@ export default function HomePage() {
         </div>
 
         {loading ? (
+          // Skeletons mirror the EventCard shape exactly so the grid doesn't
+          // reflow when real data swaps in.
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="aspect-16/10 animate-pulse rounded-xl bg-muted"
-              />
+              <EventCardSkeleton key={i} />
             ))}
           </div>
         ) : events.length === 0 ? (
