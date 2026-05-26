@@ -18,8 +18,10 @@ import {
   Copy,
   Mail,
   MapPin,
+  Minus,
   PauseCircle,
   PlayCircle,
+  Plus,
   QrCode,
   RefreshCw,
   RotateCcw,
@@ -85,6 +87,9 @@ interface BookingRow {
   checked_in_at?: string | null
   created_at: string
   ticket_type_id?: string | null
+  // True when this row was issued via the Invite tab as a comp ticket (the
+  // server joins event_invitations to flag it). Drives the "Invited" badge.
+  is_invitation?: boolean
 }
 
 interface PromoCode {
@@ -556,7 +561,7 @@ export default function OrganizerEventControlPage() {
         {tab === "promo"     && <PromoTab     eventId={eventId!} />}
         {tab === "waitlist"  && <WaitlistTab  eventId={eventId!} />}
         {tab === "comms"     && <CommsTab     eventId={eventId!} />}
-        {tab === "invite"    && <InviteTab    eventId={eventId!} />}
+        {tab === "invite"    && <InviteTab    eventId={eventId!} tickets={tickets} />}
       </div>
     </div>
   )
@@ -796,6 +801,17 @@ function AttendeesTab({ eventId }: { eventId: string }) {
                     <Badge variant="success">
                       <CheckCircle2 className="h-3 w-3" /> Checked in
                     </Badge>
+                  )}
+                  {/* Comp tickets issued via the Invite tab — gives the
+                      organizer a quick visual to tell comp attendees from
+                      paid ones (same row layout, no other differences). */}
+                  {b.is_invitation && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary"
+                      title="Comp ticket issued from the Invite tab"
+                    >
+                      <Send className="h-3 w-3" /> Invited
+                    </span>
                   )}
                 </div>
                 <div className="mt-0.5 text-xs text-muted-foreground">
@@ -1509,60 +1525,63 @@ interface Invitation {
   status: "sent" | "failed" | string
   error_message: string | null
   created_at: string
+  // Each successful invitation produces a real comp booking — same shape
+  // as a paid one (status='Confirmed', total_amount=0). The short_code is
+  // what shows on the ticket QR + on the printed pass.
+  booking_id: string | null
+  booking_short_code: string | null
 }
 
-function InviteTab({ eventId }: { eventId: string }) {
-  const [emails, setEmails] = React.useState("")
+function InviteTab({ eventId, tickets }: { eventId: string; tickets: TicketType[] | null }) {
+  // Composer state — one invitation per submission. The form's three inputs
+  // map 1:1 to the API's body shape: { email, ticket_type_id, quantity }.
+  const [email, setEmail] = React.useState("")
+  const [ticketTypeId, setTicketTypeId] = React.useState<string>("")
+  const [quantity, setQuantity] = React.useState<number>(1)
   const [sending, setSending] = React.useState(false)
   const [result, setResult] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
+
+  // History list (server is source of truth, refetched after each send).
   const [list, setList] = React.useState<Invitation[]>([])
   const [listLoading, setListLoading] = React.useState(true)
   const [listError, setListError] = React.useState<string | null>(null)
-  // Ref on the composer textarea so Resend can scroll + focus the prefill
-  // back into view (the history list can sit below the fold on long events).
-  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
 
-  // Resend from a history row → append the address to the composer (with a
-  // newline separator) instead of clobbering a draft the user is typing,
-  // and skip if it's already in the list. Then focus + scroll the textarea.
-  const handleResend = React.useCallback((email: string) => {
-    setEmails((prev) => {
-      const trimmed = prev.trim()
-      const already = trimmed
-        .split(/[\s,;]+/)
-        .map((s) => s.trim().toLowerCase())
-        .includes(email.toLowerCase())
-      if (already) return prev
-      return trimmed ? `${prev}\n${email}` : email
-    })
-    // Defer so the textarea has the updated value before we move the caret.
-    requestAnimationFrame(() => {
-      const el = textareaRef.current
-      if (!el) return
-      el.focus()
-      // Place caret at the end and bring the composer into view.
-      el.setSelectionRange(el.value.length, el.value.length)
-      el.scrollIntoView({ behavior: "smooth", block: "center" })
-    })
-  }, [])
+  const emailInputRef = React.useRef<HTMLInputElement | null>(null)
 
-  // Roughly count addresses as the user types so the button + helper text
-  // can show a live count. Mirrors the server's split-on-whitespace-or-comma.
-  const parsed = React.useMemo(() => {
-    const seen = new Set<string>()
-    const valid: string[] = []
-    const invalid: string[] = []
-    for (const raw of emails.split(/[\s,;]+/)) {
-      const v = raw.trim().toLowerCase()
-      if (!v) continue
-      if (seen.has(v)) continue
-      seen.add(v)
-      // Same regex shape as the API — kept loose, server is the source of truth.
-      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) valid.push(v)
-      else invalid.push(v)
-    }
-    return { valid, invalid }
-  }, [emails])
+  // Tier options shown in the select: active tiers that still have stock.
+  // We don't filter on sale_start / sale_end here because comps shouldn't be
+  // gated by the public sale window — organizers issue them outside that flow.
+  const tierOptions = React.useMemo(() => {
+    return (tickets || [])
+      .filter((t) => t.is_active !== false)
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        price: Number(t.price ?? 0),
+        remaining: Math.max(0, Number(t.quantity_total ?? 0) - Number(t.quantity_sold ?? 0)),
+      }))
+      .filter((t) => t.remaining > 0)
+  }, [tickets])
+
+  const selectedTier = React.useMemo(
+    () => tierOptions.find((t) => t.id === ticketTypeId) ?? null,
+    [tierOptions, ticketTypeId],
+  )
+  const maxQty = selectedTier?.remaining ?? 1
+
+  // Whenever the tier list changes (parent reload), reset the selection to
+  // the first available tier and clamp quantity so it can never exceed stock.
+  React.useEffect(() => {
+    setTicketTypeId((prev) => {
+      if (tierOptions.length === 0) return ""
+      if (prev && tierOptions.some((t) => t.id === prev)) return prev
+      return tierOptions[0].id
+    })
+  }, [tierOptions])
+
+  React.useEffect(() => {
+    setQuantity((prev) => Math.max(1, Math.min(prev, maxQty)))
+  }, [maxQty])
 
   const loadList = React.useCallback(async () => {
     try {
@@ -1588,10 +1607,36 @@ function InviteTab({ eventId }: { eventId: string }) {
     loadList()
   }, [loadList])
 
+  // Resend on a history row: prefill the email field (don't auto-send, since
+  // the organizer may want to swap the tier or quantity before retrying).
+  // Resending a successful comp is a no-op upstream — the API blocks repeat
+  // issuance — so this is primarily useful for the previously-failed rows.
+  const handleResend = React.useCallback((rowEmail: string) => {
+    setEmail(rowEmail)
+    setResult(null)
+    requestAnimationFrame(() => {
+      const el = emailInputRef.current
+      if (!el) return
+      el.focus()
+      el.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
+  }, [])
+
+  // Client-side gate — the API re-validates regardless.
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  const canSend = emailOk && !!ticketTypeId && quantity >= 1 && quantity <= maxQty
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (parsed.valid.length === 0) {
-      setResult({ text: "Enter at least one valid email address.", tone: "err" })
+    if (!canSend) {
+      setResult({
+        text: !emailOk
+          ? "Enter a valid email address."
+          : !ticketTypeId
+            ? "Pick a ticket tier."
+            : "Pick a valid quantity.",
+        tone: "err",
+      })
       return
     }
     setSending(true)
@@ -1601,7 +1646,11 @@ function InviteTab({ eventId }: { eventId: string }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emails: parsed.valid }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          ticket_type_id: ticketTypeId,
+          quantity,
+        }),
       })
       const body = await res.json()
       setResult({
@@ -1609,15 +1658,18 @@ function InviteTab({ eventId }: { eventId: string }) {
         tone: body?.success ? "ok" : "err",
       })
       if (body?.success) {
-        setEmails("")
+        setEmail("")
+        setQuantity(1)
         await loadList()
       }
     } catch {
-      setResult({ text: "Network error sending invitations.", tone: "err" })
+      setResult({ text: "Network error sending invitation.", tone: "err" })
     } finally {
       setSending(false)
     }
   }
+
+  const noTiersAvailable = tierOptions.length === 0
 
   return (
     <div className="space-y-6">
@@ -1631,37 +1683,90 @@ function InviteTab({ eventId }: { eventId: string }) {
             <Send className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="text-base font-semibold text-foreground">Invite people by email</h2>
+            <h2 className="text-base font-semibold text-foreground">Invite someone — they get a free ticket</h2>
             <p className="text-xs text-muted-foreground">
-              Paste a list of email addresses — separated by commas, spaces, or new lines.
-              Each invitee gets one email with a link to your event page.
+              Pick the tier, choose how many tickets, and we'll email a
+              QR-coded comp ticket to your invitee. Comps come out of the
+              same stock as paid tickets, so they count toward capacity.
             </p>
           </div>
         </header>
 
-        <textarea
-          ref={textareaRef}
-          value={emails}
-          onChange={(e) => setEmails(e.target.value)}
-          placeholder={"jane@example.com, john@example.com\nsam@example.com"}
-          rows={6}
-          className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-        />
+        {noTiersAvailable && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>No active ticket tier with stock — add or activate a tier (with available capacity) before sending invitations.</span>
+          </div>
+        )}
 
-        {/* Live parse hint */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>
-            <strong className="font-semibold text-foreground">{parsed.valid.length}</strong>{" "}
-            valid address{parsed.valid.length === 1 ? "" : "es"}
-          </span>
-          {parsed.invalid.length > 0 && (
-            <>
-              <span aria-hidden className="text-border">·</span>
-              <span className="text-amber-700 dark:text-amber-400">
-                {parsed.invalid.length} skipped (invalid format)
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
+          {/* Email */}
+          <div className="space-y-1.5 sm:col-span-6">
+            <label htmlFor="invite-email" className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Invitee email
+            </label>
+            <Input
+              id="invite-email"
+              ref={emailInputRef}
+              type="email"
+              inputMode="email"
+              autoComplete="off"
+              placeholder="jane@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          {/* Tier select */}
+          <div className="space-y-1.5 sm:col-span-4">
+            <label htmlFor="invite-tier" className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Ticket tier
+            </label>
+            <select
+              id="invite-tier"
+              value={ticketTypeId}
+              onChange={(e) => setTicketTypeId(e.target.value)}
+              disabled={noTiersAvailable}
+              className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm disabled:opacity-60"
+            >
+              {tierOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} — {t.price === 0 ? "Free" : `LKR ${t.price.toLocaleString()}`} · {t.remaining} left
+                </option>
+              ))}
+              {noTiersAvailable && <option value="">No tiers available</option>}
+            </select>
+          </div>
+
+          {/* Quantity stepper */}
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Tickets
+            </label>
+            <div className="flex h-9 items-center rounded-md border border-input bg-card">
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={quantity <= 1 || noTiersAvailable}
+                aria-label="Decrease quantity"
+                className="flex h-full w-9 items-center justify-center rounded-l-md text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="flex-1 text-center text-sm font-semibold tabular-nums text-foreground">
+                {quantity}
               </span>
-            </>
-          )}
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
+                disabled={quantity >= maxQty || noTiersAvailable}
+                aria-label="Increase quantity"
+                className="flex h-full w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
@@ -1682,11 +1787,9 @@ function InviteTab({ eventId }: { eventId: string }) {
               {result.text}
             </span>
           )}
-          <Button type="submit" disabled={sending || parsed.valid.length === 0}>
+          <Button type="submit" disabled={sending || !canSend}>
             {sending ? <Loader className="animate-spin" /> : <Send />}
-            {sending
-              ? "Sending…"
-              : `Send invitation${parsed.valid.length === 1 ? "" : "s"}${parsed.valid.length ? ` (${parsed.valid.length})` : ""}`}
+            {sending ? "Sending…" : `Send invitation${quantity === 1 ? "" : ` (${quantity} tickets)`}`}
           </Button>
         </div>
       </form>
@@ -1713,7 +1816,7 @@ function InviteTab({ eventId }: { eventId: string }) {
               <Send className="h-4 w-4" />
             </span>
             <p className="text-sm text-muted-foreground">
-              No invitations sent yet. Paste a list above to get started.
+              No invitations sent yet. Fill in the form above to get started.
             </p>
           </div>
         ) : (
@@ -1738,6 +1841,11 @@ function InviteTab({ eventId }: { eventId: string }) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm text-foreground">{inv.email}</div>
+                  {inv.status === "sent" && inv.booking_short_code && (
+                    <div className="truncate text-xs text-muted-foreground">
+                      Ticket <span className="font-mono">{inv.booking_short_code}</span>
+                    </div>
+                  )}
                   {inv.status !== "sent" && inv.error_message && (
                     <div className="truncate text-xs text-destructive">{inv.error_message}</div>
                   )}
@@ -1750,10 +1858,10 @@ function InviteTab({ eventId }: { eventId: string }) {
                     minute: "2-digit",
                   })}
                 </span>
-                {/* Append the row's email to the composer above (no clobber,
-                    deduped). The user still clicks "Send" to actually fire
-                    the email — a one-click resend would be too easy to
-                    trigger by mistake. */}
+                {/* Resend prefills the email field — the organizer still picks
+                    tier + quantity and confirms before any new ticket is issued.
+                    Useful mainly for retrying previously-failed rows; the API
+                    blocks repeat issuance for already-successful comps. */}
                 <Button
                   type="button"
                   variant="ghost"
