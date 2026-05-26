@@ -16,10 +16,10 @@ export function EventCardSkeleton({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* Poster — same responsive aspect as the real card (portrait on phones,
-          square from md+). Keeps the loading footprint identical so nothing
-          jumps when real cards swap in. */}
-      <div className="relative aspect-3/4 overflow-hidden bg-muted md:aspect-square">
+      {/* Poster — same 3:4 portrait aspect as the real card across every
+          breakpoint. Keeps the loading footprint identical so nothing jumps
+          when real cards swap in. */}
+      <div className="relative aspect-3/4 overflow-hidden bg-muted">
         <div className="absolute inset-0 animate-pulse bg-muted" />
         {/* Date stub silhouette — matches the real white tile so the eye
             doesn't see anything jump when the real card arrives. */}
@@ -42,11 +42,9 @@ export function EventCardSkeleton({ className }: { className?: string }) {
           <div className="h-3.5 w-3/5 animate-pulse rounded bg-muted sm:h-4" />
         </div>
 
-        {/* Time + venue */}
-        <div className="space-y-1.5">
-          <div className="hidden h-3 w-1/2 animate-pulse rounded bg-muted sm:block" />
-          <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
-        </div>
+        {/* Venue — time row was dropped from the real card, so the
+            skeleton tracks it for an identical loading footprint. */}
+        <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
 
         {/* Price + CTA tail (mirrors the bordered footer block) */}
         <div className="mt-auto space-y-2 border-t border-border pt-2 sm:space-y-3 sm:pt-3">

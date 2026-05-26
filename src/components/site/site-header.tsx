@@ -23,10 +23,10 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { cn } from "@/lib/utils"
 
 const NAV_ITEMS = [
+  { href: "/events?category=Events", label: "Events", icon: Ticket, category: "Events" },
   { href: "/events?category=Concerts", label: "Concerts", icon: Music2, category: "Concerts" },
   { href: "/events?category=Theatre", label: "Theatre", icon: Drama, category: "Theatre" },
   { href: "/events?category=Sports", label: "Sports", icon: Trophy, category: "Sports" },
-  { href: "/events?category=Events", label: "Events", icon: Ticket, category: "Events" },
 ]
 
 export function SiteHeader() {

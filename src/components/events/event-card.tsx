@@ -36,11 +36,6 @@ interface EventCardProps {
 
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
-function formatTime(when: string) {
-  const d = new Date(when)
-  return d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
-}
-
 function formatPrice(n: number) {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -76,16 +71,20 @@ export function EventCard({ event, className }: EventCardProps) {
         className,
       )}
     >
-      {/* Poster image — portrait on phones (suits the 2-up grid), square from
-          md+ so 3- and 4-up grids on tablet/desktop don't stack into very tall
-          cards. `object-cover` handles the orientation switch for both portrait
-          and landscape source images. */}
+      {/* Poster image — portrait 3:4 across every breakpoint so the typical
+          portrait-poster source fills the card area without letterboxing or
+          aggressive cropping. Same aspect on mobile and web keeps the grid
+          look consistent. */}
       <Link
         href={`/events/${event.id}`}
-        className="relative block aspect-3/4 overflow-hidden bg-muted md:aspect-square"
+        className="relative block aspect-3/4 overflow-hidden bg-muted"
         aria-label={event.title}
       >
         {event.banner_url ? (
+          // `object-cover` fills the portrait card area cleanly with a
+          // portrait-poster source (which is the typical event banner shape).
+          // The container has `overflow-hidden`, so the gentle hover scale
+          // never paints outside the card edges.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={event.banner_url}
@@ -160,21 +159,14 @@ export function EventCard({ event, className }: EventCardProps) {
           </h3>
         </Link>
 
-        {/* Compact meta — hide time on phones (date is on the poster stub anyway) */}
-        <div className="space-y-1 text-[11px] text-muted-foreground sm:text-xs">
-          {when && (
-            <div className="hidden items-center gap-1.5 sm:flex">
-              <Clock className="h-3 w-3 shrink-0" />
-              <span>{formatTime(when)}</span>
-            </div>
-          )}
-          {venue && (
-            <div className="flex items-center gap-1.5">
-              <MapPin className="h-3 w-3 shrink-0" />
-              <span className="line-clamp-1">{venue}</span>
-            </div>
-          )}
-        </div>
+        {/* Compact meta — venue only. The date is on the poster stub already
+            and the time was dropped to keep cards short across breakpoints. */}
+        {venue && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground sm:text-xs">
+            <MapPin className="h-3 w-3 shrink-0" />
+            <span className="line-clamp-1">{venue}</span>
+          </div>
+        )}
 
         {/* Price + CTA row. Paused state short-circuits everything below —
             we hide the price (which would otherwise show "Free" because the
