@@ -250,6 +250,63 @@ export default function EventDetailsPage() {
     ? tiersCount === 1 ? "zone" : "zones"
     : tiersCount === 1 ? "tier" : "tiers"
 
+  // Computed once, rendered twice — inside the main column on lg+, and below
+  // the grid on <lg so it sits under the Buy tickets aside per the layout
+  // request. The element gets two DOM instances (one hidden in each direction
+  // via Tailwind responsive utilities); cheaper than restructuring the grid.
+  const organizerCard = event.organizer && (() => {
+    const o = event.organizer
+    const brandName = o.business_name?.trim() || "Organizer"
+    const initial = brandName.charAt(0).toUpperCase()
+    const avatarSrc = o.profile_image_url || null
+    const roleLabel = o.deactivated ? "Former organizer" : "Organizer"
+
+    return (
+      <section>
+        <SectionHeading icon={User}>Organized by</SectionHeading>
+        <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+          <span
+            className={cn(
+              "inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10 font-semibold text-primary",
+              o.deactivated && "grayscale",
+            )}
+          >
+            {avatarSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarSrc}
+                alt={brandName}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-lg">
+                {initial}
+              </span>
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate font-semibold text-foreground">{brandName}</span>
+              {o.verified && (
+                // Custom verified badge (blue rosette + tick). File name has a
+                // space → URL-encode it. Next.js serves /public/* at the root.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/Images/verified%20badge.png"
+                  alt="Verified organizer"
+                  width={16}
+                  height={16}
+                  className="h-4 w-4 shrink-0"
+                />
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">{roleLabel}</div>
+          </div>
+        </div>
+      </section>
+    )
+  })()
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       {/* Back link */}
@@ -401,64 +458,10 @@ export default function EventDetailsPage() {
               so users still see the tier list in the same scroll, plus the
               mobile sticky CTA bar pinned to the viewport bottom. */}
 
-          {/* Organizer card — sources ONLY from organizer_profiles
-              (business_name, profile_image_url, business_type). We deliberately
-              do NOT fall back to the user's personal name / Google avatar:
-              attendees see the brand, not the person behind it. Resigned /
-              revoked organizers flip to "Former organizer" with no badge. */}
-          {event.organizer && (() => {
-            const o = event.organizer
-            const brandName = o.business_name?.trim() || "Organizer"
-            const initial = brandName.charAt(0).toUpperCase()
-            const avatarSrc = o.profile_image_url || null
-            const roleLabel = o.deactivated ? "Former organizer" : "Organizer"
-
-            return (
-              <section>
-                <SectionHeading icon={User}>Organized by</SectionHeading>
-                <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
-                  <span
-                    className={cn(
-                      "inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10 font-semibold text-primary",
-                      o.deactivated && "grayscale",
-                    )}
-                  >
-                    {avatarSrc ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={avatarSrc}
-                        alt={brandName}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-lg">
-                        {initial}
-                      </span>
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate font-semibold text-foreground">{brandName}</span>
-                      {o.verified && (
-                        // Custom verified badge (blue rosette + tick). File
-                        // name has a space → URL-encode it. Next.js serves
-                        // /public/* at the root, so /Images/... is correct.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src="/Images/verified%20badge.png"
-                          alt="Verified organizer"
-                          width={16}
-                          height={16}
-                          className="h-4 w-4 shrink-0"
-                        />
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{roleLabel}</div>
-                  </div>
-                </div>
-              </section>
-            )
-          })()}
+          {/* Organizer card — sources ONLY from organizer_profiles. Desktop
+              copy lives here in the main column; the mobile copy renders
+              below the grid so it sits under the Buy tickets aside. */}
+          <div className="hidden lg:block">{organizerCard}</div>
         </div>
 
         {/* Sticky ticket sidebar */}
@@ -615,6 +618,11 @@ export default function EventDetailsPage() {
           </div>
         </aside>
       </div>
+
+      {/* Mobile-only Organized-by — placed below the grid so on <lg it sits
+          directly under the Buy tickets card (which is the last item inside
+          the grid on mobile). Desktop copy lives inside the main column. */}
+      <div className="mt-8 lg:hidden">{organizerCard}</div>
 
       {/* Mobile-only sticky CTA bar — on lg+ the right-rail aside is sticky
           and always visible. Below that breakpoint the aside falls below the
