@@ -242,6 +242,13 @@ export default function EventDetailsPage() {
     ? Math.max(...event.ticket_types!.map((t) => Number(t.price)))
     : event.price ?? 0
   const hasMultipleTiers = hasTicketTypes && event.ticket_types!.length > 1
+  // Labels for the merged "Buy tickets" card header. Zoned-seating events
+  // refer to "zones" rather than "tiers" in the count pill.
+  const isZonedSeating = event.seating_mode === "zoned"
+  const tiersCount = event.ticket_types?.length ?? 0
+  const tiersLabel = isZonedSeating
+    ? tiersCount === 1 ? "zone" : "zones"
+    : tiersCount === 1 ? "tier" : "tiers"
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
@@ -388,43 +395,11 @@ export default function EventDetailsPage() {
             </section>
           )}
 
-          {/* Ticket prices (read-only — selection happens at checkout) */}
-          {hasTicketTypes && (() => {
-            const isZoned = event.seating_mode === "zoned"
-            const isFree = event.seating_mode === "free"
-            const sectionTitle = isZoned ? "Zone Prices" : "Ticket Prices"
-            const unitLabel = (n: number) =>
-              isZoned ? (n === 1 ? "zone" : "zones") : (n === 1 ? "tier" : "tiers")
-            const footerText = isFree
-              ? "Open seating — pick a seat on arrival, first come, first served."
-              : isZoned
-                ? "Pick your zone and quantity at checkout."
-                : "Pick your tier and quantity at checkout."
-
-            return (
-              <section className="rounded-2xl border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                  <div className="flex items-center gap-2">
-                    <Ticket className="h-4 w-4 text-muted-foreground" />
-                    <h2 className="text-base font-semibold text-foreground">{sectionTitle}</h2>
-                  </div>
-                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                    {event.ticket_types!.length} {unitLabel(event.ticket_types!.length)}
-                  </span>
-                </div>
-
-                <ul className="divide-y divide-border">
-                  {event.ticket_types!.map((tt) => (
-                    <TicketPriceRow key={tt.id} ticket={tt} />
-                  ))}
-                </ul>
-
-                <div className="border-t border-border bg-muted/30 px-5 py-3 text-xs text-muted-foreground">
-                  {footerText}
-                </div>
-              </section>
-            )
-          })()}
+          {/* Ticket tiers used to render here as their own card. Merged into the
+              right-rail "Buy tickets" aside so price browsing and the Buy CTA
+              live together. On mobile (<lg) the aside falls below this column,
+              so users still see the tier list in the same scroll, plus the
+              mobile sticky CTA bar pinned to the viewport bottom. */}
 
           {/* Organizer card — sources ONLY from organizer_profiles
               (business_name, profile_image_url, business_type). We deliberately
@@ -494,27 +469,44 @@ export default function EventDetailsPage() {
               <CountdownCard target={dateObj} />
             )}
 
-            {/* Price + CTA. Suppressed when sales are paused — minTierPrice
-                would be 0 (active tiers were filtered out server-side), and
-                rendering "Free" against a paused event misleads the buyer. */}
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
+            {/* Merged "Buy tickets" card — used to be a separate Ticket Prices
+                section in the main column + a Price/CTA card here. Now one
+                card: header → tier list (or paused-status / fallback price) →
+                CTAs → reassurance. `overflow-hidden` clips the edge-to-edge
+                tier list to the card's rounded corners. */}
+            <div className="overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xs">
+              {/* Header — title + tier/zone count */}
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Ticket className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-base font-semibold text-foreground">Buy tickets</h2>
+                </div>
+                {hasTicketTypes && !event.sales_paused && (
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {tiersCount} {tiersLabel}
+                  </span>
+                )}
+              </div>
+
               {/* Postpone tag — only when sales stay OPEN. When sales are closed
                   the Status block + button below already say "Postponed", so the
                   pill here would just repeat it. */}
               {isPostponed && !event.sales_paused && (
-                <p className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-white shadow-lg">
-                  <CalendarPlus className="h-4 w-4" />
+                <p className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-destructive px-3 py-1 text-xs font-semibold text-white shadow-lg">
+                  <CalendarPlus className="h-3.5 w-3.5" />
                   {postponedTo
                     ? `Postponed to ${new Date(postponedTo).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
                     : "Postponed — new date to be announced"}
                 </p>
               )}
+
+              {/* Body: status block (paused) | tier list (paid tiers) | fallback single price */}
               {event.sales_paused ? (
-                <div className="mb-5">
+                <div className="mb-4">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Status
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-destructive">
+                  <div className="mt-1 font-heading text-2xl font-bold text-destructive">
                     {isPostponed ? "Postponed" : "On hold"}
                   </div>
                   {isPostponed && (
@@ -525,20 +517,30 @@ export default function EventDetailsPage() {
                     </div>
                   )}
                 </div>
+              ) : hasTicketTypes ? (
+                // Tier list — extended edge-to-edge inside the card with a
+                // subtle tinted background so it reads as a distinct block
+                // between the header and the CTAs.
+                <ul className="mb-4 -mx-6 divide-y divide-border border-y border-border bg-muted/20">
+                  {event.ticket_types!.map((tt) => (
+                    <TicketPriceRow key={tt.id} ticket={tt} />
+                  ))}
+                </ul>
               ) : (
-                <div className="mb-5">
+                // No explicit ticket tiers — free RSVP or legacy single-price.
+                <div className="mb-4">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {hasMultipleTiers ? "Starting from" : "Price"}
+                    {(event.price ?? 0) === 0 ? "Entry" : "Price"}
                   </div>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-foreground">
-                      {formatLkr(minTierPrice ?? 0)}
-                    </span>
-                    {hasMultipleTiers && maxTierPrice !== minTierPrice && (
-                      <span className="text-xs text-muted-foreground">
-                        up to {formatLkr(maxTierPrice)}
-                      </span>
+                  <div
+                    className={cn(
+                      "mt-1 font-heading text-2xl font-bold leading-tight",
+                      (event.price ?? 0) === 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-foreground",
                     )}
+                  >
+                    {formatLkr(event.price ?? 0)}
                   </div>
                 </div>
               )}
@@ -747,40 +749,42 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
   )
 }
 
+// Embedded inside the aside's "Buy tickets" card (the card has p-6). px-6 here
+// aligns row content with the card's title and CTAs above/below.
 function TicketPriceRow({ ticket }: { ticket: TicketType }) {
   const status = ticketStatus(ticket)
   const price = Number(ticket.price)
 
   return (
-    <li className="px-5 py-4">
-      <div className="flex items-start gap-4">
+    <li className="px-6 py-2.5">
+      <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-foreground">{ticket.name}</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-semibold text-foreground">{ticket.name}</span>
             {status === "soldout" && (
-              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+              <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
                 Sold out
               </span>
             )}
             {status === "ended" && (
-              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+              <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
                 Sales ended
               </span>
             )}
             {status === "not_started" && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                 Opens {new Date(ticket.sale_start!).toLocaleDateString()}
               </span>
             )}
           </div>
           {ticket.description && (
-            <p className="mt-1 text-sm text-muted-foreground">{ticket.description}</p>
+            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{ticket.description}</p>
           )}
         </div>
 
         <div className="shrink-0 text-right">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">LKR</div>
-          <div className="text-xl font-bold leading-tight text-foreground">
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">LKR</div>
+          <div className="font-heading text-base font-bold leading-tight text-foreground">
             {price === 0
               ? "Free"
               : price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
