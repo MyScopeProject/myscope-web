@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, MapPin, AlertCircle, CheckCircle, XCircle, Film, Loader } from 'lucide-react';
+import { Ticket, Calendar, MapPin, AlertCircle, CheckCircle, XCircle, Film, Loader, Send } from 'lucide-react';
 
 interface Booking {
   _id: string;
@@ -48,6 +48,9 @@ interface EventBookingRow {
   payment_status: string;
   created_at: string;
   checked_in_at: string | null;
+  // True when this booking was issued as a comp via the organizer's Invite
+  // tab. Drives the small "Invitee ticket" tag on each row.
+  is_invitation?: boolean;
   event?: {
     id: string;
     title: string;
@@ -473,9 +476,22 @@ export default function MyBookingsPage() {
                         children become direct grid items of the parent. */}
                     <div className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center">
                       <div className="md:col-span-5">
-                        <h3 className="text-base sm:text-lg font-outfit font-bold text-foreground line-clamp-2">
-                          {eb.event?.title ?? '(deleted event)'}
-                        </h3>
+                        <div className="flex flex-wrap items-start gap-2">
+                          <h3 className="text-base sm:text-lg font-outfit font-bold text-foreground line-clamp-2">
+                            {eb.event?.title ?? '(deleted event)'}
+                          </h3>
+                          {/* Comp-ticket marker: this booking was issued via the
+                              organizer's Invite tab, so it's a complimentary
+                              ticket rather than something the user purchased. */}
+                          {eb.is_invitation && (
+                            <span
+                              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary"
+                              title="Complimentary ticket from the organizer"
+                            >
+                              <Send className="w-3 h-3" /> Invitee ticket
+                            </span>
+                          )}
+                        </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs font-inter text-muted-foreground">
                           {eb.event?.date && (
                             <span className="inline-flex items-center gap-1">
