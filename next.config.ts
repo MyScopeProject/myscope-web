@@ -19,21 +19,36 @@ const nextConfig: NextConfig = {
 // shipped bundle. Source-map upload only runs when SENTRY_AUTH_TOKEN is set
 // (Vercel build env); local `next build` is a no-op for that step.
 export default withSentryConfig(nextConfig, {
+  // Org + project read from env so rotating Sentry slugs (or copying this
+  // file to another app) doesn't require a code change. The wizard hardcodes
+  // these — we don't.
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
 
-  // Suppress upload chatter outside CI; we'll see failures regardless.
+  // Suppress upload chatter outside CI; failures still surface.
   silent: !process.env.CI,
 
-  // Tunnel Sentry traffic through /monitoring on our domain, sidestepping
-  // browser ad blockers that would otherwise drop requests to sentry.io.
+  // Upload an extra slice of source maps (Next's _next/static chunks that
+  // ship to clients). Adds ~10s to the build but means hover-on-trace in
+  // Sentry shows your source lines, not minified bundles. Worth it.
+  widenClientFileUpload: true,
+
+  // Route browser requests to Sentry through /monitoring on our domain,
+  // sidestepping ad blockers that drop sentry.io directly.
   tunnelRoute: "/monitoring",
 
   // Upload then delete source maps so they aren't shipped to browsers.
   sourcemaps: { disable: false, deleteSourcemapsAfterUpload: true },
 
-  // We have no cron-style ISR routes yet; off keeps the bundle slimmer.
-  // Lives under `webpack` in v10 — top-level was deprecated.
-  webpack: { automaticVercelMonitors: false },
+  webpack: {
+    // We have no Vercel Cron Monitors; off keeps the webpack pass lean.
+    automaticVercelMonitors: false,
+
+    // Strip Sentry's internal debug `logger.*` calls at build time — shaves
+    // a few KB off the client bundle.
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
 });

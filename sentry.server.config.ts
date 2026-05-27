@@ -1,9 +1,16 @@
 /**
- * Server-side Sentry init for the Node runtime. Loaded by instrumentation.ts
+ * Server-side Sentry init for the Node runtime. Loaded by src/instrumentation.ts
  * when NEXT_RUNTIME === 'nodejs'. Captures errors thrown inside Server
  * Components, route handlers, and any server-only code.
  *
- * Mirrors the posture in `myscope-api/instrumentation.js` — no DSN = no-op.
+ * IMPORTANT: this is the hardened version, not the Sentry-wizard default.
+ * Differences from the wizard's template:
+ *   - DSN comes from env, not hardcoded → no secret-shaped strings in git
+ *   - `sendDefaultPii: false` → don't ship user IPs / cookies to Sentry
+ *   - `beforeSend` scrubber → strip passwords, OTPs, guest tokens, cookies
+ *   - Conditional init → no DSN = no-op, so dev environments stay silent
+ *
+ * Mirrors the posture in `myscope-api/instrumentation.js`.
  */
 import * as Sentry from '@sentry/nextjs';
 
@@ -15,11 +22,15 @@ if (dsn) {
     environment: process.env.NODE_ENV,
     release: process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_SENTRY_RELEASE,
 
+    // 10% trace sampling in prod — generous for the 5M-spans/mo free tier.
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+
+    // Strict default. The wizard ships `true` which auto-attaches user IPs,
+    // cookies, and request bodies — we don't need that and it grows the
+    // PII surface unnecessarily.
     sendDefaultPii: false,
 
-    // Don't page on transient network failures from upstream APIs. Real bugs
-    // will still surface — these are the noisy edges.
+    // Quiet the noisy edges. Real bugs still surface.
     ignoreErrors: [
       /AbortError/i,
       /Failed to fetch/i,
@@ -28,9 +39,8 @@ if (dsn) {
     ],
 
     beforeSend(event) {
-      // Strip the request body for the same reason as the API — checkout
-      // payloads can carry guest tokens and email addresses we don't want
-      // sitting in Sentry forever.
+      // Checkout payloads can carry guest tokens and emails we don't want
+      // sitting in Sentry forever — scrub before send.
       if (event.request?.data && typeof event.request.data === 'object') {
         for (const key of ['password', 'token', 'guestToken', 'otp']) {
           // @ts-expect-error — Sentry types data as unknown

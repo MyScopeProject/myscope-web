@@ -1,11 +1,11 @@
 /**
- * Edge-runtime Sentry init. Loaded by instrumentation.ts when NEXT_RUNTIME
- * is 'edge' — i.e. middleware and any route handler that opts into the edge
- * runtime. The edge environment is V8-isolate, not Node, so the SDK ships
- * a slimmer init surface; fewer integrations exist there.
+ * Edge-runtime Sentry init for myscope-web. Loaded by src/instrumentation.ts
+ * when NEXT_RUNTIME === 'edge' — covers middleware + any handler that opts
+ * into the edge runtime. The edge environment is V8-isolate, so the SDK
+ * ships a slimmer init surface and fewer integrations are available.
  *
- * MyScope's middleware is light (just auth-gating on /organizer + /admin),
- * but anything that throws there would happen here.
+ * Hardened over the Sentry-wizard default: env-based DSN (not hardcoded)
+ * and `sendDefaultPii: false`.
  */
 import * as Sentry from '@sentry/nextjs';
 
