@@ -16,6 +16,9 @@ const COL_SUPPORT = [
   { label: "Contact", href: "/contact" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
+  { label: "Refunds", href: "/refund-policy" },
+  { label: "Cancellations", href: "/cancellation-policy" },
+  { label: "Cookies", href: "/cookies" },
 ]
 
 const SOCIAL = [
