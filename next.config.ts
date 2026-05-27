@@ -34,9 +34,15 @@ export default withSentryConfig(nextConfig, {
   // Sentry shows your source lines, not minified bundles. Worth it.
   widenClientFileUpload: true,
 
-  // Route browser requests to Sentry through /monitoring on our domain,
-  // sidestepping ad blockers that drop sentry.io directly.
-  tunnelRoute: "/monitoring",
+  // tunnelRoute was previously "/monitoring" to route browser events through
+  // our domain (dodge ad blockers). DISABLED because the generated route
+  // handler was returning 404 in production (x-matched-path: /404) — meaning
+  // events were being POSTed into a Next.js 404 page and silently lost. With
+  // tunnelRoute off, the SDK ships events directly to o4511461186732032.
+  // ingest.us.sentry.io which is well-known and works without the proxy.
+  // Re-enable once the tunnel route generation works (likely needs a
+  // matching middleware.ts allowlist).
+  // tunnelRoute: "/monitoring",
 
   // Upload then delete source maps so they aren't shipped to browsers.
   sourcemaps: { disable: false, deleteSourcemapsAfterUpload: true },
