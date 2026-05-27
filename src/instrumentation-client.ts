@@ -14,7 +14,14 @@
  */
 import * as Sentry from '@sentry/nextjs';
 
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+// DSN hardcoded as the source of truth. Sentry DSNs are public-safe (they
+// ship to every browser bundle anyway — see
+// https://docs.sentry.io/concepts/key-terms/dsn-explainer/#dsn-utilization).
+// We previously read from `NEXT_PUBLIC_SENTRY_DSN` and a build-env mismatch
+// silently skipped `Sentry.init`, so events vanished for an hour during
+// launch. Env var still wins if set, so dev/staging can override.
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
+  || 'https://91f7e265ca5b691c08e3dd69500cedf7@o4511461186732032.ingest.us.sentry.io/4511461349785600';
 
 if (dsn) {
   Sentry.init({

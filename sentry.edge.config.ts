@@ -9,7 +9,10 @@
  */
 import * as Sentry from '@sentry/nextjs';
 
-const dsn = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
+// Hardcoded fallback DSN — see instrumentation-client.ts header.
+const dsn = process.env.SENTRY_DSN
+  || process.env.NEXT_PUBLIC_SENTRY_DSN
+  || 'https://91f7e265ca5b691c08e3dd69500cedf7@o4511461186732032.ingest.us.sentry.io/4511461349785600';
 
 if (dsn) {
   Sentry.init({
