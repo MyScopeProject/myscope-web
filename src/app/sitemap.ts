@@ -24,6 +24,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE}/help`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    // Policy pages required for PayHere live-merchant approval. Low priority
+    // for SEO but still indexable so search engines see them as "real" pages
+    // and the site reads as a complete, legitimate business.
+    { url: `${SITE}/refund-policy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE}/cancellation-policy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE}/cookies`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ]
 
   // Public, approved events — so each event detail page gets indexed (and can
