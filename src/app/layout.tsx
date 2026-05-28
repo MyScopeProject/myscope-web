@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { SiteHeader } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
 import { AnnouncementBar } from "@/components/site/announcement-bar";
+import { MaintenanceBanner } from "@/components/site/maintenance-banner";
 
 // Body / default sans — IBM Plex Sans (preserves the original brand voice).
 const plexSans = IBM_Plex_Sans({
@@ -143,6 +144,11 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="system">
           <GoogleOAuthProvider clientId={googleClientId}>
             <AuthProvider>
+              {/* Maintenance banner above everything else — when admin flips
+                  the maintenance toggle, every visitor sees the message at
+                  the very top of the viewport on every page. Renders null
+                  when the flag is off, so no layout cost otherwise. */}
+              <MaintenanceBanner />
               {/* Moving announcement strip above the navbar. Scrolls away on
                   page scroll; the sticky navbar then pins to the top. */}
               <AnnouncementBar />
