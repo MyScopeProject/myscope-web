@@ -1,0 +1,5 @@
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="7be4e487-d673-d65d-9c93-9badf5d85309")}catch(e){}}();
+module.exports=[70697,e=>{"use strict";var t=e.i(44018);let r=process.env.SENTRY_DSN||process.env.NEXT_PUBLIC_SENTRY_DSN||"https://91f7e265ca5b691c08e3dd69500cedf7@o4511461186732032.ingest.us.sentry.io/4511461349785600";t.init({dsn:r,environment:"production",release:process.env.SENTRY_RELEASE||process.env.NEXT_PUBLIC_SENTRY_RELEASE,tracesSampleRate:.1,sendDefaultPii:!1,ignoreErrors:[/AbortError/i,/Failed to fetch/i,/NEXT_REDIRECT/i,/NEXT_NOT_FOUND/i],beforeSend(e){if(e.request?.data&&"object"==typeof e.request.data)for(let t of["password","token","guestToken","otp"])t in e.request.data&&(e.request.data[t]="[scrubbed]");return e.request?.cookies&&(e.request.cookies={__scrubbed:"[hidden]"}),e}}),e.s([])}];
+
+//# debugId=7be4e487-d673-d65d-9c93-9badf5d85309
+//# sourceMappingURL=sentry_server_config_ts_0n88nqa._.js.map

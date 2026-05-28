@@ -1,0 +1,5 @@
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="86f74e09-401f-41e5-96c7-ddc027f269cb")}catch(e){}}();
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,18566,(e,t,r)=>{t.exports=e.r(76562)},79474,(e,t,r)=>{"use strict";var s=e.r(71645).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;r.c=function(e){return s.H.useMemoCache(e)}},932,(e,t,r)=>{"use strict";t.exports=e.r(79474)},41701,e=>{"use strict";var t=e.i(932),r=e.i(71645),s=e.i(18566);e.s(["default",0,function(){let e,i,u=(0,t.c)(4),c=(0,s.useParams)();u[0]!==c?(e=()=>{c?.id&&(0,s.redirect)(`/events/${c.id}`)},u[0]=c,u[1]=e):e=u[1];let o=c?.id;return u[2]!==o?(i=[o],u[2]=o,u[3]=i):i=u[3],r.useEffect(e,i),null}])}]);
+
+//# debugId=86f74e09-401f-41e5-96c7-ddc027f269cb
+//# sourceMappingURL=0.mw~.xrd1ayy.js.map

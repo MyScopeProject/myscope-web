@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "debugId": "b2201bc4-3741-3ccd-8c9f-094219decf90",
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["../../../../../src/app/organizer/layout.tsx"],"sourcesContent":["import React from \"react\"\nimport { OrganizerShell } from \"@/components/organizer/organizer-shell\"\n\nexport default function OrganizerLayout({ children }: { children: React.ReactNode }) {\n  return <OrganizerShell>{children}</OrganizerShell>\n}\n"],"names":["OrganizerLayout","children","OrganizerShell"],"mappings":""}}]
+}

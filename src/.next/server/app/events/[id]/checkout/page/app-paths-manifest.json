@@ -1,0 +1,3 @@
+{
+  "/events/[id]/checkout/page": "app/events/[id]/checkout/page.js"
+}

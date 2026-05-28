@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "debugId": "33619d87-823a-2c87-49d1-820137ccf6b4",
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["../../../../../src/app/dashboard/layout.tsx"],"sourcesContent":["import React from \"react\";\nimport { DashboardShell } from \"@/components/dashboard/dashboard-shell\";\n\nexport default function DashboardLayout({ children }: { children: React.ReactNode }) {\n  return <DashboardShell>{children}</DashboardShell>;\n}\n"],"names":["DashboardLayout","children","DashboardShell"],"mappings":""}}]
+}

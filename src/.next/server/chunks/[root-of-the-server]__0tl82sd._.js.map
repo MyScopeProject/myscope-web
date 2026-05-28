@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "debugId": "9ce88705-5cd0-bfed-8e6e-c3a604896e44",
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["../../../../src/instrumentation.ts"],"sourcesContent":[";globalThis[\"__SENTRY_SERVER_MODULES__\"] = {};globalThis[\"_sentryNextJsVersion\"] = \"16.2.6\";import * as Sentry from \"@sentry/nextjs\";\n\nexport async function register() {\n  if (process.env.NEXT_RUNTIME === \"nodejs\") {\n    await import(\"../sentry.server.config\");\n  }\n\n  if (process.env.NEXT_RUNTIME === \"edge\") {\n    await import(\"../sentry.edge.config\");\n  }\n}\n\nexport const onRequestError = Sentry.captureRequestError;\n"],"names":["globalThis","register","onRequestError"],"mappings":"ymEAA4F,IAAA,EAAA,EAAA,CAAA,CAAA,OAErF,eAAeC,IAElB,MAAA,EAAA,CAAA,CAAA,MAMJ,CAVCD,UAAU,CAAC,yBAA4B,CAAG,CAAC,EAAEA,UAAU,CAAC,oBAAuB,CAAG,SAY5E,IAAME,EAAiB,EAAA,mBAA0B"}}]
+}
