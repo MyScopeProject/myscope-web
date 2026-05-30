@@ -22,7 +22,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "3. Payments",
     p: [
-      "Payments are processed by our payment partner (PayHere). We do not store your full card details on our servers; card data is handled by the payment provider under their own security standards.",
+      "Payments are processed by our payment partner (WebXPay). We do not store your full card details on our servers; card data is handled by the payment provider under their own security standards.",
     ],
   },
   {

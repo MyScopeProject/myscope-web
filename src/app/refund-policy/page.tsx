@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 // MyScope-side refund policy. Sri Lanka has no central consumer-protection
 // requirement on online ticket refunds, so this policy is shaped by:
-//   - PayHere's live-merchant onboarding (requires a published refund policy)
+//   - WebXPay's live-merchant onboarding (requires a published refund policy)
 //   - Industry norm in LK (event organizers set their own no-refund stance)
 //   - Practical reality (we're the platform, not the organizer)
 //
@@ -41,7 +41,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "4. How long refunds take",
     p: [
-      "Approved refunds are initiated within 5 business days of approval. The funds typically reach your card or bank account within 7–14 business days after we initiate, depending on your bank and our payment partner (PayHere). For prepaid or virtual cards, your bank may take longer.",
+      "Approved refunds are initiated within 5 business days of approval. The funds typically reach your card or bank account within 7–14 business days after we initiate, depending on your bank and our payment partner (WebXPay). For prepaid or virtual cards, your bank may take longer.",
     ],
   },
   {

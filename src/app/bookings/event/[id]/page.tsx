@@ -151,7 +151,7 @@ export default function EventBookingDetailPage() {
   if (p) setPaymentResult(p);
  }, []);
 
- // When the user lands back from PayHere with ?payment=success but the
+ // When the user lands back from WebXPay with ?payment=success but the
  // booking is still Pending, the webhook either hasn't arrived yet or was
  // missed (e.g. Render free-tier cold start). Poll /reconcile a few times
  // so we self-heal instead of leaving the user staring at "Pending".
@@ -478,7 +478,7 @@ export default function EventBookingDetailPage() {
 
  const handleDevMarkPaid = async () => {
   if (!data?.booking) return;
-  if (!confirm('Simulate a successful PayHere payment for this booking? (Dev only)')) return;
+  if (!confirm('Simulate a successful WebXPay payment for this booking? (Dev only)')) return;
   setDevMarkingPaid(true);
   try {
    const res = await fetch(
@@ -518,7 +518,7 @@ export default function EventBookingDetailPage() {
     return;
    }
 
-   // Build and auto-submit a hidden form to PayHere's hosted checkout
+   // Build and auto-submit a hidden form to WebXPay's hosted checkout
    const { checkoutUrl, paymentData } = body.data;
    const form = document.createElement('form');
    form.method = 'POST';
@@ -581,7 +581,7 @@ export default function EventBookingDetailPage() {
       (paid + reconciled) since the strip is no longer informative. */}
     {!isConfirmed && <CheckoutSteps activeIndex={2} />}
 
-    {/* Payment result banners (shown after PayHere redirect-back) */}
+    {/* Payment result banners (shown after WebXPay redirect-back) */}
     {paymentResult === 'success' && !isConfirmed && (
      <div className="mb-4 flex items-center gap-2 p-3 text-sm font-inter border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
       {reconciling && <Loader className="w-4 h-4 animate-spin shrink-0" />}
@@ -871,11 +871,11 @@ export default function EventBookingDetailPage() {
       >
        {paying ? <Loader className="w-5 h-5 animate-spin" /> : <Ticket className="w-5 h-5" />}
        {paying
-        ? 'Redirecting to PayHere…'
+        ? 'Redirecting to WebXPay…'
         : `Confirm and pay LKR ${Number(booking.total_amount).toLocaleString()}`}
       </button>
       <p className="text-center text-xs text-muted-foreground">
-       You&rsquo;ll be redirected to PayHere to complete your payment securely.
+       You&rsquo;ll be redirected to WebXPay to complete your payment securely.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
        <button
@@ -893,7 +893,7 @@ export default function EventBookingDetailPage() {
          onClick={handleDevMarkPaid}
          disabled={devMarkingPaid}
          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium disabled:opacity-50 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-dashed border-sky-500/40 hover:bg-sky-500/15"
-         title="Local-dev only: simulate a PayHere success without going through the gateway"
+         title="Local-dev only: simulate a WebXPay success without going through the gateway"
         >
          {devMarkingPaid ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
          {devMarkingPaid ? 'Confirming…' : 'Mark paid (dev)'}

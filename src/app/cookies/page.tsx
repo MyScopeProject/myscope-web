@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 // third-party advertising trackers, and Sentry's tunnel route keeps even
 // error-tracking requests on our own domain. This policy documents:
 //   1. The handful of cookies we set (auth, theme, consent if any)
-//   2. The third-party scripts/cookies users will encounter at checkout (PayHere)
+//   2. The third-party scripts/cookies users will encounter at checkout (WebXPay)
 //   3. How to disable cookies and what breaks if you do
 const SECTIONS: { h: string; p: string[] }[] = [
   {
@@ -36,7 +36,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "4. Third-party cookies you may encounter",
     p: [
-      "When you proceed to payment, you are redirected to our payment partner (PayHere) which sets its own cookies on its domain to process the transaction securely. We do not control these cookies. See payhere.lk for their privacy practices.",
+      "When you proceed to payment, you are redirected to our payment partner (WebXPay) which sets its own cookies on its domain to process the transaction securely. We do not control these cookies. See webxpay.com for their privacy practices.",
       "If you sign in with Google, Google may set cookies during the OAuth flow on its own domain (accounts.google.com). We receive only the verified email address back, not your Google cookies.",
     ],
   },
