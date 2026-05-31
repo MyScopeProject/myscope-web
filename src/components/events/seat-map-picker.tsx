@@ -809,6 +809,37 @@ function VisualSeatMap({
 }) {
   const vbW = Number(layout.viewbox_width)  || 1600
   const vbH = Number(layout.viewbox_height) || 1200
+
+  // Row letter extents for label rendering — group by (row_label) since the
+  // picker doesn't track a "section" field on the seat (sections are the
+  // outer dict key in the response, but we already flattened to allSeats).
+  // To stay reference-correct (labels per *block*), we group on a synthetic
+  // key derived from rounded-y, then take min/max X per group.
+  const rowExtents = React.useMemo(() => {
+    const map = new Map<string, { row: string; minX: number; maxX: number; y: number }>()
+    for (const s of allSeats) {
+      if (s.x == null || s.y == null) continue
+      // Round y to 6px buckets to keep slightly-uneven row positions together
+      // without merging unrelated visually-distinct rows.
+      const bucket = Math.round(Number(s.y) / 6)
+      const key = `${bucket}|${s.seat_label?.split("-")[0] ?? bucket}`
+      const cur = map.get(key)
+      const sx = Number(s.x)
+      const sy = Number(s.y)
+      if (cur) {
+        if (sx < cur.minX) cur.minX = sx
+        if (sx > cur.maxX) cur.maxX = sx
+        cur.y = (cur.y + sy) / 2
+      } else {
+        // Derive a row label from seat_label "A-12" → "A". Fall back to seat
+        // number if the label isn't dash-separated.
+        const row = (s.seat_label?.includes("-") ? s.seat_label.split("-")[0] : "") || ""
+        if (row) map.set(key, { row, minX: sx, maxX: sx, y: sy })
+      }
+    }
+    return Array.from(map.values())
+  }, [allSeats])
+
   return (
     <svg
       viewBox={`0 0 ${vbW} ${vbH}`}
@@ -831,6 +862,22 @@ function VisualSeatMap({
       )}
       {(layout.decor || []).map((d, i) => (
         <DecorShape key={d.id ?? `decor-${i}`} d={d} />
+      ))}
+      {/* Row letter labels at the left + right of each row, matching the
+          reference seating diagram. Non-interactive. */}
+      {rowExtents.map((r, i) => (
+        <g key={`row-${i}`} aria-hidden="true" pointerEvents="none">
+          <text
+            x={r.minX - SEAT_R - 14} y={r.y}
+            textAnchor="end" dominantBaseline="central"
+            fontSize={11} fontWeight={600} fill="#6B7280"
+          >{r.row}</text>
+          <text
+            x={r.maxX + SEAT_R + 14} y={r.y}
+            textAnchor="start" dominantBaseline="central"
+            fontSize={11} fontWeight={600} fill="#6B7280"
+          >{r.row}</text>
+        </g>
       ))}
       {allSeats.map(seat => (
         <VisualSeat

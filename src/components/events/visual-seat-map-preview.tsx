@@ -37,6 +37,33 @@ export interface VisualPreviewSeat {
   rotation: number | null
 }
 
+// Per-(section, row) extents — used to draw row letter labels at the edges
+// of each row in each section (mirrors the reference seating layout where
+// every section block shows its row letters on both sides).
+interface RowExtent {
+  section: string
+  row_label: string
+  minX: number
+  maxX: number
+  y: number
+}
+function computeRowExtents(seats: VisualPreviewSeat[]): RowExtent[] {
+  const map = new Map<string, RowExtent>()
+  for (const s of seats) {
+    if (s.x == null || s.y == null || !s.row_label) continue
+    const key = `${s.section ?? ""}|${s.row_label}`
+    const cur = map.get(key)
+    if (cur) {
+      if (s.x < cur.minX) cur.minX = s.x
+      if (s.x > cur.maxX) cur.maxX = s.x
+      cur.y = (cur.y + s.y) / 2
+    } else {
+      map.set(key, { section: s.section ?? "", row_label: s.row_label, minX: s.x, maxX: s.x, y: s.y })
+    }
+  }
+  return Array.from(map.values())
+}
+
 export interface VisualPreviewLayout {
   viewbox_width: number
   viewbox_height: number
@@ -54,12 +81,14 @@ interface Props {
 }
 
 const SEAT_R = 11
+const ROW_LABEL_GAP = 14
 
 export function VisualSeatMapPreview({
   layout, seats, className, maxHeightClass = "max-h-[55vh]",
 }: Props) {
   const vbW = Number(layout.viewbox_width)  || 1600
   const vbH = Number(layout.viewbox_height) || 1200
+  const rowExtents = computeRowExtents(seats)
   return (
     <svg
       viewBox={`0 0 ${vbW} ${vbH}`}
@@ -84,6 +113,35 @@ export function VisualSeatMapPreview({
       )}
       {(layout.decor || []).map((d, i) => (
         <DecorShape key={d.id ?? `decor-${i}`} d={d} />
+      ))}
+      {/* Row letter labels at the left + right of each row, per section. */}
+      {rowExtents.map(r => (
+        <g key={`row-${r.section}-${r.row_label}`} aria-hidden="true">
+          <text
+            x={r.minX - SEAT_R - ROW_LABEL_GAP}
+            y={r.y}
+            textAnchor="end"
+            dominantBaseline="central"
+            fontSize={11}
+            fontFamily="ui-sans-serif, system-ui, sans-serif"
+            fontWeight="600"
+            fill="#6B7280"
+          >
+            {r.row_label}
+          </text>
+          <text
+            x={r.maxX + SEAT_R + ROW_LABEL_GAP}
+            y={r.y}
+            textAnchor="start"
+            dominantBaseline="central"
+            fontSize={11}
+            fontFamily="ui-sans-serif, system-ui, sans-serif"
+            fontWeight="600"
+            fill="#6B7280"
+          >
+            {r.row_label}
+          </text>
+        </g>
       ))}
       {seats.map(s => {
         if (s.x == null || s.y == null) return null
