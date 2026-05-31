@@ -41,3 +41,11 @@ Sentry.init({
     /Load failed/i,
   ],
 });
+
+// Next.js prints "ACTION REQUIRED: export onRouterTransitionStart…" on boot
+// because the SDK runtime expects this hook. The real helper
+// (Sentry.captureRouterTransitionStart) is undefined in @sentry/nextjs v10.54
+// — re-introducing it caused the navigation crash documented in
+// [[project_sentry_live]]. A no-op stub satisfies the runtime check. Swap to
+// the real helper if/when we bump to a version that ships it.
+export const onRouterTransitionStart = () => {};
