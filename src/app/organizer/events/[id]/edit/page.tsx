@@ -26,6 +26,11 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { SeatGridPreview, type LayoutData } from "@/components/events/seat-grid-preview"
 import { EditSeatMap } from "@/components/events/edit-seat-map"
+import {
+  VisualSeatMapPreview,
+  type VisualPreviewLayout,
+  type VisualPreviewSeat,
+} from "@/components/events/visual-seat-map-preview"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -50,7 +55,7 @@ interface EventRow {
   approval_status: ApprovalStatus
   rejection_reason: string | null
   // Reserved-seating layout state.
-  layout_source?: "grid" | "custom" | null
+  layout_source?: "grid" | "custom" | "visual" | null
   layout_status?: "ready" | "pending" | null
   layout_request_note?: string | null
   layout_documents?: LayoutDocument[] | null
@@ -539,9 +544,11 @@ export default function EditEventPage() {
             <Tag className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-base font-semibold text-foreground">Seat map</h2>
           </div>
-          {event.layout_source === "custom" ? (
-            // Custom layouts are built by the MyScope team from the organizer's
-            // uploaded documents — shown read-only here.
+          {/* Layout source decides who owns the seat map:
+              - "custom" / "visual": admin built it (from uploaded docs or
+                via the canvas builder) — organizer view is read-only.
+              - "grid" / null: organizer's self-serve grid path. */}
+          {event.layout_source === "custom" || event.layout_source === "visual" ? (
             <CustomLayoutPanel event={event} seats={seatsPreview} />
           ) : (
             <EditSeatMap
@@ -613,22 +620,65 @@ function FieldGroup({
 
 // ---------------------------------------------------------------------------
 // CustomLayoutPanel — read-only view for reserved events whose seat map is built
-// by the MyScope team from organizer-uploaded documents. Shows the built map
-// (once ready) or a "being built" status, plus the documents the organizer sent.
+// by the MyScope team (either via the canvas builder → layout_source="visual"
+// or from organizer-uploaded documents → layout_source="custom"). When seats
+// have per-seat (x, y) coords, renders the SVG canvas; otherwise falls back
+// to the legacy grid preview so older custom-built maps still display.
 // ---------------------------------------------------------------------------
 function CustomLayoutPanel({ event, seats }: { event: EventRow; seats: LayoutData | null }) {
-  const hasSeats = !!seats && seats.sections.length > 0
+  const [visual, setVisual] = React.useState<{
+    layout: VisualPreviewLayout
+    seats: VisualPreviewSeat[]
+  } | null>(null)
+  const [visualLoading, setVisualLoading] = React.useState(true)
   const docs = event.layout_documents ?? []
+
+  // Pull the canvas seat-map state. The endpoint is admin/organizer-scoped
+  // and 200s with empty seats[] for events that haven't had a map built yet.
+  React.useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/organizer/events/${event.id}/seat-map`, {
+          credentials: "include",
+        })
+        const data = await res.json()
+        if (!cancelled && data?.success && data?.data) {
+          setVisual({ layout: data.data.layout, seats: data.data.seats })
+        }
+      } catch {
+        // Best-effort — fall back to the grid preview below if this fails.
+      } finally {
+        if (!cancelled) setVisualLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [event.id])
+
+  const visualSeatsWithCoords = visual?.seats?.filter(s => s.x != null && s.y != null) ?? []
+  const hasVisual = visualSeatsWithCoords.length > 0
+  const hasGridSeats = !!seats && seats.sections.length > 0
+  const hasAnySeats = hasVisual || hasGridSeats
+
   return (
     <div className="space-y-4">
-      {hasSeats ? (
+      {visualLoading ? (
+        <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          <Loader className="h-4 w-4 shrink-0 animate-spin" />
+          <span>Loading your seat map…</span>
+        </div>
+      ) : hasAnySeats ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
             <Check className="h-4 w-4 shrink-0" />
-            <span>Your custom seat map is ready — built by the MyScope team.</span>
+            <span>Your seat map is ready — built by the MyScope team.</span>
           </div>
           <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-3">
-            <SeatGridPreview layout={seats!} />
+            {hasVisual && visual ? (
+              <VisualSeatMapPreview layout={visual.layout} seats={visualSeatsWithCoords} />
+            ) : (
+              <SeatGridPreview layout={seats!} />
+            )}
           </div>
         </div>
       ) : (
