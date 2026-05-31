@@ -478,7 +478,7 @@ export default function EventBookingDetailPage() {
 
  const handleDevMarkPaid = async () => {
   if (!data?.booking) return;
-  if (!confirm('Simulate a successful WebXPay payment for this booking? (Dev only)')) return;
+  if (!confirm('Simulate a successful payment for this booking? (Dev only)')) return;
   setDevMarkingPaid(true);
   try {
    const res = await fetch(
@@ -871,11 +871,11 @@ export default function EventBookingDetailPage() {
       >
        {paying ? <Loader className="w-5 h-5 animate-spin" /> : <Ticket className="w-5 h-5" />}
        {paying
-        ? 'Redirecting to WebXPay…'
+        ? 'Redirecting to secure checkout…'
         : `Confirm and pay LKR ${Number(booking.total_amount).toLocaleString()}`}
       </button>
       <p className="text-center text-xs text-muted-foreground">
-       You&rsquo;ll be redirected to WebXPay to complete your payment securely.
+       You&rsquo;ll be redirected to our secure payment gateway to complete your payment.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
        <button
@@ -893,7 +893,7 @@ export default function EventBookingDetailPage() {
          onClick={handleDevMarkPaid}
          disabled={devMarkingPaid}
          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium disabled:opacity-50 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-dashed border-sky-500/40 hover:bg-sky-500/15"
-         title="Local-dev only: simulate a WebXPay success without going through the gateway"
+         title="Local-dev only: simulate a payment success without going through the gateway"
         >
          {devMarkingPaid ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
          {devMarkingPaid ? 'Confirming…' : 'Mark paid (dev)'}
