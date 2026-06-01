@@ -93,21 +93,11 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
   const [error, setError] = React.useState<string | null>(null)
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
   const [selectionWarning, setSelectionWarning] = React.useState<string | null>(null)
-  // Zoom level for the seat grid — useful on mobile where tap targets are small
-  // for wide venues. Applied as a CSS transform with a per-level scale factor.
+  // Zoom level. Range widened so the user can both fit the whole venue on
+  // screen (zoom-out) and tap individual seats comfortably on mobile (zoom-in).
   const [zoom, setZoom] = React.useState(1)
-  const minZoom = 0.75
-  const maxZoom = 1.75
-  // When a user clicks a seat in a different tier than their current selection,
-  // we stash it here so the warning banner can offer a one-click "switch tier"
-  // action (release current holds → hold the new seat) instead of forcing the
-  // user to manually deselect everything.
-  const [tierSwitchPending, setTierSwitchPending] = React.useState<{
-    targetSeat: SeatMapSeat
-    targetTierName: string
-    currentTierName: string
-  } | null>(null)
-  const [tierSwitching, setTierSwitching] = React.useState(false)
+  const minZoom = 0.4
+  const maxZoom = 3
   const [lastRefreshAt, setLastRefreshAt] = React.useState<number>(Date.now())
   // Seats with an in-flight hold or release call. Used to (a) disable double
   // clicks while a request is pending and (b) skip server-state reconciliation
@@ -125,13 +115,12 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
     return out
   }, [sections])
 
-  // The single tier the user is currently committed to (first selection wins).
-  // null = no commitment yet. Used to grey out seats from other tiers.
-  const activeTicketTypeId = React.useMemo(() => {
-    if (selectedIds.size === 0) return null
-    const first = allSeats.find(s => selectedIds.has(s.id))
-    return first?.ticket_type?.id ?? null
-  }, [selectedIds, allSeats])
+  // Tier mixing is allowed — buyers commonly want a couple of premium seats
+  // plus several regular ones in one order. The cart total + the parent
+  // checkout sum per-seat prices, so no extra wiring is needed. Kept as
+  // `null` so existing UI bindings (which dimmed other-tier sections) just
+  // no-op.
+  const activeTicketTypeId: string | null = null
 
   // Fetch (called on mount + every 30s + manual refresh).
   // credentials: include lets the server detect the logged-in user so it can
@@ -252,7 +241,6 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
 
   const toggleSeat = async (seat: SeatMapSeat) => {
     setSelectionWarning(null)
-    setTierSwitchPending(null)
     if (inFlightIds.has(seat.id)) return // already busy
 
     const isCurrentlySelected = selectedIds.has(seat.id)
@@ -287,18 +275,9 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
     // Held by someone else — we'd lose the race anyway.
     if (seat.status === "held" && !seat.held_by_me) return
 
-    if (activeTicketTypeId && seat.ticket_type.id !== activeTicketTypeId) {
-      const currentTierName =
-        allSeats.find(s => selectedIds.has(s.id))?.ticket_type?.name || "current tier"
-      // Stash the click so the warning banner can offer a one-click switch
-      // (release all current holds → hold this seat).
-      setTierSwitchPending({
-        targetSeat: seat,
-        targetTierName: seat.ticket_type.name,
-        currentTierName,
-      })
-      return
-    }
+    // Mixed-tier selection is allowed (different sections / different
+    // prices in one order). The cart total is computed from each seat's
+    // own ticket_type.price below.
     if (selectedIds.size >= maxPerOrder) {
       setSelectionWarning(`Maximum ${maxPerOrder} seats per order.`)
       return
@@ -348,36 +327,6 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
       setSelectionWarning("Network error. Please try again.")
     } finally {
       markInFlight(seat.id, false)
-    }
-  }
-
-  // One-click "switch tier": release every currently-held seat, then hold the
-  // target seat. Called from the warning banner when the user clicks a seat in
-  // a different tier — much friendlier than the old "deselect everything
-  // yourself" workflow.
-  const switchTier = async () => {
-    if (!tierSwitchPending) return
-    const target = tierSwitchPending.targetSeat
-    setTierSwitching(true)
-    setSelectionWarning(null)
-    try {
-      const toRelease = [...selectedIds]
-      if (toRelease.length > 0) {
-        await fetch(`${API_URL}/api/events/${eventId}/seats/release`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ seat_ids: toRelease }),
-        }).catch(() => {})
-      }
-      // Local state mirrors what the server just did.
-      setSelectedIds(new Set())
-      setTierSwitchPending(null)
-      // Re-fire the click on the target seat — now there's no active tier
-      // conflict so it takes the normal hold path.
-      await toggleSeat(target)
-    } finally {
-      setTierSwitching(false)
     }
   }
 
@@ -536,36 +485,6 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
         </div>
       )}
 
-      {tierSwitchPending && (
-        <div className="flex flex-col gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              Your cart has <strong>{tierSwitchPending.currentTierName}</strong> seats.
-              Switch to <strong>{tierSwitchPending.targetTierName}</strong>?
-            </span>
-          </div>
-          <div className="flex shrink-0 gap-2 sm:ml-3">
-            <button
-              type="button"
-              onClick={() => setTierSwitchPending(null)}
-              disabled={tierSwitching}
-              className="rounded-md px-3 py-1.5 text-xs font-medium hover:bg-amber-500/15 disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={switchTier}
-              disabled={tierSwitching}
-              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60 dark:bg-amber-500 dark:hover:bg-amber-600"
-            >
-              {tierSwitching ? "Switching…" : `Switch to ${tierSwitchPending.targetTierName}`}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Zoom controls — handy on mobile for wide venues. transform-origin
           top-left keeps content anchored so users scroll naturally to find
           their section. */}
@@ -594,21 +513,28 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
         </button>
       </div>
 
-      {/* Visual canvas — only when every seat has x/y. Wrapped in the same
-          CSS zoom container as the grid so the existing zoom controls Just
-          Work without re-implementing wheel/pinch handlers here. */}
+      {/* Visual canvas — only when every seat has x/y.
+          CSS `zoom` on the wrapper alone doesn't work here because the SVG
+          inside is `width=100%` and refills whatever box it's in. So we
+          size the inner element in pixels (viewbox_width × zoom), let the
+          SVG fill that, and the outer container handles overflow scroll. */}
       {isVisual && layout && (
-        <div className="overflow-x-auto pb-2 [zoom:var(--seat-zoom)]"
-             style={{ '--seat-zoom': zoom } as React.CSSProperties}
-        >
-          <VisualSeatMap
-            layout={layout}
-            allSeats={allSeats}
-            selectedIds={selectedIds}
-            inFlightIds={inFlightIds}
-            activeTicketTypeId={activeTicketTypeId}
-            onSeatClick={toggleSeat}
-          />
+        <div className="overflow-auto pb-2 max-h-[80vh]">
+          <div
+            style={{
+              width:  `${Math.round(Number(layout.viewbox_width)  * zoom)}px`,
+              height: `${Math.round(Number(layout.viewbox_height) * zoom)}px`,
+            }}
+          >
+            <VisualSeatMap
+              layout={layout}
+              allSeats={allSeats}
+              selectedIds={selectedIds}
+              inFlightIds={inFlightIds}
+              activeTicketTypeId={activeTicketTypeId}
+              onSeatClick={toggleSeat}
+            />
+          </div>
         </div>
       )}
 
