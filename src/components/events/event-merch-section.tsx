@@ -73,13 +73,13 @@ export function EventMerchSection({ eventId }: { eventId: string }) {
               href={`/shop/${p.id}`}
               className="group flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25"
             >
-              <div className="relative aspect-3/4 overflow-hidden bg-muted">
+              <div className="relative aspect-3/4 overflow-hidden bg-card">
                 {cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={cover}
                     alt={p.title}
-                    className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                    className="h-full w-full object-contain p-3 transition-transform duration-500 ease-out group-hover:scale-105"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
@@ -91,7 +91,6 @@ export function EventMerchSection({ eventId }: { eventId: string }) {
                     Sold out
                   </span>
                 )}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/40 via-black/10 to-transparent" />
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3">
                 <div className="line-clamp-2 text-xs font-bold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary">

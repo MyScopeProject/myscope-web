@@ -283,7 +283,7 @@ function StorefrontCard({ product: p }: { product: Product }) {
     <article className="group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25">
       <Link
         href={`/shop/${p.id}`}
-        className="relative block aspect-3/4 overflow-hidden bg-muted"
+        className="relative block aspect-3/4 overflow-hidden bg-card"
         aria-label={p.title}
       >
         {cover ? (
@@ -291,7 +291,7 @@ function StorefrontCard({ product: p }: { product: Product }) {
           <img
             src={cover}
             alt={p.title}
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            className="h-full w-full object-contain p-3 transition-transform duration-500 ease-out group-hover:scale-105"
             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
         ) : (
@@ -306,8 +306,6 @@ function StorefrontCard({ product: p }: { product: Product }) {
             {soldOut && <Badge variant="destructive">Sold out</Badge>}
           </div>
         )}
-
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/45 via-black/15 to-transparent" />
       </Link>
 
       <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">

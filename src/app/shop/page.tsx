@@ -10,7 +10,6 @@ import {
   Loader,
   Package,
   Search,
-  ShieldCheck,
   ShoppingBag,
   ShoppingCart,
   Truck,
@@ -133,18 +132,18 @@ function ShopPageInner() {
   // global LightBeamsBackground (mounted in the root layout) shows
   // through. The body already provides the base bg.
   return (
-    <main className="min-h-screen pt-24 pb-20">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Title block — same typography ramp as /events: bold heading
-            steps up at sm, subtitle scales muted text → base. Cart button
-            sits to the right when there's room, drops to a new line on
-            phones via flex-wrap. */}
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
+    <main>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
+        {/* Title block — placement + typography mirror /events: title +
+            subtitle sit at the top of the container with no extra navbar
+            padding. The cart button floats to the right on wider screens
+            and drops to a new line on phones via flex-wrap. */}
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Shop
             </h1>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground sm:text-base">
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
               Merch and gear from MyScope Events. Event specific items and storefronts in one feed.
             </p>
           </div>
@@ -159,7 +158,7 @@ function ShopPageInner() {
               )}
             </Link>
           </Button>
-        </header>
+        </div>
 
         {/* Filter row — translucent card tone + backdrop-blur on the
             search and the chips so the ambient light beams flow through
@@ -249,11 +248,11 @@ function ProductCard({ product: p }: { product: Product }) {
 
   return (
     <article className="group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25">
-      {/* Cover — portrait 3:4 to match event posters. Falls back to a soft
-          muted block with the placeholder icon when no image. */}
+      {/* Cover — portrait 3:4. Image is contained (no crop) and sits on
+          the card surface itself so there's no dark frame around it. */}
       <Link
         href={`/shop/${p.id}`}
-        className="relative block aspect-3/4 overflow-hidden bg-muted"
+        className="relative block aspect-3/4 overflow-hidden bg-card"
         aria-label={p.title}
       >
         {cover ? (
@@ -261,7 +260,7 @@ function ProductCard({ product: p }: { product: Product }) {
           <img
             src={cover}
             alt={p.title}
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            className="h-full w-full object-contain p-3 transition-transform duration-500 ease-out group-hover:scale-105"
             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
         ) : (
@@ -275,34 +274,6 @@ function ProductCard({ product: p }: { product: Product }) {
           <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
             {isEventMerch && <Badge variant="default">Event merch</Badge>}
             {soldOut && <Badge variant="destructive">Sold out</Badge>}
-          </div>
-        )}
-
-        {/* Soft bottom shading — lifts banner against any background and
-            gives the organizer pill below something to sit on. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/45 via-black/15 to-transparent" />
-
-        {/* Organizer chip pinned to the bottom-left of the image. White
-            text over the gradient — same pattern the event card uses for
-            its date stub. */}
-        {p.organizer && (
-          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 text-[11px] text-white/95">
-            {p.organizer.profile_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={p.organizer.profile_image_url}
-                alt=""
-                className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-white/30"
-              />
-            ) : (
-              <div className="h-5 w-5 shrink-0 rounded-full bg-white/20 ring-1 ring-white/30" />
-            )}
-            <span className="truncate font-medium">
-              {p.organizer.business_name || "Organizer"}
-            </span>
-            {p.organizer.verified && (
-              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-white" aria-label="Verified" />
-            )}
           </div>
         )}
       </Link>
@@ -334,6 +305,35 @@ function ProductCard({ product: p }: { product: Product }) {
             {p.title}
           </h3>
         </Link>
+
+        {/* Organizer — moved out of the image so the product cover stays
+            clean (no dark gradient overlay). Same compact row used elsewhere
+            for "who is selling this". */}
+        {p.organizer && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground sm:text-xs">
+            {p.organizer.profile_image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={p.organizer.profile_image_url}
+                alt=""
+                className="h-4 w-4 shrink-0 rounded-full object-cover ring-1 ring-border"
+              />
+            ) : (
+              <div className="h-4 w-4 shrink-0 rounded-full bg-muted ring-1 ring-border" />
+            )}
+            <span className="line-clamp-1 font-medium">
+              {p.organizer.business_name || "Organizer"}
+            </span>
+            {p.organizer.verified && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src="/Images/verified badge.png"
+                alt="Verified"
+                className="h-3.5 w-3.5 shrink-0"
+              />
+            )}
+          </div>
+        )}
 
         {/* Linked event (when present) */}
         {p.event && (
