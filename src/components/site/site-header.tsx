@@ -120,10 +120,12 @@ export function SiteHeader() {
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   active
-                    // Active = white icon + label on the soft purple chip.
-                    // The label inherits via currentColor, so setting white
-                    // here covers the text and any direct-child SVG too.
-                    ? "bg-primary/10 text-white"
+                    // Active chip color tracks the theme: white reads on the
+                    // dark navbar, but vanishes on the light one — so light
+                    // mode gets the brand violet text/icon, dark mode keeps
+                    // the white-on-violet contrast. currentColor cascades to
+                    // both the label and the inline SVG icon.
+                    ? "bg-primary/10 text-primary dark:text-white"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
@@ -327,7 +329,7 @@ export function SiteHeader() {
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         active
-                          ? "bg-primary/10 text-white"
+                          ? "bg-primary/10 text-primary dark:text-white"
                           : "text-foreground hover:bg-muted",
                       )}
                     >
