@@ -22,6 +22,7 @@ import { EventCard, type EventCardData } from "@/components/events/event-card"
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton"
 import { HeroCarousel, type HeroSlide } from "@/components/home/hero-carousel"
 import { PastEventsMarquee, type PastEventItem } from "@/components/home/past-events-marquee"
+import { PartnersMarquee, type PartnerItem } from "@/components/home/partners-marquee"
 import { RevealOnScroll } from "@/components/site/reveal-on-scroll"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>([])
   const [heroLoading, setHeroLoading] = React.useState(true)
   const [pastEvents, setPastEvents] = React.useState<PastEventItem[]>([])
+  const [partners, setPartners] = React.useState<PartnerItem[]>([])
 
   React.useEffect(() => {
     let cancelled = false
@@ -97,6 +99,26 @@ export default function HomePage() {
         const data = await res.json()
         if (!cancelled && data?.success) {
           setPastEvents(data.data.items || [])
+        }
+      } catch {
+        // Soft-fail — section stays hidden
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Partners — admin-curated logo strip shown above the footer. Same
+  // soft-fail behaviour as past events.
+  React.useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/partners`)
+        const data = await res.json()
+        if (!cancelled && data?.success) {
+          setPartners(data.data.items || [])
         }
       } catch {
         // Soft-fail — section stays hidden
@@ -306,6 +328,23 @@ export default function HomePage() {
         </div>
         </RevealOnScroll>
       </section>
+
+      {/* Our Partners — admin-curated logo strip. Hidden when empty so the
+          home page stays clean before any partners are added. Sits as the
+          last section before the global footer. */}
+      {partners.length > 0 && (
+        <section className="py-12">
+          <RevealOnScroll>
+          <div className="mx-auto mb-6 max-w-7xl px-4 sm:px-6">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Our partners</h2>
+            <p className="text-sm text-muted-foreground">
+              The brands and venues that help us bring shows to life.
+            </p>
+          </div>
+          <PartnersMarquee items={partners} />
+          </RevealOnScroll>
+        </section>
+      )}
     </div>
   )
 }
