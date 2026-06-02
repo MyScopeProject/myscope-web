@@ -53,6 +53,8 @@ interface ShopBalance {
   fee: number
   net: number
   refunded: number
+  paid_out: number
+  pending: number
 }
 
 interface Payout {
@@ -71,6 +73,11 @@ interface EventPayoutEntry {
   balance: PerEventBalance
   payouts: Payout[]
   timing: "live" | "past_recent"
+}
+
+interface ShopBlock {
+  balance: ShopBalance
+  payouts: Payout[]
 }
 
 interface BankDetails {
@@ -109,7 +116,7 @@ export default function OrganizerPayoutsPage() {
   const { user, loading: authLoading } = useAuth()
 
   const [entries, setEntries] = React.useState<EventPayoutEntry[]>([])
-  const [shopBalance, setShopBalance] = React.useState<ShopBalance | null>(null)
+  const [shop, setShop] = React.useState<ShopBlock | null>(null)
   const [platformFeePct, setPlatformFeePct] = React.useState(0.04)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
@@ -147,7 +154,7 @@ export default function OrganizerPayoutsPage() {
         return
       }
       setEntries(byEventRes.data.events ?? [])
-      setShopBalance(byEventRes.data.shop_balance ?? null)
+      setShop(byEventRes.data.shop ?? null)
       setPlatformFeePct(byEventRes.data.platform_fee_pct ?? 0.04)
 
       const p = meRes?.data?.profile
@@ -248,8 +255,17 @@ export default function OrganizerPayoutsPage() {
     )
   }
 
-  const totalPending = entries.reduce((sum, e) => sum + e.balance.pending, 0)
-  const showShopTile = !!shopBalance && (shopBalance.gross > 0 || shopBalance.refunded > 0)
+  const totalEventPending = entries.reduce((sum, e) => sum + e.balance.pending, 0)
+  const shopPending = shop?.balance.pending ?? 0
+  // Hide the entire shop card when the organizer has no shop activity at all
+  // (zero gross, zero refunds, zero historical payouts) — same logic as the
+  // dashboard's shop-orders section.
+  const showShopCard = !!shop && (
+    shop.balance.gross > 0 ||
+    shop.balance.refunded > 0 ||
+    shop.balance.paid_out > 0 ||
+    shop.payouts.length > 0
+  )
 
   return (
     <div className="space-y-6">
@@ -269,25 +285,27 @@ export default function OrganizerPayoutsPage() {
         </p>
       </div>
 
-      {/* Top summary — total pending across all visible events + shop */}
+      {/* Top summary — pending across events + shop. Each source has its
+          own line so the totals don't get mixed. */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <SummaryTile
           icon={Wallet}
           label="Pending across events"
-          value={formatLkr(totalPending)}
+          value={formatLkr(totalEventPending)}
           hint={
             entries.length === 0
               ? "No active events"
               : `${entries.length} ${entries.length === 1 ? "event" : "events"} eligible`
           }
-          highlight={totalPending > 0}
+          highlight={totalEventPending > 0}
         />
-        {showShopTile && shopBalance && (
+        {showShopCard && (
           <SummaryTile
             icon={ShoppingBag}
-            label="Shop revenue (net)"
-            value={formatLkr(shopBalance.net)}
-            hint={`Gross ${formatLkr(shopBalance.gross)} · Refunds ${formatLkr(shopBalance.refunded)}`}
+            label="Pending from shop"
+            value={formatLkr(shopPending)}
+            hint={shop ? `Net ${formatLkr(shop.balance.net)} · Paid out ${formatLkr(shop.balance.paid_out)}` : ""}
+            highlight={shopPending > 0}
           />
         )}
       </section>
@@ -361,6 +379,16 @@ export default function OrganizerPayoutsPage() {
           )}
         </div>
       </section>
+
+      {/* Shop payout card — separate from events so the organizer can request
+          shop revenue independently. Hidden entirely when there's no shop
+          activity at all. */}
+      {showShopCard && shop && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Shop payout</h2>
+          <ShopPayoutCard shop={shop} hasBank={hasBank} onChange={refetch} />
+        </section>
+      )}
 
       {/* Per-event payout cards */}
       <section className="space-y-3">
@@ -609,6 +637,257 @@ function EventPayoutCard({
               </label>
               <input
                 id={`req-notes-${event.id}`}
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Anything we should know?"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setRequestOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" size="sm" onClick={submitRequest} disabled={submitting}>
+              {submitting ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />}
+              {submitting ? "Submitting…" : "Submit request"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Payout history (collapsed by default) */}
+      {historyOpen && payouts.length > 0 && (
+        <ul className="divide-y divide-border border-t border-border">
+          {payouts.map((p) => {
+            const meta = PAYOUT_STATUS_META[p.status]
+            const Icon = meta.icon
+            return (
+              <li key={p.id} className="flex items-start justify-between gap-3 p-4 sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Badge variant={meta.variant}>
+                      <Icon className="h-3 w-3" />
+                      {meta.label}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Requested{" "}
+                    {new Date(p.requested_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {p.processed_at && (
+                      <>
+                        {" · "}
+                        Processed{" "}
+                        {new Date(p.processed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </>
+                    )}
+                  </div>
+                  {p.notes && <div className="mt-1 text-xs italic text-muted-foreground">{p.notes}</div>}
+                  {p.slip_url && (
+                    <button
+                      type="button"
+                      onClick={() => downloadSlip(p.slip_url!, p.id.slice(0, 8))}
+                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      <Download className="h-3 w-3" /> Download payment slip
+                    </button>
+                  )}
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-sm font-semibold text-foreground">{formatLkr(p.amount)}</div>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ShopPayoutCard — same shape as EventPayoutCard but scoped to the organizer's
+// shop revenue (no event_id on the payout). Sends `event_id: null` on the
+// request so the backend stores it as a shop payout.
+// ---------------------------------------------------------------------------
+function ShopPayoutCard({
+  shop, hasBank, onChange,
+}: { shop: ShopBlock; hasBank: boolean; onChange: () => void }) {
+  const [requestOpen, setRequestOpen] = React.useState(false)
+  const [historyOpen, setHistoryOpen] = React.useState(false)
+  const [amount, setAmount] = React.useState("")
+  const [notes, setNotes] = React.useState("")
+  const [submitting, setSubmitting] = React.useState(false)
+  const [error, setError] = React.useState("")
+
+  const { balance, payouts } = shop
+  const hasOpenRequest = payouts.some((p) => p.status === "requested")
+  const canRequest = balance.pending > 0 && hasBank && !hasOpenRequest
+
+  const submitRequest = async () => {
+    setError("")
+    const amt = Number(amount)
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setError("Enter a valid amount.")
+      return
+    }
+    if (amt > balance.pending) {
+      setError(`Amount exceeds available balance (${formatLkr(balance.pending)}).`)
+      return
+    }
+    setSubmitting(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/payouts/request`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        // event_id omitted → backend treats as a shop payout (event_id IS NULL).
+        body: JSON.stringify({ amount: amt, notes: notes.trim() || undefined }),
+      })
+      const data = await res.json()
+      if (!data?.success) {
+        setError(data?.message || "Failed to submit request.")
+        return
+      }
+      setRequestOpen(false)
+      setAmount("")
+      setNotes("")
+      onChange()
+    } catch {
+      setError("Network error.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const downloadSlip = async (url: string, ref: string) => {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("fetch failed")
+      const blob = await res.blob()
+      const ext = (url.split("?")[0].split(".").pop() || "png").toLowerCase()
+      const objUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = objUrl
+      a.download = `payment-slip-${ref}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(objUrl)
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer")
+    }
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+      {/* Header */}
+      <div className="flex flex-wrap items-start gap-4 p-4">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-primary/10 text-primary">
+          <ShoppingBag className="h-7 w-7" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-base font-semibold text-foreground">Shop revenue</h3>
+            <Badge variant="default">Storefront-wide</Badge>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            All confirmed shop orders across your storefront. Request a payout against the net.
+          </p>
+        </div>
+
+        <div className="text-right">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Pending</div>
+          <div className="mt-0.5 text-xl font-bold text-foreground">{formatLkr(balance.pending)}</div>
+        </div>
+      </div>
+
+      {/* Balance breakdown */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border bg-muted/20 p-4 sm:grid-cols-4">
+        <BalanceLine label="Gross" value={formatLkr(balance.gross)} />
+        <BalanceLine label="Platform fee" value={`-${formatLkr(balance.fee)}`} />
+        <BalanceLine label="Refunds" value={`-${formatLkr(balance.refunded)}`} />
+        <BalanceLine label="Net" value={formatLkr(balance.net)} />
+        <BalanceLine label="Paid out" value={formatLkr(balance.paid_out)} />
+        <BalanceLine label="Pending" value={formatLkr(balance.pending)} highlight />
+      </div>
+
+      {/* Action row */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4">
+        <div className="flex items-center gap-3 text-xs">
+          {canRequest ? (
+            <span className="text-muted-foreground">Ready to request a payout</span>
+          ) : hasOpenRequest ? (
+            <span className="font-medium text-amber-600 dark:text-amber-400">Request pending review</span>
+          ) : !hasBank ? (
+            <span className="text-muted-foreground">Add bank details above to request</span>
+          ) : balance.pending <= 0 ? (
+            <span className="text-muted-foreground">No balance to request</span>
+          ) : null}
+
+          {payouts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((o) => !o)}
+              className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            >
+              {historyOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {historyOpen ? "Hide history" : `History (${payouts.length})`}
+            </button>
+          )}
+        </div>
+
+        {canRequest && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setRequestOpen((o) => !o)
+              setError("")
+              setAmount(String(balance.pending))
+            }}
+          >
+            <Banknote className="h-3.5 w-3.5" />
+            {requestOpen ? "Cancel" : "Request payout"}
+          </Button>
+        )}
+      </div>
+
+      {/* Inline request form */}
+      {requestOpen && canRequest && (
+        <div className="space-y-3 border-t border-border bg-muted/20 p-4">
+          {error && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="req-amount-shop" className="mb-1.5 block text-sm font-medium text-foreground">
+                Amount (LKR)
+              </label>
+              <input
+                id="req-amount-shop"
+                type="number"
+                min={1}
+                max={balance.pending}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Available: {formatLkr(balance.pending)}
+              </p>
+            </div>
+            <div>
+              <label htmlFor="req-notes-shop" className="mb-1.5 block text-sm font-medium text-foreground">
+                Note (optional)
+              </label>
+              <input
+                id="req-notes-shop"
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
