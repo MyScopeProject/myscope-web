@@ -145,17 +145,12 @@ export function LightBeamsBackground() {
           }
         }
 
-        /* Light mode — switch to multiply blending so the violet gradients
-           DARKEN the white background instead of brightening it. With the
-           default blend the beams looked washed-out pastel; multiply keeps
-           the same dark-violet intensity as dark mode, just rendered as
-           shadows on a light canvas. Opacity stays high so the beams read
-           as a visible dark-purple gradient, not a faint tint. */
+        /* Light mode opts out entirely — the beams only render against the
+           dark canvas, where they read as ambient atmosphere. On a light
+           background they never quite blended cleanly with the rest of
+           the UI, so we hide the wrapper there. */
         :global(:root.light) :global(.beam-wrap) {
-          mix-blend-mode: multiply;
-        }
-        :global(:root.light) .beam {
-          opacity: 0.7;
+          display: none;
         }
       `}</style>
     </div>
