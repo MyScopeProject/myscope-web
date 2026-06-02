@@ -34,7 +34,16 @@ interface PromoCode {
   valid_from: string | null
   valid_until: string | null
   active: boolean
+  product_id: string | null
   created_at: string
+}
+
+// Lightweight subset of the product list used by the picker. The endpoint
+// returns more fields; we only need id + title to populate <option>s.
+interface ProductOption {
+  id: string
+  title: string
+  status: "draft" | "published" | "sold_out" | "archived"
 }
 
 interface FormValues {
@@ -46,6 +55,8 @@ interface FormValues {
   valid_from: string
   valid_until: string
   active: boolean
+  // Empty string = storefront-wide; otherwise a specific product_id.
+  product_id: string
 }
 
 const emptyForm: FormValues = {
@@ -57,6 +68,7 @@ const emptyForm: FormValues = {
   valid_from: "",
   valid_until: "",
   active: true,
+  product_id: "",
 }
 
 function formatNumber(n: number | string | null | undefined) {
@@ -86,6 +98,9 @@ export default function ShopPromoCodesPage() {
   const [form, setForm] = React.useState<FormValues>(emptyForm)
   const [submitting, setSubmitting] = React.useState(false)
   const [submitError, setSubmitError] = React.useState("")
+  // Products available to scope a promo to. Loaded once on first auth so the
+  // picker is ready when the organizer opens the form.
+  const [products, setProducts] = React.useState<ProductOption[]>([])
 
   React.useEffect(() => {
     if (authLoading) return
@@ -122,6 +137,27 @@ export default function ShopPromoCodesPage() {
     }
   }, [user, fetchCodes])
 
+  // Load the organizer's product list for the picker. Drafts/sold-out/archived
+  // are still selectable — an organizer might create a code in advance for a
+  // product that's still a draft, or keep a code attached to a sold-out
+  // product they plan to restock.
+  React.useEffect(() => {
+    if (!user || !["organizer", "superadmin"].includes(user.role || "")) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/organizer/shop`, { credentials: "include" })
+        const data = await res.json()
+        if (!cancelled && data?.success) {
+          setProducts((data.data?.products ?? []).map((p: ProductOption) => ({
+            id: p.id, title: p.title, status: p.status,
+          })))
+        }
+      } catch { /* picker just stays empty; storefront-wide still works */ }
+    })()
+    return () => { cancelled = true }
+  }, [user])
+
   const openNew = () => {
     setEditing(null)
     setForm(emptyForm)
@@ -140,6 +176,7 @@ export default function ShopPromoCodesPage() {
       valid_from:     localizeDateTimeInput(c.valid_from),
       valid_until:    localizeDateTimeInput(c.valid_until),
       active:         c.active,
+      product_id:     c.product_id ?? "",
     })
     setShowForm(true)
     setSubmitError("")
@@ -166,6 +203,7 @@ export default function ShopPromoCodesPage() {
         valid_from:     form.valid_from || null,
         valid_until:    form.valid_until || null,
         active:         form.active,
+        product_id:     form.product_id || null,
       }
       const url = editing
         ? `${API_URL}/api/organizer/shop/promo-codes/${editing.id}`
@@ -265,6 +303,7 @@ export default function ShopPromoCodesPage() {
               <tr>
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Discount</th>
+                <th className="px-4 py-3">Applies to</th>
                 <th className="px-4 py-3">Used</th>
                 <th className="px-4 py-3">Min cart</th>
                 <th className="px-4 py-3">Active</th>
@@ -272,33 +311,45 @@ export default function ShopPromoCodesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {codes.map((c) => (
-                <tr key={c.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-3 font-mono text-foreground">{c.code}</td>
-                  <td className="px-4 py-3 text-foreground">
-                    {c.discount_type === "percentage"
-                      ? `${formatNumber(c.discount_value)}%`
-                      : `LKR ${formatNumber(c.discount_value)}`}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {c.used_count}{c.max_uses != null ? ` / ${c.max_uses}` : ""}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {c.min_total != null ? `LKR ${formatNumber(c.min_total)}` : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={c.active ? "success" : "outline"}>{c.active ? "Active" : "Off"}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-1.5">
-                      <Button size="sm" variant="outline" onClick={() => openEdit(c)}>Edit</Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDelete(c)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {codes.map((c) => {
+                const scopedProduct = c.product_id ? products.find((p) => p.id === c.product_id) : null
+                return (
+                  <tr key={c.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 font-mono text-foreground">{c.code}</td>
+                    <td className="px-4 py-3 text-foreground">
+                      {c.discount_type === "percentage"
+                        ? `${formatNumber(c.discount_value)}%`
+                        : `LKR ${formatNumber(c.discount_value)}`}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {c.product_id ? (
+                        <span className="inline-flex max-w-48 items-center gap-1 truncate rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          {scopedProduct?.title ?? `Product ${c.product_id.slice(0, 6)}`}
+                        </span>
+                      ) : (
+                        <span className="text-xs">All products</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {c.used_count}{c.max_uses != null ? ` / ${c.max_uses}` : ""}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {c.min_total != null ? `LKR ${formatNumber(c.min_total)}` : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={c.active ? "success" : "outline"}>{c.active ? "Active" : "Off"}</Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1.5">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(c)}>Edit</Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDelete(c)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -401,6 +452,34 @@ export default function ShopPromoCodesPage() {
                   placeholder="No minimum"
                 />
               </div>
+            </div>
+
+            {/* Optional product scope. Default "All products" → storefront-wide
+                code (existing behavior). Picking a product restricts the code
+                to carts containing that product, and the discount applies to
+                that product's line total only. */}
+            <div className="space-y-1.5">
+              <label htmlFor="promo-product" className="text-xs font-medium text-muted-foreground">
+                Apply to (optional)
+              </label>
+              <select
+                id="promo-product"
+                value={form.product_id}
+                onChange={(e) => setForm((f) => ({ ...f, product_id: e.target.value }))}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+              >
+                <option value="">All products (storefront-wide)</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}{p.status !== "published" ? ` (${p.status})` : ""}
+                  </option>
+                ))}
+              </select>
+              {form.product_id && (
+                <p className="text-[10px] text-muted-foreground">
+                  Discount applies only when this product is in the cart, and only to its line total.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">

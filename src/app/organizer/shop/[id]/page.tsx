@@ -59,6 +59,7 @@ export default function EditProductPage() {
   const [error, setError]         = React.useState("")
   const [submitting, setSubmitting] = React.useState(false)
   const [acting, setActing]       = React.useState(false)
+  const [savedAt, setSavedAt]     = React.useState<number | null>(null)
 
   React.useEffect(() => {
     if (authLoading) return
@@ -126,6 +127,7 @@ export default function EditProductPage() {
       const data = await res.json()
       if (data?.success) {
         setProduct(data.data?.product)
+        setSavedAt(Date.now())
       } else {
         setError(data?.message || "Couldn't save.")
       }
@@ -232,55 +234,17 @@ export default function EditProductPage() {
           </div>
           <p className="mt-1 text-sm text-muted-foreground">Edit product details and manage status.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {product.status === "published" && (
-            <Button asChild variant="outline" size="sm">
-              <Link
-                href={`/shop/${product.id}`}
-                target="_blank"
-                className="inline-flex items-center gap-1"
-              >
-                View public <ExternalLink className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          )}
-
-          {product.status === "draft" && (
-            <Button size="sm" disabled={acting} onClick={() => runAction("publish")}>
-              <Eye className="mr-1 h-4 w-4" />
-              Publish
-            </Button>
-          )}
-          {product.status === "published" && (
-            <>
-              <Button size="sm" variant="outline" disabled={acting} onClick={() => runAction("mark-sold-out")}>
-                <Package className="mr-1 h-4 w-4" />
-                Mark sold out
-              </Button>
-              <Button size="sm" variant="outline" disabled={acting} onClick={() => runAction("unpublish")}>
-                <EyeOff className="mr-1 h-4 w-4" />
-                Unpublish
-              </Button>
-            </>
-          )}
-          {product.status === "sold_out" && (
-            <Button size="sm" variant="outline" disabled={acting} onClick={() => runAction("unpublish")}>
-              <EyeOff className="mr-1 h-4 w-4" />
-              Move to draft
-            </Button>
-          )}
-          {product.status === "archived" ? (
-            <Button size="sm" disabled={acting} onClick={() => runAction("restore")}>
-              <CheckCircle2 className="mr-1 h-4 w-4" />
-              Restore
-            </Button>
-          ) : (
-            <Button size="sm" variant="ghost" disabled={acting} onClick={handleArchive}>
-              <Archive className="mr-1 h-4 w-4" />
-              Archive
-            </Button>
-          )}
-        </div>
+        {product.status === "published" && (
+          <Button asChild variant="outline" size="sm">
+            <Link
+              href={`/shop/${product.id}`}
+              target="_blank"
+              className="inline-flex items-center gap-1"
+            >
+              View public <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        )}
       </header>
 
       <ProductForm
@@ -291,6 +255,46 @@ export default function EditProductPage() {
         onSubmit={handleSave}
         submitting={submitting}
         error={error}
+        savedAt={savedAt}
+        actions={
+          <>
+            {product.status === "draft" && (
+              <Button size="sm" type="button" disabled={acting} onClick={() => runAction("publish")}>
+                <Eye className="mr-1 h-4 w-4" />
+                Publish
+              </Button>
+            )}
+            {product.status === "published" && (
+              <>
+                <Button size="sm" type="button" variant="outline" disabled={acting} onClick={() => runAction("mark-sold-out")}>
+                  <Package className="mr-1 h-4 w-4" />
+                  Mark sold out
+                </Button>
+                <Button size="sm" type="button" variant="outline" disabled={acting} onClick={() => runAction("unpublish")}>
+                  <EyeOff className="mr-1 h-4 w-4" />
+                  Unpublish
+                </Button>
+              </>
+            )}
+            {product.status === "sold_out" && (
+              <Button size="sm" type="button" variant="outline" disabled={acting} onClick={() => runAction("unpublish")}>
+                <EyeOff className="mr-1 h-4 w-4" />
+                Move to draft
+              </Button>
+            )}
+            {product.status === "archived" ? (
+              <Button size="sm" type="button" disabled={acting} onClick={() => runAction("restore")}>
+                <CheckCircle2 className="mr-1 h-4 w-4" />
+                Restore
+              </Button>
+            ) : (
+              <Button size="sm" type="button" variant="ghost" disabled={acting} onClick={handleArchive}>
+                <Archive className="mr-1 h-4 w-4" />
+                Archive
+              </Button>
+            )}
+          </>
+        }
       />
     </div>
   )

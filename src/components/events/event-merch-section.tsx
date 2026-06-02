@@ -17,12 +17,6 @@ interface MerchProduct {
   category: string | null
 }
 
-function formatMoney(amount: number | string, currency = "LKR") {
-  const n = typeof amount === "number" ? amount : Number(amount)
-  if (!Number.isFinite(n)) return `${currency} —`
-  return `${currency} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
 // Section that renders nothing when the event has no published merch — caller
 // doesn't need to gate. Keeps the event page edit to a single import + line.
 export function EventMerchSection({ eventId }: { eventId: string }) {
@@ -65,6 +59,10 @@ export function EventMerchSection({ eventId }: { eventId: string }) {
         </Link>
       </div>
 
+      {/* Compact merch grid — mirrors the public shop card style (sharp
+          corners, ring + shadow, portrait 3:4 with gradient lift) but
+          drops the chips and CTA since these are teaser cards. The wider
+          card lives on /shop. */}
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {products.slice(0, 4).map((p) => {
           const cover = Array.isArray(p.images) && p.images[0]
@@ -73,31 +71,39 @@ export function EventMerchSection({ eventId }: { eventId: string }) {
             <Link
               key={p.id}
               href={`/shop/${p.id}`}
-              className="group overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
+              className="group flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25"
             >
-              <div className="relative aspect-square overflow-hidden bg-muted">
+              <div className="relative aspect-3/4 overflow-hidden bg-muted">
                 {cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={cover}
                     alt={p.title}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                   />
                 ) : (
-                  <ImageIcon className="h-full w-full p-10 text-muted-foreground" />
+                  <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+                    <ImageIcon className="h-10 w-10" />
+                  </div>
                 )}
                 {soldOut && (
-                  <span className="absolute top-1.5 left-1.5 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-medium text-foreground">
+                  <span className="absolute right-2 top-2 inline-flex items-center rounded-full bg-destructive px-2 py-0.5 text-[10px] font-semibold text-destructive-foreground">
                     Sold out
                   </span>
                 )}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/40 via-black/10 to-transparent" />
               </div>
-              <div className="p-2.5">
-                <div className="line-clamp-2 text-xs font-semibold text-foreground group-hover:text-primary">
+              <div className="flex flex-1 flex-col gap-1 p-3">
+                <div className="line-clamp-2 text-xs font-bold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary">
                   {p.title}
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {formatMoney(p.price, p.currency)}
+                <div className="mt-auto pt-1">
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {p.currency}
+                  </div>
+                  <div className="font-heading text-sm font-bold leading-tight tracking-tight text-foreground">
+                    {Number(p.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </div>
               </div>
             </Link>

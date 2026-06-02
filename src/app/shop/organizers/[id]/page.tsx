@@ -271,68 +271,98 @@ export default function StorefrontPage() {
   )
 }
 
+// Storefront card — uses the same visual treatment as the main catalog card,
+// minus the organizer chip overlay (everything here belongs to one organizer).
 function StorefrontCard({ product: p }: { product: Product }) {
   const cover = Array.isArray(p.images) && p.images[0]
   const soldOut = p.status === "sold_out" || p.stock_quantity <= 0
+  const isEventMerch = p.product_type === "event_product" && !!p.event
 
   return (
-    <Link
-      href={`/shop/${p.id}`}
-      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
-    >
-      <div className="relative aspect-square overflow-hidden bg-muted">
+    <article className="group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25">
+      <Link
+        href={`/shop/${p.id}`}
+        className="relative block aspect-3/4 overflow-hidden bg-muted"
+        aria-label={p.title}
+      >
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cover}
             alt={p.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
         ) : (
-          <ImageIcon className="h-full w-full p-12 text-muted-foreground" />
+          <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+            <ImageIcon className="h-12 w-12" />
+          </div>
         )}
-        {soldOut && (
-          <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-medium text-foreground">
-            Sold out
-          </span>
+
+        {(isEventMerch || soldOut) && (
+          <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
+            {isEventMerch && <Badge variant="default">Event merch</Badge>}
+            {soldOut && <Badge variant="destructive">Sold out</Badge>}
+          </div>
         )}
-        {p.product_type === "event_product" && p.event && (
-          <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
-            <Calendar className="h-3 w-3" />
-            Event merch
-          </span>
-        )}
-      </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="line-clamp-2 text-sm font-semibold text-foreground group-hover:text-primary">
-          {p.title}
-        </h3>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/45 via-black/15 to-transparent" />
+      </Link>
 
-        <div className="text-sm font-semibold text-foreground">
-          {formatMoney(p.price, p.currency)}
-        </div>
-
-        <div className="flex flex-wrap gap-1.5 text-[10px]">
+      <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {p.category && (
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary sm:px-2.5 sm:text-[10px]">
+              {p.category}
+            </span>
+          )}
           {(p.fulfillment === "shipping" || p.fulfillment === "both") && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-muted-foreground">
-              <Truck className="h-3 w-3" /> Shipping
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-medium text-muted-foreground sm:text-[10px]">
+              <Truck className="h-2.5 w-2.5" /> Shipping
             </span>
           )}
           {(p.fulfillment === "pickup" || p.fulfillment === "both") && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-muted-foreground">
-              <Package className="h-3 w-3" /> Pickup
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-medium text-muted-foreground sm:text-[10px]">
+              <Package className="h-2.5 w-2.5" /> Pickup
             </span>
           )}
         </div>
 
+        <Link href={`/shop/${p.id}`} className="-mt-1">
+          <h3 className="line-clamp-2 text-sm font-bold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary sm:text-base">
+            {p.title}
+          </h3>
+        </Link>
+
         {p.event && (
-          <div className="mt-auto truncate pt-2 text-xs text-muted-foreground">
-            <Calendar className="mr-1 inline h-3 w-3" />
-            {p.event.title}
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground sm:text-xs">
+            <Calendar className="h-3 w-3 shrink-0" />
+            <span className="line-clamp-1">{p.event.title}</span>
           </div>
         )}
+
+        <div className="mt-auto space-y-2 border-t border-border pt-2 sm:space-y-3 sm:pt-3">
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">
+              {p.currency}
+            </div>
+            <div className="truncate font-heading text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
+              {Number(p.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </div>
+          <Button
+            asChild
+            size="sm"
+            variant={soldOut ? "outline" : "default"}
+            className="w-full rounded-none text-xs sm:text-sm"
+            disabled={soldOut}
+          >
+            <Link href={`/shop/${p.id}`}>
+              {soldOut ? "Sold out" : "View product"}
+            </Link>
+          </Button>
+        </div>
       </div>
-    </Link>
+    </article>
   )
 }

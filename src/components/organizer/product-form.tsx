@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Loader, Upload, X } from "lucide-react"
+import { Check, Loader, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -38,6 +38,12 @@ interface ProductFormProps {
   onSubmit: (values: ProductFormValues) => Promise<void> | void
   submitting?: boolean
   error?: string
+  // Footer slot for status-transition buttons (Publish, Archive, etc.) so
+  // they sit alongside Save instead of floating at the top of the page.
+  actions?: React.ReactNode
+  // Timestamp (ms) of the last successful save. ProductForm shows a
+  // transient "Saved" indicator when this is within the recent past.
+  savedAt?: number | null
 }
 
 const defaults: ProductFormValues = {
@@ -62,6 +68,8 @@ export function ProductForm({
   onSubmit,
   submitting = false,
   error,
+  actions,
+  savedAt,
 }: ProductFormProps) {
   const [values, setValues]       = React.useState<ProductFormValues>({ ...defaults, ...initial })
   const [events, setEvents]       = React.useState<EventOption[]>([])
@@ -394,13 +402,49 @@ export function ProductForm({
         </div>
       )}
 
-      <div className="flex justify-end gap-3">
-        <Button type="submit" disabled={submitting}>
-          {submitting && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-          {submitLabel}
-        </Button>
+      {/* Footer — Save + status-transition buttons share a single row so
+          the organizer's eye doesn't have to jump between page header and
+          form bottom. The "Saved" indicator appears for ~2s after a
+          successful save via the savedAt prop. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+        <SavedIndicator savedAt={savedAt} />
+        <div className="flex flex-wrap items-center gap-2">
+          {actions}
+          <Button type="submit" disabled={submitting}>
+            {submitting && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+            {submitLabel}
+          </Button>
+        </div>
       </div>
     </form>
+  )
+}
+
+// Transient "Saved" indicator — fades visibility after 2.5s without
+// unmounting. Returns an invisible placeholder when there's no recent save
+// so the footer keeps its layout consistent.
+function SavedIndicator({ savedAt }: { savedAt?: number | null }) {
+  const [visible, setVisible] = React.useState(false)
+  React.useEffect(() => {
+    if (!savedAt) {
+      setVisible(false)
+      return
+    }
+    setVisible(true)
+    const t = setTimeout(() => setVisible(false), 2500)
+    return () => clearTimeout(t)
+  }, [savedAt])
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-sm font-medium text-success transition-opacity",
+        visible ? "opacity-100" : "opacity-0",
+      )}
+      aria-live="polite"
+    >
+      <Check className="h-4 w-4" />
+      Saved
+    </span>
   )
 }
 

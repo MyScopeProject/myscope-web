@@ -62,25 +62,6 @@ function formatMoney(amount: number | string, currency = "LKR") {
   return `${currency} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function FulfillmentChips({ value }: { value: Product["fulfillment"] }) {
-  const showShipping = value === "shipping" || value === "both"
-  const showPickup   = value === "pickup"   || value === "both"
-  return (
-    <div className="flex flex-wrap gap-1.5 text-[10px]">
-      {showShipping && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-muted-foreground">
-          <Truck className="h-3 w-3" /> Shipping
-        </span>
-      )}
-      {showPickup && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-muted-foreground">
-          <Package className="h-3 w-3" /> Event pickup
-        </span>
-      )}
-    </div>
-  )
-}
-
 // Next 16 requires useSearchParams() callers to sit inside a Suspense
 // boundary, otherwise the page bails out of static prerendering and the
 // build fails. Wrapping the inner component keeps the bail-out narrow.
@@ -243,75 +224,137 @@ function ShopPageInner() {
   )
 }
 
+// ProductCard — mirrors the event-card visual treatment so the shop grid
+// reads as part of the same site, not a different surface:
+//   * Sharp ring-1 + shadow-sm (no rounded-xl chrome)
+//   * Portrait 3:4 banner with gradient lift + hover scale
+//   * Floating badges top-right, organizer pill bottom-left over the image
+//   * Tight info block with category pill, title, fulfillment chips
+//   * Price + CTA stacked at the bottom with rounded-none button
 function ProductCard({ product: p }: { product: Product }) {
   const cover = Array.isArray(p.images) && p.images[0]
   const soldOut = p.status === "sold_out" || p.stock_quantity <= 0
+  const isEventMerch = p.product_type === "event_product" && !!p.event
 
   return (
-    <Link
-      href={`/shop/${p.id}`}
-      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
-    >
-      <div className="relative aspect-square overflow-hidden bg-muted">
+    <article className="group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25">
+      {/* Cover — portrait 3:4 to match event posters. Falls back to a soft
+          muted block with the placeholder icon when no image. */}
+      <Link
+        href={`/shop/${p.id}`}
+        className="relative block aspect-3/4 overflow-hidden bg-muted"
+        aria-label={p.title}
+      >
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cover}
             alt={p.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
         ) : (
-          <ImageIcon className="h-full w-full p-12 text-muted-foreground" />
-        )}
-        {soldOut && (
-          <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-medium text-foreground">
-            Sold out
-          </span>
-        )}
-        {p.product_type === "event_product" && p.event && (
-          <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
-            <Calendar className="h-3 w-3" /> Event merch
-          </span>
-        )}
-      </div>
-
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 text-sm font-semibold text-foreground group-hover:text-primary">
-            {p.title}
-          </h3>
-        </div>
-
-        <div className="text-sm font-semibold text-foreground">
-          {formatMoney(p.price, p.currency)}
-        </div>
-
-        <FulfillmentChips value={p.fulfillment} />
-
-        <div className="mt-auto flex items-center gap-2 pt-2 text-xs text-muted-foreground">
-          {p.organizer?.profile_image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={p.organizer.profile_image_url}
-              alt=""
-              className="h-5 w-5 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-5 w-5 shrink-0 rounded-full bg-muted" />
-          )}
-          <span className="truncate">{p.organizer?.business_name || "Organizer"}</span>
-          {p.organizer?.verified && (
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Verified" />
-          )}
-        </div>
-
-        {p.event && (
-          <div className="truncate text-xs text-muted-foreground">
-            <Calendar className="mr-1 inline h-3 w-3" />
-            {p.event.title}
+          <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+            <ImageIcon className="h-12 w-12" />
           </div>
         )}
+
+        {/* Floating badges — top-right */}
+        {(isEventMerch || soldOut) && (
+          <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
+            {isEventMerch && <Badge variant="default">Event merch</Badge>}
+            {soldOut && <Badge variant="destructive">Sold out</Badge>}
+          </div>
+        )}
+
+        {/* Soft bottom shading — lifts banner against any background and
+            gives the organizer pill below something to sit on. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/45 via-black/15 to-transparent" />
+
+        {/* Organizer chip pinned to the bottom-left of the image. White
+            text over the gradient — same pattern the event card uses for
+            its date stub. */}
+        {p.organizer && (
+          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 text-[11px] text-white/95">
+            {p.organizer.profile_image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={p.organizer.profile_image_url}
+                alt=""
+                className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-white/30"
+              />
+            ) : (
+              <div className="h-5 w-5 shrink-0 rounded-full bg-white/20 ring-1 ring-white/30" />
+            )}
+            <span className="truncate font-medium">
+              {p.organizer.business_name || "Organizer"}
+            </span>
+            {p.organizer.verified && (
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-white" aria-label="Verified" />
+            )}
+          </div>
+        )}
+      </Link>
+
+      {/* Info block — matches event-card spacing/typography */}
+      <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">
+        {/* Category + fulfillment chips */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {p.category && (
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary sm:px-2.5 sm:text-[10px]">
+              {p.category}
+            </span>
+          )}
+          {(p.fulfillment === "shipping" || p.fulfillment === "both") && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-medium text-muted-foreground sm:text-[10px]">
+              <Truck className="h-2.5 w-2.5" /> Shipping
+            </span>
+          )}
+          {(p.fulfillment === "pickup" || p.fulfillment === "both") && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-medium text-muted-foreground sm:text-[10px]">
+              <Package className="h-2.5 w-2.5" /> Pickup
+            </span>
+          )}
+        </div>
+
+        {/* Title */}
+        <Link href={`/shop/${p.id}`} className="-mt-1">
+          <h3 className="line-clamp-2 text-sm font-bold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary sm:text-base">
+            {p.title}
+          </h3>
+        </Link>
+
+        {/* Linked event (when present) */}
+        {p.event && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground sm:text-xs">
+            <Calendar className="h-3 w-3 shrink-0" />
+            <span className="line-clamp-1">{p.event.title}</span>
+          </div>
+        )}
+
+        {/* Price + CTA — same footer pattern as the event card */}
+        <div className="mt-auto space-y-2 border-t border-border pt-2 sm:space-y-3 sm:pt-3">
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">
+              {p.currency}
+            </div>
+            <div className="truncate font-heading text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
+              {Number(p.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </div>
+          <Button
+            asChild
+            size="sm"
+            variant={soldOut ? "outline" : "default"}
+            className="w-full rounded-none text-xs sm:text-sm"
+            disabled={soldOut}
+          >
+            <Link href={`/shop/${p.id}`}>
+              {soldOut ? "Sold out" : "View product"}
+            </Link>
+          </Button>
+        </div>
       </div>
-    </Link>
+    </article>
   )
 }
