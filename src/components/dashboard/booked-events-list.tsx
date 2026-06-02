@@ -66,8 +66,19 @@ const STATUS_META: Record<string, { label: string; variant: "success" | "warning
   Refunded: { label: "Refunded", variant: "destructive" },
 }
 
-const FILTERS = ["Confirmed", "Pending", "Cancelled", "Past"] as const
+// "Past" tab is gone on purpose: My Events focuses on bookings the user still
+// cares about. A past booking only leaves the list once ALL three are true:
+//   1. The event is actually over (start_time < now)
+//   2. The buyer's QR has been scanned (checked_in_at is set — they attended)
+//   3. It's been 3+ days since the event end (grace window for any post-event
+//      resolution — refund disputes, finding a missed item, etc.)
+// Cancelled/Refunded bookings still surface in the Cancelled tab so the user
+// can see what happened. The booking row stays in the DB for analytics.
+const FILTERS = ["Confirmed", "Pending", "Cancelled"] as const
 type Filter = (typeof FILTERS)[number]
+
+const ARCHIVE_AFTER_DAYS = 3
+const ARCHIVE_AFTER_MS   = ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000
 
 const lkr = (n: number) => `LKR ${Number(n || 0).toLocaleString()}`
 
@@ -88,6 +99,8 @@ async function downloadPng(url: string, filename: string) {
   URL.revokeObjectURL(href)
 }
 
+// True when the booking's event has ended and the user attended (QR scanned).
+// Used as a precondition for archiving — see shouldArchive below.
 const isPast = (b: BookingRow) => {
   const ev = b.event
   if (!ev) return false
@@ -102,11 +115,30 @@ const isPast = (b: BookingRow) => {
   return !Number.isNaN(d.getTime()) && d.getTime() < Date.now()
 }
 
-// Which single tab a booking belongs to. "Past" wins (the event is over);
-// otherwise upcoming bookings split by status. Cancelled/Refunded both map to
-// "Cancelled". Returns null for an unknown upcoming status (won't be listed).
+// Hide a booking from My Events only once: event is over AND the user's QR
+// was scanned AND 3+ days have passed since the event end. Cancelled/Refunded
+// bookings opt out — they stay visible in the Cancelled tab.
+const shouldArchive = (b: BookingRow) => {
+  if (b.status === "Cancelled" || b.status === "Refunded") return false
+  if (!isPast(b)) return false
+  if (!b.checked_in_at) return false  // never attended → keep visible
+  const ev = b.event
+  const w = ev?.start_time || ev?.date
+  if (!w) return false
+  const end = new Date(w).getTime()
+  if (Number.isNaN(end)) return false
+  return Date.now() - end >= ARCHIVE_AFTER_MS
+}
+
+// Which tab a booking belongs to. Past events stay visible until the user
+// attended (QR scanned) and 3+ days have passed (see shouldArchive). Postponed
+// events without a new date stay in Confirmed (isPast already accounts for
+// "to be announced" so the booking remains).
+//
+// Cancelled/Refunded both map to "Cancelled" so the user can still see what
+// happened to a booking that didn't go through.
 const bucketOf = (b: BookingRow): Filter | null => {
-  if (isPast(b)) return "Past"
+  if (shouldArchive(b)) return null
   if (b.status === "Confirmed") return "Confirmed"
   if (b.status === "Pending") return "Pending"
   if (b.status === "Cancelled" || b.status === "Refunded") return "Cancelled"
@@ -142,7 +174,7 @@ export function BookedEventsList() {
   }, [token, fetchBookings])
 
   const counts = React.useMemo(() => {
-    const c: Record<Filter, number> = { Confirmed: 0, Pending: 0, Cancelled: 0, Past: 0 }
+    const c: Record<Filter, number> = { Confirmed: 0, Pending: 0, Cancelled: 0 }
     for (const b of bookings) {
       const k = bucketOf(b)
       if (k) c[k]++

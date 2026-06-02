@@ -109,7 +109,17 @@ function formatDate(iso: string | null | undefined) {
   }
 }
 
+// useSearchParams() needs a Suspense boundary in Next 16 or the build bails.
+// We wrap the inner component so static prerender keeps working.
 export default function OrderDetailPage() {
+  return (
+    <React.Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center"><Loader className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>
+      <OrderDetailInner />
+    </React.Suspense>
+  )
+}
+
+function OrderDetailInner() {
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()

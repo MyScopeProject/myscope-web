@@ -81,7 +81,18 @@ function FulfillmentChips({ value }: { value: Product["fulfillment"] }) {
   )
 }
 
+// Next 16 requires useSearchParams() callers to sit inside a Suspense
+// boundary, otherwise the page bails out of static prerendering and the
+// build fails. Wrapping the inner component keeps the bail-out narrow.
 export default function ShopPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-background pt-24" aria-hidden />}>
+      <ShopPageInner />
+    </React.Suspense>
+  )
+}
+
+function ShopPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const cartCount = useCartBadgeCount()

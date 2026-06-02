@@ -79,15 +79,29 @@ function DashboardContent() {
     finally { setUnregisteringId(null) }
   }
 
+  // Drop past registrations — My Events focuses on upcoming/active. The
+  // booked-events list above applies the richer "scanned + 3 days" archive
+  // rule; legacy registrations don't carry attendance data, so a simple
+  // start-time-before-now check is the right cutoff here.
+  const upcomingEvents = React.useMemo(() => {
+    const now = Date.now()
+    return myEvents.filter(e => {
+      const when = e.start_time || e.date
+      if (!when) return true  // missing date → keep visible, can't determine
+      const t = new Date(when).getTime()
+      return Number.isNaN(t) || t >= now
+    })
+  }, [myEvents])
+
   const filtered = React.useMemo(() => {
-    if (!search.trim()) return myEvents
+    if (!search.trim()) return upcomingEvents
     const q = search.toLowerCase()
-    return myEvents.filter(e =>
+    return upcomingEvents.filter(e =>
       e.title?.toLowerCase().includes(q) ||
       e.location?.toLowerCase().includes(q) ||
       e.venue_name?.toLowerCase().includes(q)
     )
-  }, [myEvents, search])
+  }, [upcomingEvents, search])
 
   if (!user) return null
   const firstName = user.name?.split(" ")[0] ?? "there"
@@ -125,14 +139,14 @@ function DashboardContent() {
       <ShopOrdersSection />
 
       {/* My registrations */}
-      {myEvents.length > 0 && (
+      {upcomingEvents.length > 0 && (
       <section>
         <div className="mb-5 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-foreground">My registrations</h2>
             <p className="text-sm text-muted-foreground">Events you&rsquo;ve signed up for</p>
           </div>
-          {myEvents.length > 0 && (
+          {upcomingEvents.length > 0 && (
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <input

@@ -106,11 +106,16 @@ export function ShopOrdersSection() {
     )
   }
 
-  // Hide entirely if the buyer has never shopped. Don't clutter the dashboard
-  // with empty-state cards for features they're not using yet.
-  if (orders.length === 0 && !error) return null
+  // Hide finished orders (delivered/picked_up) — the buyer doesn't need them
+  // surfacing on the dashboard. Also hide the entire section when there's
+  // nothing active so the dashboard stays clean for users who don't shop.
+  const activeOrders = React.useMemo(
+    () => orders.filter((o) => !["delivered", "picked_up"].includes(o.fulfillment_status)),
+    [orders],
+  )
+  if (activeOrders.length === 0 && !error) return null
 
-  const recent = orders.slice(0, 3)
+  const recent = activeOrders.slice(0, 3)
 
   return (
     <section>
@@ -119,12 +124,12 @@ export function ShopOrdersSection() {
           <ShoppingBag className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold text-foreground">Shop orders</h2>
         </div>
-        {orders.length > 3 && (
+        {activeOrders.length > 3 && (
           <Link
             href="/shop/orders"
             className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
           >
-            View all ({orders.length}) <ArrowRight className="h-3 w-3" />
+            View all ({activeOrders.length}) <ArrowRight className="h-3 w-3" />
           </Link>
         )}
       </div>

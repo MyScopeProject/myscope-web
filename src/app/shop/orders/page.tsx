@@ -103,6 +103,15 @@ export default function MyOrdersPage() {
     return () => { cancelled = true }
   }, [user])
 
+  // Hide orders whose fulfillment is finished — "received by customer" is the
+  // milestone the buyer cares about. delivered (shipping) and picked_up
+  // (pickup) are both terminal positive outcomes. Cancelled/refunded orders
+  // stay visible so the buyer can see what happened.
+  const visibleOrders = React.useMemo(
+    () => orders.filter((o) => !["delivered", "picked_up"].includes(o.fulfillment_status)),
+    [orders],
+  )
+
   if (authLoading || (!user && !error)) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -131,12 +140,16 @@ export default function MyOrdersPage() {
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
-      ) : orders.length === 0 ? (
+      ) : visibleOrders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card/40 p-10 text-center">
           <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-3 text-lg font-semibold text-foreground">No orders yet</h2>
+          <h2 className="mt-3 text-lg font-semibold text-foreground">
+            {orders.length === 0 ? "No orders yet" : "You're all caught up"}
+          </h2>
           <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Browse the shop and order something to see it here.
+            {orders.length === 0
+              ? "Browse the shop and order something to see it here."
+              : "Completed orders are archived once they've been delivered or picked up."}
           </p>
           <Button asChild className="mt-4">
             <Link href="/shop">Go to shop</Link>
@@ -144,7 +157,7 @@ export default function MyOrdersPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {orders.map((o) => (
+          {visibleOrders.map((o) => (
             <Link
               key={o.id}
               href={`/shop/orders/${o.id}`}
