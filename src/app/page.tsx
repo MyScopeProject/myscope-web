@@ -266,8 +266,8 @@ export default function HomePage() {
                   Sell out your next show.
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
-                  Publish your event, take secure payments, scan tickets at the door, and get paid weekly —
-                  all from one dashboard built for Sri Lankan organizers.
+                  Publish your event, take secure payments, scan tickets at the door,
+                  and request payouts anytime — all from one dashboard built for Sri Lankan organizers.
                 </p>
                 <div className="mt-4 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:gap-3">
                   <Button asChild size="lg" className="w-full sm:w-auto">

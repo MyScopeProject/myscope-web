@@ -444,7 +444,7 @@ function CheckoutPageInner() {
       const emptyText = isZoned ? "No zones available." : "No tickets available."
 
       return (
-     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+     <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
       <header className="border-b border-border px-5 py-4">
        <h2 className="text-base font-semibold text-foreground">{heading}</h2>
       </header>
@@ -523,11 +523,14 @@ function CheckoutPageInner() {
        picker so users see the picker first, then can consult the map
        before confirming their choice. */}
      {event.layout_image_url && (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-       <header className="border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">Seating layout</h2>
+      <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
+       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold text-foreground">Seating layout</h2>
+        <span className="text-[10px] text-muted-foreground">Click to enlarge</span>
        </header>
-       <div className="p-4">
+       {/* Compact preview — caps the rendered height so the section
+         doesn't dominate the page. Click opens full-size in a new tab. */}
+       <div className="p-3">
         <a
          href={event.layout_image_url}
          target="_blank"
@@ -539,7 +542,7 @@ function CheckoutPageInner() {
          <img
           src={event.layout_image_url}
           alt="Seating layout"
-          className="w-full rounded-lg border border-border bg-muted object-contain"
+          className="mx-auto max-h-48 w-auto max-w-full rounded-md border border-border bg-muted object-contain"
           onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
          />
         </a>
@@ -548,7 +551,7 @@ function CheckoutPageInner() {
      )}
 
      {/* Attendee details */}
-     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+     <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
       <header className="border-b border-border px-5 py-4">
        <h2 className="text-base font-semibold text-foreground">Attendee details</h2>
       </header>
@@ -618,7 +621,7 @@ function CheckoutPageInner() {
        forced through a "leave blank or fill?" prompt. Only meaningful
        when ticketCount > 1 (or 1 ticket bought for somebody else). */}
      {ticketCount > 0 && (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
        <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div>
          <h2 className="text-base font-semibold text-foreground">Send tickets to others?</h2>

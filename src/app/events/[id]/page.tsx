@@ -307,7 +307,7 @@ export default function EventDetailsPage() {
   return (
    <section>
     <SectionHeading icon={User}>Organized by</SectionHeading>
-    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card/30 p-4 backdrop-blur-md">
      <span
       className={cn(
        "inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10 font-semibold text-primary",
@@ -529,7 +529,7 @@ export default function EventDetailsPage() {
      {(event.venue_address || event.venue_location_url) && (
       <section>
        <SectionHeading icon={MapPin}>Venue</SectionHeading>
-       <div className="mt-3 rounded-2xl border border-border bg-card p-4">
+       <div className="mt-3 rounded-2xl border border-border bg-card/30 p-4 backdrop-blur-md">
         {event.venue_name && (
          <p className="font-semibold text-foreground">{event.venue_name}</p>
         )}

@@ -95,15 +95,19 @@ export function SiteHeader() {
   return (
     <>
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
-        {/* Brand */}
+      <div className="mx-auto flex h-20 max-w-7xl items-center gap-3 px-4 sm:px-6">
+        {/* Brand — slightly oversized so the wordmark sits as the visual
+            anchor of the navbar. The drop-shadow filter is a soft violet
+            halo (brand #A78BFA at ~40% alpha) that reads as ambient light
+            rather than a hard glow; hover lifts it a touch so the brand
+            feels interactive without becoming flashy. */}
         <Link href="/" className="flex items-center">
           <Image
             src="/Images/navbar_logo.png"
             alt="MyScope"
-            width={220}
-            height={64}
-            className="h-16 w-auto"
+            width={260}
+            height={80}
+            className="h-20 w-auto drop-shadow-[0_0_12px_rgba(167,139,250,0.45)] transition-[filter] duration-300 hover:drop-shadow-[0_0_18px_rgba(167,139,250,0.65)]"
             priority
           />
         </Link>

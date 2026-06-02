@@ -542,7 +542,7 @@ export default function EventBookingDetailPage() {
 
  if (authLoading || loading) {
   return (
-   <div className="min-h-screen flex items-center justify-center bg-background">
+   <div className="min-h-screen flex items-center justify-center">
     <Loader className="w-8 h-8 animate-spin text-muted-foreground" />
    </div>
   );
@@ -550,7 +550,7 @@ export default function EventBookingDetailPage() {
 
  if (error || !data) {
   return (
-   <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+   <div className="min-h-screen flex items-center justify-center px-4">
     <div className="text-center max-w-md">
      <p className="text-muted-foreground mb-4">{error || 'Booking not found.'}</p>
      <Link href="/events" className="text-primary underline">
@@ -573,7 +573,7 @@ export default function EventBookingDetailPage() {
   !!bookingPhone && !isPhoneVerified && !verifyUnavailable && !isCancelled;
 
  return (
-  <div className="min-h-screen px-4 py-12 bg-background">
+  <div className="min-h-screen px-4 py-12">
    <div className="max-w-2xl mx-auto">
     {/* Progress strip — third step (Pay) of the event checkout flow.
       Steps 1 (Choose) and 2 (Details) happened on /events/[id]/checkout
@@ -867,7 +867,7 @@ export default function EventBookingDetailPage() {
        type="button"
        onClick={handlePay}
        disabled={paying}
-       className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 text-base font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white hover:bg-red-700 shadow-sm"
+       className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 text-base font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-lg"
       >
        {paying ? <Loader className="w-5 h-5 animate-spin" /> : <Ticket className="w-5 h-5" />}
        {paying

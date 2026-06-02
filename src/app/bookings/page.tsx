@@ -70,7 +70,7 @@ export default function MyBookingsPage() {
 
  if (loading) {
   return (
-   <div className="pt-16 min-h-screen pb-24 bg-background">
+   <div className="pt-16 min-h-screen pb-24">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
      <div className="text-center py-12">
       <Loader className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />

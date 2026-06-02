@@ -18,12 +18,14 @@ import { usePathname } from "next/navigation"
  */
 
 // Paths where the beams should NOT render. Anything else gets the effect.
+// /bookings is intentionally NOT in this list — booking flow pages
+// (event checkout, confirmation, payment) are buyer-facing and benefit
+// from the same ambient background as the rest of the visitor surfaces.
 const HIDE_PREFIXES = [
   "/organizer",
   "/admin",
   "/dashboard",
   "/auth",
-  "/bookings",
   "/become-organizer",
 ]
 
