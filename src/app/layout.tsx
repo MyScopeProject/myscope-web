@@ -10,6 +10,7 @@ import { SiteHeader } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
 import { AnnouncementBar } from "@/components/site/announcement-bar";
 import { MaintenanceBanner } from "@/components/site/maintenance-banner";
+import { LightBeamsBackground } from "@/components/site/light-beams-background";
 
 // Body / default sans — IBM Plex Sans (preserves the original brand voice).
 const plexSans = IBM_Plex_Sans({
@@ -146,6 +147,11 @@ export default function RootLayout({
           <GoogleOAuthProvider clientId={googleClientId}>
             <AuthProvider>
               <ShopCartProvider>
+              {/* Ambient light-beam background — fixed, behind every
+                  visitor-facing page (home, events, shop, etc.). The
+                  component itself opts out on organizer/admin/dashboard
+                  paths so dense data screens stay clean. */}
+              <LightBeamsBackground />
               {/* Maintenance banner above everything else — when admin flips
                   the maintenance toggle, every visitor sees the message at
                   the very top of the viewport on every page. Renders null

@@ -82,7 +82,11 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
 
   return (
     <section
-      className="relative overflow-hidden bg-background py-6 sm:py-14"
+      // No `bg-background` — leave the section transparent so the global
+      // LightBeamsBackground (mounted in the root layout) shows through
+      // behind the 3D stage. Without this, the solid background fills the
+      // carousel band and the beams visually stop at the navbar.
+      className="relative overflow-hidden py-6 sm:py-14"
       // Pause on hover for mouse users only. On touch devices a tap synthesizes
       // pointerenter but no pointerleave, which would otherwise leave autoplay
       // stuck paused on mobile.

@@ -120,7 +120,10 @@ export function SiteHeader() {
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   active
-                    ? "bg-primary/10 text-primary"
+                    // Active = white icon + label on the soft purple chip.
+                    // The label inherits via currentColor, so setting white
+                    // here covers the text and any direct-child SVG too.
+                    ? "bg-primary/10 text-white"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
@@ -324,7 +327,7 @@ export function SiteHeader() {
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         active
-                          ? "bg-primary/10 text-primary"
+                          ? "bg-primary/10 text-white"
                           : "text-foreground hover:bg-muted",
                       )}
                     >

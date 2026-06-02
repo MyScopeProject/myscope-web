@@ -92,6 +92,14 @@ export function ShopOrdersSection() {
     return () => { cancelled = true }
   }, [token])
 
+  // Hooks must run on every render — keep useMemo above any conditional
+  // return below. Hides finished orders (delivered/picked_up) since the
+  // buyer doesn't need them surfacing on the dashboard.
+  const activeOrders = React.useMemo(
+    () => orders.filter((o) => !["delivered", "picked_up"].includes(o.fulfillment_status)),
+    [orders],
+  )
+
   if (loading) {
     return (
       <section>
@@ -106,13 +114,8 @@ export function ShopOrdersSection() {
     )
   }
 
-  // Hide finished orders (delivered/picked_up) — the buyer doesn't need them
-  // surfacing on the dashboard. Also hide the entire section when there's
-  // nothing active so the dashboard stays clean for users who don't shop.
-  const activeOrders = React.useMemo(
-    () => orders.filter((o) => !["delivered", "picked_up"].includes(o.fulfillment_status)),
-    [orders],
-  )
+  // Also hide the entire section when there's nothing active so the
+  // dashboard stays clean for users who don't shop.
   if (activeOrders.length === 0 && !error) return null
 
   const recent = activeOrders.slice(0, 3)

@@ -149,9 +149,11 @@ function EventsPageInner() {
         </p>
       </div>
 
-      {/* Filters — one card-style row: search + date dropdown */}
+      {/* Filters — search + date dropdown. Surfaces use a translucent
+          card tone + backdrop blur so the global light beams flow through
+          the row instead of being sliced off by a solid dark band. Border
+          style is unchanged so the inputs still read as discrete controls. */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        {/* Slim search input — icon inside, clear button inside, one piece */}
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -159,7 +161,7 @@ function EventsPageInner() {
             placeholder="Search events, artists, venues…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary/50 focus:outline-none"
+            className="h-11 w-full rounded-xl border border-border bg-card/30 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
           />
           {search && (
             <button
@@ -173,13 +175,12 @@ function EventsPageInner() {
           )}
         </div>
 
-        {/* Date dropdown — replaces 4 pills with a single compact select */}
         <div className="relative shrink-0">
           <select
             aria-label="Date range"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-            className="h-11 w-full appearance-none rounded-xl border border-border bg-card pl-10 pr-9 text-sm font-medium text-foreground transition-colors focus:border-primary/50 focus:outline-none sm:w-44"
+            className="h-11 w-full appearance-none rounded-xl border border-border bg-card/30 pl-10 pr-9 text-sm font-medium text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none sm:w-44"
           >
             {DATE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -241,35 +242,20 @@ function LoadingGrid() {
   )
 }
 
+// Empty state — intentionally minimal. Just the heading on a clean panel.
+// No icon, no subtitle, no clear-filters CTA (a "Clear all" affordance
+// already lives in the result-count row above this card).
 function EmptyState({
   hasFilters,
-  onClear,
 }: {
   hasFilters: boolean
   onClear: () => void
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Calendar className="h-5 w-5" />
-      </span>
+    <div className="flex items-center justify-center rounded-xl border border-dashed border-border bg-card/40 p-16 text-center">
       <h3 className="text-base font-semibold text-foreground">
         {hasFilters ? "No events match your filters" : "No upcoming events"}
       </h3>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        {hasFilters
-          ? "Try widening your search — fewer filters often surface more results."
-          : "Check back soon — organizers are adding new shows every day."}
-      </p>
-      {hasFilters ? (
-        <Button variant="outline" size="sm" onClick={onClear}>
-          Clear filters
-        </Button>
-      ) : (
-        <Button asChild variant="outline" size="sm">
-          <Link href="/">Back to home</Link>
-        </Button>
-      )}
     </div>
   )
 }

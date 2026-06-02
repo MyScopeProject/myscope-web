@@ -129,15 +129,22 @@ function ShopPageInner() {
     )
   }, [products, search])
 
+  // No `bg-background` on <main> — the page stays transparent so the
+  // global LightBeamsBackground (mounted in the root layout) shows
+  // through. The body already provides the base bg.
   return (
-    <main className="min-h-screen bg-background pt-24 pb-20">
+    <main className="min-h-screen pt-24 pb-20">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        {/* Title block — same typography ramp as /events: bold heading
+            steps up at sm, subtitle scales muted text → base. Cart button
+            sits to the right when there's room, drops to a new line on
+            phones via flex-wrap. */}
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Shop
             </h1>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground sm:text-base">
               Merch and gear from MyScope Events. Event specific items and storefronts in one feed.
             </p>
           </div>
@@ -154,6 +161,10 @@ function ShopPageInner() {
           </Button>
         </header>
 
+        {/* Filter row — translucent card tone + backdrop-blur on the
+            search and the chips so the ambient light beams flow through
+            instead of being chopped off by solid dark surfaces. Matches
+            the events page treatment. */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative max-w-sm flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -161,7 +172,7 @@ function ShopPageInner() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search products, organizers, events..."
-              className="pl-9"
+              className="bg-card/30 pl-9 backdrop-blur-md focus:bg-card/50"
             />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -175,10 +186,10 @@ function ShopPageInner() {
                 type="button"
                 onClick={() => setTypeFilter(t)}
                 className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur-md transition-colors",
                   typeFilter === t
                     ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+                    : "border-border bg-card/30 text-muted-foreground hover:bg-card/50 hover:text-foreground",
                 )}
               >
                 {t === "all" ? "All" : t === "event_product" ? "Event merch" : "Storefronts"}

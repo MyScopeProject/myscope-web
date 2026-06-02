@@ -121,7 +121,7 @@ export default function HomePage() {
       {showCarousel ? (
         <HeroCarousel slides={heroSlides} />
       ) : (
-      <section className="relative isolate overflow-hidden border-b border-border">
+      <section className="relative isolate overflow-hidden">
         {/* Single soft halo centred above the headline. Just one. */}
         <div
           aria-hidden
@@ -239,7 +239,7 @@ export default function HomePage() {
 
       {/* Past events — auto-scrolling photo strip (admin-curated). Hidden when empty. */}
       {pastEvents.length > 0 && (
-        <section className="border-t border-border bg-card/30 py-12">
+        <section className="py-12">
           <RevealOnScroll>
           <div className="mx-auto mb-6 max-w-7xl px-4 sm:px-6">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">Past events</h2>
@@ -253,7 +253,7 @@ export default function HomePage() {
       )}
 
       {/* Organizer CTA */}
-      <section className="border-t border-border bg-card/40">
+      <section>
         <RevealOnScroll>
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16">
           {/* Flat card — no gradient, just border + bg-card. Tighter padding
