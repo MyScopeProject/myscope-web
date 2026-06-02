@@ -72,7 +72,7 @@ interface EventPayoutEntry {
   event: EventLite
   balance: PerEventBalance
   payouts: Payout[]
-  timing: "live" | "past_recent"
+  timing: "live" | "past_recent" | "past_archived"
 }
 
 interface ShopBlock {
@@ -144,9 +144,12 @@ export default function OrganizerPayoutsPage() {
     try {
       setLoading(true)
       setError("")
+      // cache: 'no-store' forces a fresh hit. Without it the browser was
+      // serving a stale cached body after admin actions even though the
+      // focus-refetch fired — same URL, same Vary, same response.
       const [byEventRes, meRes] = await Promise.all([
-        fetch(`${API_URL}/api/organizer/payouts/by-event`, { credentials: "include" }).then((r) => r.json()),
-        fetch(`${API_URL}/api/organizers/me`, { credentials: "include" }).then((r) => r.json()),
+        fetch(`${API_URL}/api/organizer/payouts/by-event`, { credentials: "include", cache: "no-store" }).then((r) => r.json()),
+        fetch(`${API_URL}/api/organizers/me`, { credentials: "include", cache: "no-store" }).then((r) => r.json()),
       ])
 
       if (!byEventRes?.success) {
@@ -182,6 +185,25 @@ export default function OrganizerPayoutsPage() {
 
   React.useEffect(() => {
     if (user) refetch()
+  }, [user, refetch])
+
+  // Refetch when the tab regains focus or becomes visible — admin actions
+  // happen in a separate session, so the organizer's open tab won't see
+  // updates without this. Cheaper than a polling interval and keeps the
+  // dashboard fresh whenever the organizer switches back from the bank /
+  // email / wherever they verified the payout landed.
+  React.useEffect(() => {
+    if (!user) return
+    const onFocus = () => refetch()
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refetch()
+    }
+    window.addEventListener("focus", onFocus)
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => {
+      window.removeEventListener("focus", onFocus)
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
   }, [user, refetch])
 
   const handleSaveBank = async () => {
@@ -528,8 +550,10 @@ function EventPayoutCard({
             </Link>
             {timing === "live" ? (
               <Badge variant="success">Live</Badge>
-            ) : (
+            ) : timing === "past_recent" ? (
               <Badge variant="warning">Recently ended</Badge>
+            ) : (
+              <Badge variant="outline">Awaiting payout</Badge>
             )}
             {event.postponed && (
               <Badge variant="outline">Postponed</Badge>
