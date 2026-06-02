@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Music2, Drama, Trophy, ChevronDown, CalendarDays, Banknote, Briefcase, ClipboardList } from 'lucide-react';
+import { useCartBadgeCount } from '@/lib/shopCart';
+import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Music2, Drama, Trophy, ChevronDown, CalendarDays, Banknote, Briefcase, ClipboardList, ShoppingBag, ShoppingCart, Store } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,6 +15,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const cartCount = useCartBadgeCount();
   const navRef = useRef<HTMLElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +24,7 @@ export default function Navbar() {
     { href: '/events?category=Concerts', label: 'Concerts', icon: Music2 },
     { href: '/events?category=Theatre', label: 'Theatre', icon: Drama },
     { href: '/events?category=Sports', label: 'Sports', icon: Trophy },
+    { href: '/shop', label: 'Shop', icon: ShoppingBag },
     { href: '/events', label: 'Events', icon: Ticket },
   ];
 
@@ -135,7 +138,24 @@ export default function Navbar() {
 
           {/* Desktop Auth/Icons */}
           <div className="hidden md:flex items-center gap-4">
+            <Link
+              href="/shop/cart"
+              className="relative p-2 hover:bg-surface-2 rounded-full transition-all duration-300"
+              style={{ color: '#F5F3FA' }}
+              aria-label={cartCount > 0 ? `Cart (${cartCount} items)` : 'Cart'}
+            >
+              <ShoppingCart size={20} />
+              {cartCount > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+                  style={{ background: '#A78BFA', color: '#07060A' }}
+                >
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </Link>
             <button
+              type="button"
               className="p-2 hover:bg-surface-2 rounded-full transition-all duration-300"
               style={{ color: '#F5F3FA' }}
               aria-label="Notifications"
@@ -185,6 +205,7 @@ export default function Navbar() {
 
                     <MenuLink href="/dashboard" icon={<User size={16} />} onClick={() => setUserMenuOpen(false)}>Dashboard</MenuLink>
                     <MenuLink href="/bookings" icon={<Ticket size={16} />} onClick={() => setUserMenuOpen(false)}>My Bookings</MenuLink>
+                    <MenuLink href="/shop/orders" icon={<ShoppingBag size={16} />} onClick={() => setUserMenuOpen(false)}>Shop Orders</MenuLink>
 
                     {/* Organizer section — only visible to organizer/superadmin */}
                     {(user.role === 'organizer' || user.role === 'superadmin') && (
@@ -193,6 +214,7 @@ export default function Navbar() {
                         <MenuLink href="/organizer" icon={<Briefcase size={16} />} onClick={() => setUserMenuOpen(false)}>Dashboard</MenuLink>
                         <MenuLink href="/organizer/events" icon={<CalendarDays size={16} />} onClick={() => setUserMenuOpen(false)}>My Events</MenuLink>
                         <MenuLink href="/organizer/events/create" icon={<ClipboardList size={16} />} onClick={() => setUserMenuOpen(false)}>Create Event</MenuLink>
+                        <MenuLink href="/organizer/shop" icon={<Store size={16} />} onClick={() => setUserMenuOpen(false)}>Shop</MenuLink>
                         <MenuLink href="/organizer/payouts" icon={<Banknote size={16} />} onClick={() => setUserMenuOpen(false)}>Payouts</MenuLink>
                       </>
                     )}
@@ -337,6 +359,14 @@ export default function Navbar() {
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         My Events
+                      </Link>
+                      <Link
+                        href="/organizer/shop"
+                        className="block font-inter font-medium text-sm"
+                        style={{ color: '#A78BFA' }}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Shop
                       </Link>
                       <Link
                         href="/organizer/payouts"

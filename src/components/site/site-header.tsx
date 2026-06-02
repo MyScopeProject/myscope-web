@@ -13,6 +13,7 @@ import {
   Menu,
   Music2,
   Search,
+  ShoppingBag,
   Ticket,
   Trophy,
   User,
@@ -22,11 +23,14 @@ import { useAuth } from "@/context/AuthContext"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { cn } from "@/lib/utils"
 
+// Categories map to /events?category=<X>. The Shop entry is a top-level link
+// to /shop (not an event category) so we mark it specially in the active check.
 const NAV_ITEMS = [
   { href: "/events?category=Events", label: "Events", icon: Ticket, category: "Events" },
   { href: "/events?category=Concerts", label: "Concerts", icon: Music2, category: "Concerts" },
   { href: "/events?category=Theatre", label: "Theatre", icon: Drama, category: "Theatre" },
   { href: "/events?category=Sports", label: "Sports", icon: Trophy, category: "Sports" },
+  { href: "/shop", label: "Shop", icon: ShoppingBag, category: "__shop" },
 ]
 
 export function SiteHeader() {
@@ -71,6 +75,7 @@ export function SiteHeader() {
   }, [mobileOpen])
 
   const isActive = (category: string) => {
+    if (category === "__shop") return pathname?.startsWith("/shop") ?? false
     if (pathname !== "/events") return false
     return (searchParams?.get("category") ?? "") === category
   }

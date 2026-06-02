@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/context/AuthContext"
 import { cn } from "@/lib/utils"
 import { getYouTubeEmbedUrl } from "@/lib/youtube"
+import { EventMerchSection } from "@/components/events/event-merch-section"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -556,6 +557,10 @@ export default function EventDetailsPage() {
        live together. On mobile (<lg) the aside falls below this column,
        so users still see the tier list in the same scroll, plus the
        mobile sticky CTA bar pinned to the viewport bottom. */}
+
+     {/* Event merch — renders only when the event has published shop products
+       attached. Self-gating; no parent guard needed. */}
+     <EventMerchSection eventId={event.id || event._id} />
 
      {/* Organizer card — sources ONLY from organizer_profiles. Desktop
        copy lives here in the main column; the mobile copy renders

@@ -8,6 +8,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   Menu,
+  ShoppingBag,
   Ticket,
   UserCircle,
   X,
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils"
 const MENU = [
   { href: "/organizer", label: "Overview", icon: LayoutDashboard },
   { href: "/organizer/events", label: "Events", icon: Ticket },
+  { href: "/organizer/shop", label: "Shop", icon: ShoppingBag },
   { href: "/organizer/payouts", label: "Payouts", icon: Banknote },
   { href: "/organizer/profile", label: "Profile", icon: UserCircle },
 ]

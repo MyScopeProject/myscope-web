@@ -4,6 +4,7 @@ import { IBM_Plex_Sans, Inter, Outfit } from "next/font/google";
 import "../styles/globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { ShopCartProvider } from "@/lib/shopCart";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { SiteHeader } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -144,6 +145,7 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="system">
           <GoogleOAuthProvider clientId={googleClientId}>
             <AuthProvider>
+              <ShopCartProvider>
               {/* Maintenance banner above everything else — when admin flips
                   the maintenance toggle, every visitor sees the message at
                   the very top of the viewport on every page. Renders null
@@ -161,6 +163,7 @@ export default function RootLayout({
               </Suspense>
               <main className="min-h-[calc(100vh-4rem)]">{children}</main>
               <SiteFooter />
+              </ShopCartProvider>
             </AuthProvider>
           </GoogleOAuthProvider>
         </ThemeProvider>

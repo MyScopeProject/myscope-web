@@ -16,6 +16,7 @@ import { useAuth } from "@/context/AuthContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import { Badge } from "@/components/ui/badge"
 import { BookedEventsList } from "@/components/dashboard/booked-events-list"
+import { ShopOrdersSection } from "@/components/dashboard/shop-orders-section"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -119,6 +120,9 @@ function DashboardContent() {
 
       {/* Booked events — the user's tickets + QR codes (paid bookings) */}
       <BookedEventsList />
+
+      {/* Shop orders — self-hides when the user has no shop history yet. */}
+      <ShopOrdersSection />
 
       {/* My registrations */}
       {myEvents.length > 0 && (

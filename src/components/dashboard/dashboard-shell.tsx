@@ -7,6 +7,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   Menu,
+  Receipt,
   User,
   X,
 } from "lucide-react"
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils"
 
 const MENU = [
   { href: "/dashboard", label: "My Events", icon: LayoutDashboard },
+  { href: "/shop/orders", label: "My Orders", icon: Receipt },
   { href: "/dashboard/profile", label: "Profile", icon: User },
 ]
 

@@ -17,13 +17,6 @@ import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-const CATEGORIES = [
-  "Concerts",
-  "Theatre",
-  "Sports",
-  "Events",
-]
-
 type DateFilter = "all" | "today" | "week" | "month"
 
 const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
@@ -199,22 +192,6 @@ function EventsPageInner() {
         </div>
       </div>
 
-      {/* Category pills — horizontal scroll on phones, wrap on desktop */}
-      <div className="mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
-        <FilterPill active={category === ""} onClick={() => setCategory("")}>
-          All
-        </FilterPill>
-        {CATEGORIES.map((c) => (
-          <FilterPill
-            key={c}
-            active={category === c}
-            onClick={() => setCategory(category === c ? "" : c)}
-          >
-            {c}
-          </FilterPill>
-        ))}
-      </div>
-
       {/* Result count + clear — single quiet line above results */}
       <div className="mb-5 flex items-center justify-between text-xs text-muted-foreground sm:text-sm">
         <span>
@@ -251,34 +228,6 @@ function EventsPageInner() {
   )
 }
 
-function FilterPill({
-  active,
-  onClick,
-  subtle = false,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  subtle?: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-9 items-center rounded-full px-4 text-sm font-medium transition-all duration-150",
-        active
-          ? subtle
-            ? "bg-foreground text-background shadow-sm"
-            : "bg-primary text-primary-foreground shadow-sm"
-          : "border border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary",
-      )}
-    >
-      {children}
-    </button>
-  )
-}
 
 function LoadingGrid() {
   // Skeletons mirror the EventCard shape exactly so the grid doesn't reflow
