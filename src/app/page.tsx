@@ -287,7 +287,7 @@ export default function HomePage() {
                   { icon: TicketCheck, title: "Multi-tier tickets", desc: "Early bird, VIP, regular." },
                   { icon: QrCode, title: "QR check-in", desc: "Scan tickets at the door." },
                   { icon: BarChart3, title: "Live analytics", desc: "Sales and attendance, real-time." },
-                  { icon: Wallet, title: "Weekly payouts", desc: "Funds settle every Friday." },
+                  { icon: Wallet, title: "Instant payouts", desc: "Request partial payouts and receive." },
                 ].map(({ icon: Icon, title, desc }) => (
                   <li
                     key={title}
