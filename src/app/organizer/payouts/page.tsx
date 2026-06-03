@@ -39,6 +39,13 @@ interface EventLite {
   postponed_to: string | null
 }
 
+interface CommsBreakdown {
+  sms_count: number
+  sms_total: number
+  email_count: number
+  email_total: number
+}
+
 interface PerEventBalance {
   gross: number
   fee: number
@@ -46,6 +53,11 @@ interface PerEventBalance {
   refunded: number
   paid_out: number
   pending: number
+  // Communications charges — only events with admin-enabled billing have a
+  // non-zero charge here; everyone else gets zeros so the UI can always
+  // render the line without conditionals.
+  comms_charge?: number
+  comms?: CommsBreakdown
 }
 
 interface ShopBalance {
@@ -577,15 +589,42 @@ function EventPayoutCard({
         </div>
       </div>
 
-      {/* Balance breakdown */}
+      {/* Balance breakdown — Comms only renders when the admin has enabled
+          billing for this event (otherwise comms_charge is 0 and we hide the
+          line to keep the grid uncluttered). */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border bg-muted/20 p-4 sm:grid-cols-4">
         <BalanceLine label="Gross" value={formatLkr(balance.gross)} />
         <BalanceLine label="Platform fee" value={`-${formatLkr(balance.fee)}`} />
         <BalanceLine label="Refunds" value={`-${formatLkr(balance.refunded)}`} />
+        {(balance.comms_charge || 0) > 0 ? (
+          <BalanceLine label="Comms" value={`-${formatLkr(balance.comms_charge || 0)}`} />
+        ) : null}
         <BalanceLine label="Net" value={formatLkr(balance.net)} />
         <BalanceLine label="Paid out" value={formatLkr(balance.paid_out)} />
         <BalanceLine label="Pending" value={formatLkr(balance.pending)} highlight />
       </div>
+
+      {/* Communications charges detail — SMS + email split so the organizer
+          knows exactly what's being billed. Only renders for events the admin
+          has enabled billing on (and that have at least one billable send). */}
+      {(balance.comms_charge || 0) > 0 && balance.comms ? (
+        <div className="border-t border-border bg-muted/10 px-4 py-3 text-xs">
+          <div className="font-medium text-foreground">Communications billing</div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+            <span>
+              SMS <span className="font-mono text-foreground">{balance.comms.sms_count}</span> · {formatLkr(balance.comms.sms_total)}
+            </span>
+            <span className="opacity-30">·</span>
+            <span>
+              Email <span className="font-mono text-foreground">{balance.comms.email_count}</span> · {formatLkr(balance.comms.email_total)}
+            </span>
+            <span className="opacity-30">·</span>
+            <span>
+              Total <span className="font-mono text-foreground">{formatLkr(balance.comms_charge || 0)}</span>
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       {/* Action row */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4">
