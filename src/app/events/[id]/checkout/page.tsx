@@ -90,6 +90,28 @@ function CheckoutPageInner() {
  const [seatTotal, setSeatTotal] = React.useState(0)
  const isReserved = event?.seating_mode === "reserved"
 
+ // Customer-visible platform fee %. Fetched once on mount; default to 0.02
+ // (2%) so we don't render a zero fee on first paint when the public settings
+ // endpoint hasn't responded yet. The backend is authoritative when the
+ // booking is actually created — this state only drives the UI summary.
+ const [convenienceFeePct, setConvenienceFeePct] = React.useState(0.02)
+ React.useEffect(() => {
+  let cancelled = false
+  fetch(`${API_URL}/api/settings/fees`)
+   .then((r) => r.json())
+   .then((body) => {
+    if (cancelled) return
+    const pct = Number(body?.data?.convenience_fee_pct)
+    if (Number.isFinite(pct) && pct >= 0) setConvenienceFeePct(pct)
+   })
+   .catch(() => {
+    // soft-fail: keep the 0.02 default
+   })
+  return () => {
+   cancelled = true
+  }
+ }, [])
+
  // Per-attendee gift recipients. Opt-in: buyer toggles "Send each ticket to a
  // different person" to reveal N name+email inputs. Stored as a sparse array
  // — empty slots default to the buyer at emission time.
@@ -193,7 +215,13 @@ function CheckoutPageInner() {
    ? selectedTt.price * quantity
    : 0
  const discount = promoApplied?.discount ?? 0
- const total = Math.max(0, subtotal - discount)
+ const subtotalAfterDiscount = Math.max(0, subtotal - discount)
+ // Convenience fee is added on top of the (post-discount) subtotal. The %
+ // comes from /api/settings/fees so an admin rate change propagates without
+ // a deploy. Default to 2% so the UI never renders a zero fee if the public
+ // settings call hasn't returned yet — the backend is authoritative anyway.
+ const convenienceFee = +(subtotalAfterDiscount * convenienceFeePct).toFixed(2)
+ const total = subtotalAfterDiscount + convenienceFee
 
  // Any change to the subtotal invalidates a previously-applied code (the
  // backend will re-validate at checkout, but we should not show a stale
@@ -761,6 +789,20 @@ function CheckoutPageInner() {
           value={`− ${formatLkr(discount)}`}
          />
         )}
+
+        {/* Sub Total + Convenience Fee — the customer's pre-payment summary.
+            Only shown once there's actually a subtotal so an empty order
+            doesn't render two zero-LKR lines. */}
+        {subtotal > 0 && (
+         <>
+          <SummaryRow label="Sub Total" value={formatLkr(subtotalAfterDiscount)} />
+          <SummaryRow
+           label={`Convenience Fee (${(convenienceFeePct * 100).toFixed(convenienceFeePct * 100 % 1 === 0 ? 0 : 1)}%)`}
+           value={`+ ${formatLkr(convenienceFee)}`}
+          />
+         </>
+        )}
+
         <div className="border-t border-border pt-3">
          <div className="flex items-baseline justify-between">
           <span className="text-sm text-muted-foreground">Total</span>
