@@ -414,17 +414,9 @@ export default function OrganizerPayoutsPage() {
         </div>
       </section>
 
-      {/* Shop payout card — separate from events so the organizer can request
-          shop revenue independently. Hidden entirely when there's no shop
-          activity at all. */}
-      {showShopCard && shop && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Shop payout</h2>
-          <ShopPayoutCard shop={shop} hasBank={hasBank} onChange={refetch} />
-        </section>
-      )}
-
-      {/* Per-event payout cards */}
+      {/* Per-event payout cards — surfaced first because events are the
+          primary revenue source for most organizers and they want to see
+          live-event balances before scrolling to shop. */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Event payouts</h2>
 
@@ -450,6 +442,17 @@ export default function OrganizerPayoutsPage() {
           ))
         )}
       </section>
+
+      {/* Shop payout card — separate from events so the organizer can request
+          shop revenue independently. Hidden entirely when there's no shop
+          activity at all. Sits below events because it's a secondary revenue
+          stream for most organizers. */}
+      {showShopCard && shop && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Shop payout</h2>
+          <ShopPayoutCard shop={shop} hasBank={hasBank} onChange={refetch} />
+        </section>
+      )}
     </div>
   )
 }
