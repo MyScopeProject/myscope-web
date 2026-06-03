@@ -16,6 +16,7 @@ import {
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { EventCommunicationsCard } from "@/components/events/event-communications-card"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -216,6 +217,13 @@ export default function OrganizerAnalyticsPage() {
           tone="success"
         />
       </section>
+
+      {/* Per-event communications — counts of every email + SMS this event has
+          triggered, broken down by message type. Counts are forward-only;
+          events that ran before this feature shipped show zeros. */}
+      <EventCommunicationsCard
+        endpoint={`/api/organizer/events/${eventId}/communications`}
+      />
 
       {/* Ticket type breakdown */}
       {ticket_types.length > 0 && (
