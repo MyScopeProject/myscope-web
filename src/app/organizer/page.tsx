@@ -19,7 +19,6 @@ import {
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
-import { ResignDangerZone } from "@/components/organizer/resign-danger-zone"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -316,9 +315,6 @@ export default function OrganizerDashboardPage() {
           </div>
         </section>
       )}
-
-      {/* Danger zone — Resign as organizer */}
-      <ResignSection />
     </div>
   )
 }
@@ -377,16 +373,5 @@ function BalanceMetric({
 
 function EmptyRow({ text }: { text: string }) {
   return <div className="p-8 text-center text-sm text-muted-foreground">{text}</div>
-}
-
-// ---------------------------------------------------------------------------
-// ResignSection — voluntary "step down as organizer" flow. The visual block +
-// API logic now live in components/organizer/resign-danger-zone so the
-// organizer profile page can drop in the exact same component. The local
-// wrapper just preserves the existing JSX site below.
-// ---------------------------------------------------------------------------
-
-function ResignSection() {
-  return <ResignDangerZone />
 }
 
