@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { ResignDangerZone } from "@/components/organizer/resign-danger-zone"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -122,6 +123,24 @@ export default function OrganizerProfilePage() {
   const [imageUploading, setImageUploading] = React.useState(false)
   const [saveResult, setSaveResult] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
   const [bankResult, setBankResult] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
+  // Transient "just saved" pulse on the save buttons. Auto-resets after ~2.5s
+  // so the button returns to its default label once the success is visually
+  // acknowledged. Keeps the action button itself as the source of truth for
+  // the saved state instead of relying on the inline status text.
+  const [profileJustSaved, setProfileJustSaved] = React.useState(false)
+  const [bankJustSaved, setBankJustSaved] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!profileJustSaved) return
+    const t = setTimeout(() => setProfileJustSaved(false), 2500)
+    return () => clearTimeout(t)
+  }, [profileJustSaved])
+
+  React.useEffect(() => {
+    if (!bankJustSaved) return
+    const t = setTimeout(() => setBankJustSaved(false), 2500)
+    return () => clearTimeout(t)
+  }, [bankJustSaved])
 
   // Auth + role guard — same shape used elsewhere.
   React.useEffect(() => {
@@ -246,6 +265,7 @@ export default function OrganizerProfilePage() {
       })
       if (body?.success) {
         setProfile(body.data?.profile ?? null)
+        setProfileJustSaved(true)
       }
     } catch {
       setSaveResult({ text: "Network error saving profile.", tone: "err" })
@@ -296,6 +316,7 @@ export default function OrganizerProfilePage() {
       })
       if (body?.success) {
         setProfile(body.data?.profile ?? null)
+        setBankJustSaved(true)
       }
     } catch {
       setBankResult({ text: "Network error saving bank details.", tone: "err" })
@@ -649,9 +670,22 @@ export default function OrganizerProfilePage() {
               {saveResult.text}
             </span>
           )}
-          <Button type="submit" disabled={saving || imageUploading}>
-            {saving ? <Loader className="animate-spin" /> : <Save />}
-            {saving ? "Saving…" : "Save profile"}
+          <Button
+            type="submit"
+            disabled={saving || imageUploading}
+            className={cn(
+              "transition-colors",
+              profileJustSaved && !saving && "bg-emerald-600 text-white hover:bg-emerald-600",
+            )}
+          >
+            {saving ? (
+              <Loader className="animate-spin" />
+            ) : profileJustSaved ? (
+              <CheckCircle2 />
+            ) : (
+              <Save />
+            )}
+            {saving ? "Saving…" : profileJustSaved ? "Saved" : "Save profile"}
           </Button>
         </div>
       </form>
@@ -735,12 +769,30 @@ export default function OrganizerProfilePage() {
               {bankResult.text}
             </span>
           )}
-          <Button type="submit" disabled={bankSaving}>
-            {bankSaving ? <Loader className="animate-spin" /> : <Save />}
-            {bankSaving ? "Saving…" : "Save bank details"}
+          <Button
+            type="submit"
+            disabled={bankSaving}
+            className={cn(
+              "transition-colors",
+              bankJustSaved && !bankSaving && "bg-emerald-600 text-white hover:bg-emerald-600",
+            )}
+          >
+            {bankSaving ? (
+              <Loader className="animate-spin" />
+            ) : bankJustSaved ? (
+              <CheckCircle2 />
+            ) : (
+              <Save />
+            )}
+            {bankSaving ? "Saving…" : bankJustSaved ? "Saved" : "Save bank details"}
           </Button>
         </div>
       </form>
+
+      {/* Danger zone — voluntary resign-as-organizer flow. Same block as the
+          dashboard so the action is reachable from either entry point. Sits
+          at the bottom of the profile page after all editable fields. */}
+      <ResignDangerZone />
     </div>
   )
 }
