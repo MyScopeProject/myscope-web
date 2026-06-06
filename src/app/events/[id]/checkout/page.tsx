@@ -458,9 +458,13 @@ function CheckoutPageInner() {
    <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
     {/* Left: step 0 = ticket / seat selection · step 1 = attendee form */}
     <div className="space-y-6 lg:col-span-2">
-     {/* ---- Step 0: Choose ---- */}
-     {step === 0 && (
-     <>
+     {/* ---- Step 0: Choose ----
+       Rendered always (just hidden on step 1) so the SeatMapPicker stays
+       mounted across the wizard. Unmounting it would fire the picker's
+       cleanup effect and `POST /seats/release` every held seat — i.e. the
+       user's holds vanish the moment they click "Continue to payment". */}
+     <div className={step === 0 ? undefined : "hidden"}>
+     <div className="space-y-6">
      {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
      {isReserved ? (
       <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs dark:bg-card/40">
@@ -601,8 +605,8 @@ function CheckoutPageInner() {
        </div>
       </section>
      )}
-     </>
-     )}
+     </div>
+     </div>
 
      {/* ---- Step 1: Pay (attendee + gift) ---- */}
      {step === 1 && (
