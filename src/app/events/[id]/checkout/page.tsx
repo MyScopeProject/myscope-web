@@ -733,10 +733,21 @@ function CheckoutPageInner() {
          />
         )}
         {isReserved && selectedSeats.length > 0 && (
-         <SummaryRow
-          label={`${selectedSeats[0].ticket_type_name} × ${selectedSeats.length}`}
-          value={formatLkr(subtotal)}
-         />
+         <div className="space-y-1.5">
+          {selectedSeats.map((s) => (
+           <SummaryRow
+            key={s.id}
+            label={
+             <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-mono text-xs font-medium text-foreground">{s.seat_label}</span>
+              <span className="text-muted-foreground/70">·</span>
+              <span>{s.ticket_type_name}</span>
+             </span>
+            }
+            value={formatLkr(s.price)}
+           />
+          ))}
+         </div>
         )}
 
         {/* Promo code input. Only meaningful once we have a subtotal. */}
@@ -936,7 +947,7 @@ function FieldGroup({
  )
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function SummaryRow({ label, value }: { label: React.ReactNode; value: string }) {
  return (
   <div className="flex items-baseline justify-between text-sm">
    <span className="min-w-0 truncate pr-2 text-muted-foreground">{label}</span>

@@ -1,13 +1,26 @@
 "use client"
 
 import * as React from "react"
-import { AlertCircle, Armchair, Clock, Loader, RefreshCw, ZoomIn, ZoomOut } from "lucide-react"
+import {
+  AlertCircle,
+  Clock,
+  Loader,
+  RefreshCw,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 // mm:ss for the hold countdown.
 const fmtMMSS = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`
+
+// Tier swatch palette — must mirror the admin builder's TIER_PALETTE so the
+// legend dots match what the organizer/admin sees when building the map.
+const TIER_PALETTE = ["#7F77DD", "#1D9E75", "#BA7517", "#D85A30", "#185FA5", "#993556", "#6B7280"]
+const tierColorByIndex = (i: number) => TIER_PALETTE[i % TIER_PALETTE.length] || TIER_PALETTE[0]
+
 
 export type SeatStatus = "available" | "held" | "booked" | "disabled"
 export type SeatType = "standard" | "accessible" | "restricted_view" | "aisle"
@@ -103,6 +116,9 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
   // clicks while a request is pending and (b) skip server-state reconciliation
   // for these IDs so the optimistic update isn't clobbered by a stale fetch.
   const [inFlightIds, setInFlightIds] = React.useState<Set<string>>(new Set())
+  // Hovered seat (visual mode) — drives the floating info card. Cleared on
+  // pointerleave or when the seat unmounts.
+  const [hoveredSeat, setHoveredSeat] = React.useState<SeatMapSeat | null>(null)
 
   // Flat list of all seats — handy for lookups across sections.
   const allSeats = React.useMemo(() => {
@@ -423,16 +439,25 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
     allSeats.length > 0 &&
     allSeats.every(s => s.x != null && s.y != null)
 
-  // Compact tier-price strip — useful in visual mode since per-section
-  // headings are inside the canvas as decor labels. Built here so both
-  // rendering paths can share it if we ever want to.
-  const tierStrip = (() => {
+  // Unique tier list (first-seen order) — drives the legend swatches.
+  // Colors are matched to the admin builder's palette via the tier's index
+  // in this list. Plain computation (not useMemo) so the hooks above the
+  // early-return gates aren't reordered when data finishes loading.
+  const tierList = (() => {
     const byId = new Map<string, SeatTicketType>()
     for (const s of allSeats) {
       if (s.ticket_type && !byId.has(s.ticket_type.id)) byId.set(s.ticket_type.id, s.ticket_type)
     }
     return Array.from(byId.values())
   })()
+  const tierIndex = new Map<string, number>()
+  tierList.forEach((t, i) => tierIndex.set(t.id, i))
+
+  // Selected total — drives the "N seats selected · LKR X" footer.
+  let selectedTotal = 0
+  for (const s of allSeats) {
+    if (selectedIds.has(s.id) && s.ticket_type) selectedTotal += s.ticket_type.price
+  }
 
   return (
     <div className="space-y-5">
@@ -464,20 +489,6 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
         </div>
       )}
 
-      {/* Tier price strip — visual mode hides per-section headings, so a
-          compact list of "Tier · LKR price" keeps pricing discoverable. */}
-      {isVisual && tierStrip.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          {tierStrip.map(t => (
-            <span key={t.id} className="inline-flex items-center gap-1.5">
-              <Armchair className="h-3 w-3" />
-              <span className="font-medium text-foreground">{t.name}</span>
-              <span>· LKR {t.price.toLocaleString()}</span>
-            </span>
-          ))}
-        </div>
-      )}
-
       {selectionWarning && (
         <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -485,11 +496,8 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
         </div>
       )}
 
-      {/* Zoom controls — handy on mobile for wide venues. transform-origin
-          top-left keeps content anchored so users scroll naturally to find
-          their section. */}
-      <div className="flex items-center justify-end gap-1.5 text-xs">
-        <span className="text-muted-foreground">Zoom</span>
+      {/* Minimal zoom toolbar — drag to pan, +/− to zoom. */}
+      <div className="flex items-center justify-end gap-1 text-xs">
         <button
           type="button"
           onClick={() => setZoom((z) => Math.max(minZoom, Math.round((z - 0.25) * 100) / 100))}
@@ -521,6 +529,7 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
       {isVisual && layout && (
         <div className="overflow-auto pb-2 max-h-[80vh]">
           <div
+            className="relative"
             style={{
               width:  `${Math.round(Number(layout.viewbox_width)  * zoom)}px`,
               height: `${Math.round(Number(layout.viewbox_height) * zoom)}px`,
@@ -533,10 +542,43 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
               inFlightIds={inFlightIds}
               activeTicketTypeId={activeTicketTypeId}
               onSeatClick={toggleSeat}
+              onSeatHover={setHoveredSeat}
+              tierColorFor={(id) =>
+                id !== undefined && tierIndex.has(id)
+                  ? tierColorByIndex(tierIndex.get(id) as number)
+                  : "#9CA3AF"
+              }
             />
+            {/* Floating seat info card — anchored above the hovered seat,
+                converted from viewbox units to pixels via the current zoom. */}
+            {hoveredSeat && hoveredSeat.x != null && hoveredSeat.y != null && (
+              <SeatHoverCard
+                seat={hoveredSeat}
+                left={Number(hoveredSeat.x) * zoom}
+                top={Number(hoveredSeat.y) * zoom}
+                tierIndex={hoveredSeat.ticket_type ? tierIndex.get(hoveredSeat.ticket_type.id) ?? 0 : 0}
+                isSelected={selectedIds.has(hoveredSeat.id)}
+              />
+            )}
           </div>
         </div>
       )}
+
+      {/* Selection footer — confirms how many seats are picked and the
+          running total. Always visible (visual + grid modes) so users see
+          their pick before reaching the cart. */}
+      <div className="flex items-center justify-center text-sm">
+        {selectedIds.size === 0 ? (
+          <span className="text-muted-foreground">0 seats selected</span>
+        ) : (
+          <span className="text-foreground">
+            <span className="font-semibold">
+              {selectedIds.size} seat{selectedIds.size === 1 ? "" : "s"} selected
+            </span>
+            <span className="text-muted-foreground"> · LKR {selectedTotal.toLocaleString()}</span>
+          </span>
+        )}
+      </div>
 
       {/* Sections — wrapped in a CSS zoom container so the existing seat
           sizing keeps working unchanged. CSS `zoom` (vs transform: scale)
@@ -558,24 +600,25 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
 
           return (
             <div key={sectionName}>
-              {/* flex-wrap so long section names + price hints don't widen the
-                  scroll plane beyond the actual seat row. */}
-              <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <Armchair className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {sectionName}
-                </span>
-                {firstPriced?.ticket_type && (
-                  <span className="text-[11px] font-medium text-muted-foreground">
-                    · {firstPriced.ticket_type.name} · LKR{" "}
-                    {firstPriced.ticket_type.price.toLocaleString()}
+              {/* Cinema-style section header: uppercase muted label with the
+                  tier price inline, followed by a thin horizontal divider. */}
+              <div className="mb-3 border-b border-border pb-1.5">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {sectionName}
                   </span>
-                )}
-                {sectionIsDimmed && (
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
-                    (locked — different tier)
-                  </span>
-                )}
+                  {firstPriced?.ticket_type && (
+                    <span className="text-xs text-muted-foreground">
+                      ({firstPriced.ticket_type.name} · LKR{" "}
+                      {firstPriced.ticket_type.price.toLocaleString()})
+                    </span>
+                  )}
+                  {sectionIsDimmed && (
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                      (locked — different tier)
+                    </span>
+                  )}
+                </div>
               </div>
               <div className={cn("space-y-1", sectionIsDimmed && "opacity-40")}>
                 {Object.entries(rows).map(([rowLabel, seats]) => (
@@ -614,17 +657,28 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
       </div>
       )}
 
-      {/* Legend + last-refresh */}
+      {/* Legend — ticket categories with their tier colors + price, plus
+          "Sold" (any unavailable seat) and "Selected" so the buyer can read
+          the canvas at a glance. Matches the reference theatre layout. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
-        <LegendSwatch className="bg-emerald-100 ring-emerald-500/40 dark:bg-emerald-500/20" label="Available" />
-        <LegendSwatch className="bg-primary ring-primary" label="Selected" />
-        <LegendSwatch className="bg-amber-100 ring-amber-500/40 dark:bg-amber-500/20" label="Held" />
-        <LegendSwatch className="bg-destructive/20 ring-destructive/40" label="Booked" />
-        <LegendSwatch
-          className="bg-blue-100 ring-blue-500/40 dark:bg-blue-500/20"
-          label="Accessible"
-          glyph="H"
-        />
+        {tierList.map((t, i) => (
+          <span key={t.id} className="inline-flex items-center gap-1.5">
+            <TierDot color={tierColorByIndex(i)} />
+            <span className="font-medium text-foreground">{t.name}</span>
+            <span>· LKR {t.price.toLocaleString()}</span>
+          </span>
+        ))}
+        {tierList.length > 0 && (
+          <span className="h-3 w-px bg-border" aria-hidden="true" />
+        )}
+        <span className="inline-flex items-center gap-1.5">
+          <TierDot color="#D1D5DB" />
+          <span>Sold</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded-full ring-2 ring-foreground" aria-hidden="true" />
+          <span>Selected</span>
+        </span>
         <span className="ml-auto inline-flex items-center gap-1">
           <button
             type="button"
@@ -681,23 +735,20 @@ function SeatButton({
       title={title}
       aria-pressed={isSelected ? "true" : "false"}
       className={cn(
-        // Smaller seats on phones so more of a wide row fits before triggering
-        // the parent's horizontal scroll; full size from sm: up.
-        "flex h-6 w-6 shrink-0 items-center justify-center rounded font-mono text-[9px] ring-1 transition-colors sm:h-7 sm:w-7 sm:text-[10px]",
-        // baseline by status
-        isBooked && "cursor-not-allowed bg-destructive/20 text-destructive ring-destructive/40 opacity-60",
-        isForeignHeld && "cursor-not-allowed bg-amber-100 text-amber-700 ring-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400",
-        seat.status === "disabled" && "cursor-not-allowed bg-muted text-muted-foreground/40 ring-border opacity-50",
-        // selected overrides everything
-        isSelected && "bg-primary text-primary-foreground ring-primary hover:bg-primary/90",
-        // mid-flight (request in progress) — soft visual cue
+        // Cinema-clean seat: rounded square, outlined when available, filled
+        // gray when sold, near-black filled when picked. Tier color stays in
+        // the legend + section header, not on the seat itself.
+        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md font-mono text-[9px] transition-colors sm:h-7 sm:w-7 sm:text-[10px]",
+        // available — outlined white square, thin gray border, dark glyph
+        !isSelected && !isDisabled && "border border-border bg-card text-foreground hover:border-foreground/60",
+        // unavailable (sold / held by someone else / disabled) — uniform
+        // filled gray with washed-out glyph so it reads as "not pickable"
+        isDisabled && "cursor-not-allowed border border-muted-foreground/20 bg-muted text-muted-foreground/50",
+        // selected — solid dark square with white glyph
+        isSelected && "border border-foreground bg-foreground text-background hover:bg-foreground/90",
+        // accessibility seats keep the "H" glyph but otherwise share the
+        // same look so the map stays visually quiet.
         inFlight && "animate-pulse",
-        // available
-        !isSelected && !isDisabled && !isAccessible && "bg-emerald-100 text-emerald-900 ring-emerald-500/40 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300",
-        // accessible
-        !isSelected && !isDisabled && isAccessible && "bg-blue-100 text-blue-700 ring-blue-500/40 hover:bg-blue-200 dark:bg-blue-500/20 dark:text-blue-300",
-        // locked-by-tier — visually muted but clickable; click opens the
-        // "Switch to {tier}?" banner so the user can move tiers in one step.
         lockedTier && "cursor-pointer opacity-40 hover:opacity-70",
       )}
     >
@@ -725,6 +776,8 @@ function VisualSeatMap({
   inFlightIds,
   activeTicketTypeId,
   onSeatClick,
+  onSeatHover,
+  tierColorFor,
 }: {
   layout: LayoutMeta
   allSeats: SeatMapSeat[]
@@ -732,6 +785,8 @@ function VisualSeatMap({
   inFlightIds: Set<string>
   activeTicketTypeId: string | null
   onSeatClick: (seat: SeatMapSeat) => void
+  onSeatHover: (seat: SeatMapSeat | null) => void
+  tierColorFor: (ticketTypeId: string | undefined) => string
 }) {
   const vbW = Number(layout.viewbox_width)  || 1600
   const vbH = Number(layout.viewbox_height) || 1200
@@ -789,21 +844,15 @@ function VisualSeatMap({
       {(layout.decor || []).map((d, i) => (
         <DecorShape key={d.id ?? `decor-${i}`} d={d} />
       ))}
-      {/* Row letter labels at the left + right of each row, matching the
-          reference seating diagram. Non-interactive. */}
+      {/* Row letter label on the LEFT only — cleaner read in cinema style. */}
       {rowExtents.map((r, i) => (
-        <g key={`row-${i}`} aria-hidden="true" pointerEvents="none">
-          <text
-            x={r.minX - SEAT_R - 14} y={r.y}
-            textAnchor="end" dominantBaseline="central"
-            fontSize={11} fontWeight={600} fill="#6B7280"
-          >{r.row}</text>
-          <text
-            x={r.maxX + SEAT_R + 14} y={r.y}
-            textAnchor="start" dominantBaseline="central"
-            fontSize={11} fontWeight={600} fill="#6B7280"
-          >{r.row}</text>
-        </g>
+        <text
+          key={`row-${i}`}
+          x={r.minX - SEAT_R - 14} y={r.y}
+          textAnchor="end" dominantBaseline="central"
+          fontSize={11} fontWeight={500} fill="#9CA3AF"
+          aria-hidden="true" pointerEvents="none"
+        >{r.row}</text>
       ))}
       {allSeats.map(seat => (
         <VisualSeat
@@ -815,7 +864,10 @@ function VisualSeatMap({
             activeTicketTypeId !== null &&
             seat.ticket_type?.id !== activeTicketTypeId
           }
+          tierColor={tierColorFor(seat.ticket_type?.id)}
           onClick={() => onSeatClick(seat)}
+          onPointerEnter={() => onSeatHover(seat)}
+          onPointerLeave={() => onSeatHover(null)}
         />
       ))}
     </svg>
@@ -883,32 +935,43 @@ const SEAT_R = 11   // seat circle radius, in viewbox units
 const HIT_R  = 16   // invisible hit-target radius (bigger tap area on mobile)
 
 function VisualSeat({
-  seat, isSelected, inFlight, otherTier, onClick,
+  seat, isSelected, inFlight, otherTier, tierColor: _tierColor, onClick, onPointerEnter, onPointerLeave,
 }: {
   seat: SeatMapSeat
   isSelected: boolean
   inFlight: boolean
   otherTier: boolean
+  tierColor: string
   onClick: () => void
+  onPointerEnter: () => void
+  onPointerLeave: () => void
 }) {
   const cx = seat.x as number
   const cy = seat.y as number
   const isAccessible = seat.seat_type === "accessible"
   const isBooked = seat.status === "booked"
   const isForeignHeld = seat.status === "held" && !isSelected
-  const isDisabled =
-    seat.status === "disabled" || isBooked || isForeignHeld || inFlight
+  const isUnavailable = seat.status === "disabled" || isBooked || isForeignHeld
+  const isDisabled = isUnavailable || inFlight
   const lockedTier = !isSelected && otherTier && seat.status === "available"
 
-  // Status takes priority over tier for color; selected overrides everything.
-  let fill = "#D1FAE5"            // emerald-100 — available
-  let stroke = "#10B981"           // emerald-500
-  let textFill = "#065F46"          // emerald-900
-  if (isAccessible)              { fill = "#DBEAFE"; stroke = "#3B82F6"; textFill = "#1E40AF" }
-  if (seat.status === "disabled"){ fill = "#E5E7EB"; stroke = "#9CA3AF"; textFill = "#6B7280" }
-  if (isForeignHeld)             { fill = "#FEF3C7"; stroke = "#F59E0B"; textFill = "#92400E" }
-  if (isBooked)                  { fill = "#FECACA"; stroke = "#EF4444"; textFill = "#991B1B" }
-  if (isSelected)                { fill = "#6366F1"; stroke = "#4338CA"; textFill = "#FFFFFF" }
+  // Cinema-clean palette: outlined white squares for available seats, filled
+  // light gray for sold, primary-tinted border for the user's picks. Tier
+  // color lives only in the legend + section headers, not on the seat itself
+  // — matches the reference cinema layout.
+  let fill = "#FFFFFF"          // outlined available
+  let stroke = "#D1D5DB"         // gray-300 border
+  let textFill = "#374151"       // gray-700 — readable seat number
+  if (isUnavailable) {
+    fill = "#D1D5DB"             // gray-300 — clearly "sold / unavailable"
+    stroke = "#D1D5DB"
+    textFill = "#FFFFFF"         // washed-out white glyph
+  }
+  if (isSelected) {
+    fill = "#111827"             // near-black filled = clearly picked
+    stroke = "#111827"
+    textFill = "#FFFFFF"
+  }
 
   const title = seat.ticket_type
     ? `${seat.seat_label || seat.seat_number} · ${seat.ticket_type.name} · LKR ${seat.ticket_type.price.toLocaleString()}${
@@ -931,19 +994,27 @@ function VisualSeat({
     <g
       transform={transform}
       onClick={handleClick}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
       style={{ cursor: isDisabled ? "not-allowed" : "pointer" }}
       opacity={lockedTier ? 0.4 : 1}
       className={inFlight ? "animate-pulse" : undefined}
     >
       <title>{title}</title>
       {/* Hit target — invisible but pointer-receptive, sized larger than
-          the visible circle to give phones a comfortable tap radius. */}
-      <circle cx={cx} cy={cy} r={HIT_R} fill="transparent" />
-      <circle
-        cx={cx} cy={cy} r={SEAT_R}
+          the visible square to give phones a comfortable tap radius. */}
+      <rect
+        x={cx - HIT_R} y={cy - HIT_R}
+        width={HIT_R * 2} height={HIT_R * 2}
+        fill="transparent"
+      />
+      <rect
+        x={cx - SEAT_R} y={cy - SEAT_R}
+        width={SEAT_R * 2} height={SEAT_R * 2}
+        rx={3} ry={3}
         fill={fill}
         stroke={stroke}
-        strokeWidth={isSelected ? 2.5 : 1.25}
+        strokeWidth={isSelected ? 2 : 1}
       />
       <text
         x={cx}
@@ -961,27 +1032,66 @@ function VisualSeat({
   )
 }
 
-function LegendSwatch({
-  className,
-  label,
-  glyph,
-}: {
-  className: string
-  label: string
-  glyph?: string
-}) {
+// Solid color dot for the tier-price swatches in the legend. Color is set
+// inline because tier colors come from the runtime palette (TIER_PALETTE),
+// not a Tailwind class.
+function TierDot({ color }: { color: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span
-        className={cn(
-          "flex h-3.5 w-3.5 items-center justify-center rounded font-mono text-[8px] ring-1",
-          className,
+    <span
+      className="inline-block h-3 w-3 rounded-full ring-1 ring-black/10 dark:ring-white/10"
+      style={{ backgroundColor: color }}
+      aria-hidden="true"
+    />
+  )
+}
+
+// Floating info card anchored above a hovered seat in visual mode. Mirrors
+// the MyTickets pattern: CATEGORY / SEAT label, status, price.
+function SeatHoverCard({
+  seat,
+  left,
+  top,
+  tierIndex,
+  isSelected,
+}: {
+  seat: SeatMapSeat
+  left: number
+  top: number
+  tierIndex: number
+  isSelected: boolean
+}) {
+  const statusLabel = (() => {
+    if (isSelected) return "Selected"
+    if (seat.status === "booked") return "Sold"
+    if (seat.status === "held" && !seat.held_by_me) return "On hold"
+    if (seat.status === "disabled") return "Not for sale"
+    return "Available"
+  })()
+
+  return (
+    <div
+      className="pointer-events-none absolute z-20 min-w-[140px] -translate-x-1/2 -translate-y-full rounded-lg border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg"
+      style={{ left: `${left}px`, top: `${top - 18}px` }}
+      role="tooltip"
+    >
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {seat.ticket_type && (
+          <TierDot color={tierColorByIndex(tierIndex)} />
         )}
-      >
-        {glyph}
-      </span>
-      {label}
-    </span>
+        <span>{seat.ticket_type?.name ?? "Reserved"}</span>
+      </div>
+      <div className="mt-0.5 font-mono text-sm font-semibold text-foreground">
+        {seat.seat_label || seat.seat_number}
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <span className="text-muted-foreground">{statusLabel}</span>
+        {seat.ticket_type && (
+          <span className="font-medium text-foreground">
+            LKR {seat.ticket_type.price.toLocaleString()}
+          </span>
+        )}
+      </div>
+    </div>
   )
 }
 

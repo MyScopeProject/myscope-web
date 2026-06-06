@@ -202,8 +202,10 @@ export default function CreateEventPage() {
   const [builtLayout, setBuiltLayout] = React.useState<BuiltLayout | null>(null)
   const [sectionTicketMap, setSectionTicketMap] = React.useState<SectionTicketMap>({})
   // Reserved-mode setup path + custom-layout request fields (lifted here so the
-  // submit step can branch on them — see SeatsStep for the UI).
-  const [seatChoice, setSeatChoice] = React.useState<LayoutChoice>("grid")
+  // submit step can branch on them — see SeatsStep for the UI). Only the
+  // "custom" path is exposed: organizers upload a venue document and the
+  // MyScope team builds the seat map on the admin side.
+  const [seatChoice, setSeatChoice] = React.useState<LayoutChoice>("custom")
   const [customNote, setCustomNote] = React.useState("")
   const [customDocuments, setCustomDocuments] = React.useState<LayoutDocument[]>([])
   const [error, setError] = React.useState("")
@@ -983,26 +985,6 @@ function TicketsStep({
 // ---------------------------------------------------------------------------
 type LayoutChoice = "grid" | "custom"
 
-const LAYOUT_CHOICES: Array<{
-  value: LayoutChoice
-  label: string
-  description: string
-  icon: React.ComponentType<{ className?: string }>
-}> = [
-  {
-    value: "grid",
-    label: "Square / grid layout",
-    description: "Rows × seats per section — built here and ready instantly.",
-    icon: LayoutGrid,
-  },
-  {
-    value: "custom",
-    label: "Upload a custom layout",
-    description: "Unusual venue? Upload images or a PDF and our team builds the seat map for you.",
-    icon: MessageSquare,
-  },
-]
-
 // Max custom-layout documents an organizer can attach (kept in sync with the API).
 const LAYOUT_DOC_MAX = 10
 
@@ -1080,85 +1062,9 @@ function SeatsStep({
     <div className="space-y-5">
       <StepHeader icon={Sparkles} title="Seats" />
       <p className="text-sm text-muted-foreground">
-        Reserved seating lets attendees pick their exact seat. Build a square/grid seat map now, or
-        upload your venue layout for our team to build.
+        Reserved seating lets attendees pick their exact seat. Upload your venue layout
+        and our team builds the seat map for you.
       </p>
-
-      {/* Setup path — two options */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {LAYOUT_CHOICES.map((c) => {
-          const Icon = c.icon
-          const active = choice === c.value
-          return (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => onChoiceChange(c.value)}
-              className={cn(
-                "rounded-xl border p-4 text-left transition-colors",
-                active
-                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                  : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",
-              )}
-            >
-              <Icon className={cn("h-5 w-5", active ? "text-primary" : "text-muted-foreground")} />
-              <div className="mt-2 text-sm font-semibold text-foreground">{c.label}</div>
-              <p className="mt-1 text-xs leading-snug text-muted-foreground">{c.description}</p>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* GRID — build a square/grid seat map (held in state, applied on submit) */}
-      {choice === "grid" && (
-        <>
-          <SimpleLayoutBuilder onBuild={onBuildLayout} />
-
-          {/* Section -> ticket-type mapping for the built grid */}
-          {builtLayout && builtLayout.total_seats > 0 && (
-            <div className="rounded-xl border border-border bg-muted/30 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Tag className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">Assign pricing to each section</h3>
-              </div>
-              <div className="space-y-2.5">
-                {builtLayout.layout_data.sections.map((section) => {
-                  const value = sectionTicketMap[section.name]
-                  return (
-                    <div key={section.id} className="flex flex-wrap items-center gap-3">
-                      <span
-                        className="h-3 w-3 shrink-0 rounded"
-                        style={{ background: section.color || "var(--muted)" }}
-                        aria-hidden
-                      />
-                      <span className="w-32 shrink-0 text-sm font-medium text-foreground">
-                        {section.name}
-                      </span>
-                      <select
-                        aria-label={`Ticket type for section ${section.name}`}
-                        value={value !== undefined ? String(value) : ""}
-                        onChange={(e) => {
-                          const idx = e.target.value === "" ? -1 : parseInt(e.target.value, 10)
-                          if (idx >= 0) onMapSection(section.name, idx)
-                        }}
-                        className="h-9 flex-1 min-w-[200px] rounded-md border border-input bg-background px-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
-                      >
-                        <option value="">Pick a ticket type…</option>
-                        {tickets.map((t, i) => (
-                          <option key={i} value={i} disabled={!t.name.trim()}>
-                            {t.name.trim() || `Ticket #${i + 1}`}
-                            {t.price !== "" && ` — LKR ${Number(t.price).toLocaleString()}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </>
-      )}
 
       {/* CUSTOM — upload documents; the admin team builds the seat map */}
       {choice === "custom" && (
