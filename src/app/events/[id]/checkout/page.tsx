@@ -81,6 +81,20 @@ function CheckoutPageInner() {
  const [submitting, setSubmitting] = React.useState(false)
  const [submitError, setSubmitError] = React.useState("")
 
+ // Two-step wizard: 0 = "Choose" (seat map / ticket picker + summary),
+ // 1 = "Pay" (attendee details + gift recipients + payment). The 2nd step
+ // of the global indicator is Details (which we collapse into Pay on this
+ // page), so we map: step 0 → activeIndex 0, step 1 → activeIndex 1.
+ const [step, setStep] = React.useState<0 | 1>(0)
+ // Step-1 transition: validate that the user has actually picked seats /
+ // a ticket type before showing the Pay screen, and reset any prior submit
+ // error so the new screen renders clean.
+ const advanceToPay = React.useCallback(() => {
+  setSubmitError("")
+  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
+  setStep(1)
+ }, [])
+
  const [selectedTtId, setSelectedTtId] = React.useState<string | null>(ttFromUrl)
  const [quantity, setQuantity] = React.useState(qtyFromUrl && qtyFromUrl > 0 ? qtyFromUrl : 1)
  const [attendee, setAttendee] = React.useState({ name: "", email: "", phone: "" })
@@ -436,22 +450,32 @@ function CheckoutPageInner() {
     </div>
    )}
 
-   {/* Progress strip — small orientation aid for the three logical phases
-     of the checkout: pick a ticket, enter attendee details, pay. Static
-     (step 1 active) on purpose: the page is a single-screen form, not a
-     routed wizard. Visual states match the home page step indicator. */}
-   <CheckoutSteps activeIndex={0} />
+   {/* Progress strip — Step 1 (Choose) and Step 2 (Details/Pay merged) live
+     on this page as a two-step wizard. Step 3 (Pay) is the payment-gateway
+     screen at /bookings/event/[id]. */}
+   <CheckoutSteps activeIndex={step === 0 ? 0 : 1} />
 
    <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-    {/* Left: ticket selection + attendee form */}
+    {/* Left: step 0 = ticket / seat selection · step 1 = attendee form */}
     <div className="space-y-6 lg:col-span-2">
+     {/* ---- Step 0: Choose ---- */}
+     {step === 0 && (
+     <>
      {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
      {isReserved ? (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs">
-       <header className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-foreground">Pick your seats</h2>
-        <span className="text-xs font-medium text-muted-foreground">
-         {selectedSeats.length} selected
+      <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs dark:bg-card/40">
+       <header className="mb-4 flex flex-wrap items-end justify-between gap-2">
+        <div>
+         <h2 className="text-base font-semibold text-foreground sm:text-lg">Pick your seats</h2>
+         <p className="mt-0.5 text-xs text-muted-foreground">
+          Tap a seat to add it. Pinch / Ctrl+scroll to zoom.
+         </p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium dark:bg-card/40">
+         <span className="font-semibold text-foreground">{selectedSeats.length}</span>
+         <span className="text-muted-foreground">
+          {selectedSeats.length === 1 ? "seat" : "seats"} selected
+         </span>
         </span>
        </header>
        <SeatMapPicker
@@ -577,11 +601,43 @@ function CheckoutPageInner() {
        </div>
       </section>
      )}
+     </>
+     )}
+
+     {/* ---- Step 1: Pay (attendee + gift) ---- */}
+     {step === 1 && (
+     <>
+     {/* Step header — quick orientation + summary chip so the buyer remembers
+       what they're paying for without scrolling to the right rail. */}
+     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+       <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
+        Almost there
+       </h2>
+       <p className="mt-1 text-sm text-muted-foreground">
+        Tell us who&rsquo;s coming and you&rsquo;re ready to pay.
+       </p>
+      </div>
+      <span className="inline-flex items-center gap-2 self-start rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground">
+       <span className="font-semibold">{ticketCount}</span>
+       <span className="text-muted-foreground">
+        {ticketCount === 1 ? "ticket" : "tickets"} · {formatLkr(total)}
+       </span>
+      </span>
+     </div>
 
      {/* Attendee details */}
-     <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
-      <header className="border-b border-border px-5 py-4">
-       <h2 className="text-base font-semibold text-foreground">Attendee details</h2>
+     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs dark:bg-card/40">
+      <header className="flex items-start gap-3 border-b border-border px-5 py-4">
+       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+        1
+       </span>
+       <div className="min-w-0">
+        <h2 className="text-base font-semibold text-foreground">Your details</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+         The buyer&rsquo;s confirmation + receipt go here.
+        </p>
+       </div>
       </header>
       <div className="space-y-4 px-5 py-5">
        {user ? (
@@ -649,22 +705,27 @@ function CheckoutPageInner() {
        forced through a "leave blank or fill?" prompt. Only meaningful
        when ticketCount > 1 (or 1 ticket bought for somebody else). */}
      {ticketCount > 0 && (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
-       <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <div>
-         <h2 className="text-base font-semibold text-foreground">Send tickets to others?</h2>
-         <p className="mt-0.5 text-xs text-muted-foreground">
-          Buying for friends or family? Add their email so each person gets their own ticket.
-         </p>
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs dark:bg-card/40">
+       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="flex items-start gap-3">
+         <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+          2
+         </span>
+         <div className="min-w-0">
+          <h2 className="text-base font-semibold text-foreground">Send tickets to others?</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+           Buying for friends or family? Add their email so each person gets their own ticket.
+          </p>
+         </div>
         </div>
-        <label className="inline-flex shrink-0 items-center gap-2 text-xs">
+        <label className="inline-flex shrink-0 items-center gap-2 self-center rounded-full border border-border bg-muted/30 px-3 py-1.5 text-xs">
          <input
           type="checkbox"
           checked={giftMode}
           onChange={(e) => setGiftMode(e.target.checked)}
           className="h-4 w-4 rounded border-border"
          />
-         <span>Different attendees</span>
+         <span className="font-medium">Different attendees</span>
         </label>
        </header>
        {giftMode && (
@@ -709,19 +770,49 @@ function CheckoutPageInner() {
        )}
       </section>
      )}
+     </>
+     )}
 
-     {/* Mobile: pay button shows here too */}
+     {/* Mobile: primary action — Continue on step 0, Pay on step 1. */}
      <div className="lg:hidden">
-      <Button type="submit" size="lg" className="w-full" disabled={submitting || (isReserved ? selectedSeats.length === 0 : !selectedTt)}>
-       <Lock />
-       {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
-      </Button>
+      {step === 0 ? (
+       <Button
+        type="button"
+        size="lg"
+        className="w-full"
+        onClick={advanceToPay}
+        disabled={isReserved ? selectedSeats.length === 0 : !selectedTt}
+       >
+        Continue to payment
+       </Button>
+      ) : (
+       <div className="flex flex-col gap-2">
+        <Button
+         type="submit"
+         size="lg"
+         className="w-full"
+         disabled={submitting || (isReserved ? selectedSeats.length === 0 : !selectedTt)}
+        >
+         <Lock />
+         {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
+        </Button>
+        <button
+         type="button"
+         onClick={() => setStep(0)}
+         className="text-center text-sm text-muted-foreground hover:text-foreground"
+        >
+         ← Back to seats
+        </button>
+       </div>
+      )}
      </div>
     </div>
 
-    {/* Right: sticky order summary */}
+    {/* Right: sticky order summary — explicit brighter shade in dark mode
+        so seat labels, prices, and the total stay readable against the
+        deep page background. Stays in the theme's purple-violet hue. */}
     <aside className="lg:col-span-1">
-     <div className="sticky top-20 space-y-4 rounded-2xl border border-border bg-card p-6 shadow-xs">
+     <div className="sticky top-20 space-y-4 rounded-2xl border border-border bg-card p-6 shadow-xs dark:bg-card/40">
       <h2 className="text-base font-semibold text-foreground">Order summary</h2>
 
       {selectedTt || isReserved ? (
@@ -827,15 +918,40 @@ function CheckoutPageInner() {
        </p>
       )}
 
-      <Button
-       type="submit"
-       size="lg"
-       className="hidden w-full lg:inline-flex"
-       disabled={submitting || (isReserved ? selectedSeats.length === 0 : !selectedTt)}
-      >
-       <Lock />
-       {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
-      </Button>
+      {/* Step-aware primary action.
+            · step 0 → "Continue to payment" — type=button, advances to step 1.
+            · step 1 → "Pay" — type=submit, fires handleCheckout. Back link
+              below it returns to step 0 without losing seat selection. */}
+      {step === 0 ? (
+       <Button
+        type="button"
+        size="lg"
+        className="hidden w-full lg:inline-flex"
+        onClick={advanceToPay}
+        disabled={isReserved ? selectedSeats.length === 0 : !selectedTt}
+       >
+        Continue to payment
+       </Button>
+      ) : (
+       <>
+        <Button
+         type="submit"
+         size="lg"
+         className="hidden w-full lg:inline-flex"
+         disabled={submitting || (isReserved ? selectedSeats.length === 0 : !selectedTt)}
+        >
+         <Lock />
+         {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
+        </Button>
+        <button
+         type="button"
+         onClick={() => setStep(0)}
+         className="hidden w-full text-center text-sm text-muted-foreground hover:text-foreground lg:inline-block"
+        >
+         ← Back to seats
+        </button>
+       </>
+      )}
 
       <p className="text-xs text-muted-foreground">
        By completing your purchase you agree to MyScope&rsquo;s{" "}

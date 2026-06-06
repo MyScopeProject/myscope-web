@@ -699,7 +699,7 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
           <span className="h-3 w-px bg-border" aria-hidden="true" />
         )}
         <span className="inline-flex items-center gap-1.5">
-          <TierDot color="#D1D5DB" />
+          <TierDot color="#4B5563" />
           <span>Sold</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
@@ -853,7 +853,7 @@ function VisualSeatMap({
       viewBox={`0 0 ${vbW} ${vbH}`}
       width="100%"
       preserveAspectRatio="xMidYMid meet"
-      className="block max-h-[70vh] w-full rounded-md border border-border bg-card touch-manipulation"
+      className="block max-h-[70vh] w-full rounded-md border border-border bg-card touch-manipulation dark:bg-white/[0.92]"
       role="img"
       aria-label="Venue seat map"
     >
@@ -994,10 +994,12 @@ function VisualSeat({
   let stroke = "transparent"
   let strokeWidth = 0
   if (isUnavailable) {
-    fill = "#9CA3AF"               // gray-400 — sold / not available
+    fill = "#4B5563"               // gray-600 — sold / not available (dark grey)
   }
   if (isSelected) {
-    stroke = "currentColor"        // theme-aware ring (dark in light, white in dark)
+    // Black ring in both themes — the seatmap canvas is light in dark mode
+    // too (white/40 backdrop), so a black outline reads cleanly on both.
+    stroke = "#111827"
     strokeWidth = 2.5
   }
 
