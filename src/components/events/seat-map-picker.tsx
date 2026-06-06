@@ -6,8 +6,6 @@ import {
   Clock,
   Loader,
   RefreshCw,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -108,9 +106,57 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
   const [selectionWarning, setSelectionWarning] = React.useState<string | null>(null)
   // Zoom level. Range widened so the user can both fit the whole venue on
   // screen (zoom-out) and tap individual seats comfortably on mobile (zoom-in).
+  // Gesture-driven zoom — no buttons. Drives the inner canvas width as
+  // `${zoom * 100}%` of its scroll container so:
+  //   - ctrl/⌘ + wheel zooms on desktop
+  //   - two-finger pinch zooms on mobile
+  //   - default 1× = fits container width perfectly
   const [zoom, setZoom] = React.useState(1)
-  const minZoom = 0.4
-  const maxZoom = 3
+  const MIN_ZOOM = 1
+  const MAX_ZOOM = 4
+  const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  const pinchStartRef = React.useRef<{ dist: number; zoom: number } | null>(null)
+
+  React.useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const clamp = (v: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, v))
+
+    const onWheel = (e: WheelEvent) => {
+      // Only act when the user holds Ctrl (Windows/Linux) or ⌘ (macOS pinch
+      // trackpad gestures also surface as ctrl+wheel in browsers).
+      if (!(e.ctrlKey || e.metaKey)) return
+      e.preventDefault()
+      setZoom(z => clamp(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1)))
+    }
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return
+      const dx = e.touches[1].clientX - e.touches[0].clientX
+      const dy = e.touches[1].clientY - e.touches[0].clientY
+      pinchStartRef.current = { dist: Math.hypot(dx, dy), zoom }
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !pinchStartRef.current) return
+      e.preventDefault()
+      const dx = e.touches[1].clientX - e.touches[0].clientX
+      const dy = e.touches[1].clientY - e.touches[0].clientY
+      const dist = Math.hypot(dx, dy)
+      const factor = dist / pinchStartRef.current.dist
+      setZoom(clamp(pinchStartRef.current.zoom * factor))
+    }
+    const onTouchEnd = () => { pinchStartRef.current = null }
+
+    el.addEventListener("wheel", onWheel, { passive: false })
+    el.addEventListener("touchstart", onTouchStart, { passive: true })
+    el.addEventListener("touchmove", onTouchMove, { passive: false })
+    el.addEventListener("touchend", onTouchEnd)
+    return () => {
+      el.removeEventListener("wheel", onWheel)
+      el.removeEventListener("touchstart", onTouchStart)
+      el.removeEventListener("touchmove", onTouchMove)
+      el.removeEventListener("touchend", onTouchEnd)
+    }
+  }, [zoom])
   const [lastRefreshAt, setLastRefreshAt] = React.useState<number>(Date.now())
   // Seats with an in-flight hold or release call. Used to (a) disable double
   // clicks while a request is pending and (b) skip server-state reconciliation
@@ -496,44 +542,18 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
         </div>
       )}
 
-      {/* Minimal zoom toolbar — drag to pan, +/− to zoom. */}
-      <div className="flex items-center justify-end gap-1 text-xs">
-        <button
-          type="button"
-          onClick={() => setZoom((z) => Math.max(minZoom, Math.round((z - 0.25) * 100) / 100))}
-          disabled={zoom <= minZoom}
-          aria-label="Zoom out"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card hover:bg-muted disabled:opacity-40"
-        >
-          <ZoomOut className="h-3.5 w-3.5" />
-        </button>
-        <span className="min-w-12 text-center font-mono tabular-nums text-muted-foreground">
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
-          type="button"
-          onClick={() => setZoom((z) => Math.min(maxZoom, Math.round((z + 0.25) * 100) / 100))}
-          disabled={zoom >= maxZoom}
-          aria-label="Zoom in"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card hover:bg-muted disabled:opacity-40"
-        >
-          <ZoomIn className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {/* Visual canvas — only when every seat has x/y.
-          CSS `zoom` on the wrapper alone doesn't work here because the SVG
-          inside is `width=100%` and refills whatever box it's in. So we
-          size the inner element in pixels (viewbox_width × zoom), let the
-          SVG fill that, and the outer container handles overflow scroll. */}
+      {/* Visual canvas — only when every seat has x/y. Default 1× fits
+          the container width; gesture zoom (ctrl/⌘+wheel on desktop,
+          two-finger pinch on mobile) grows the inner element beyond it,
+          letting the scroll container handle overflow naturally. */}
       {isVisual && layout && (
-        <div className="overflow-auto pb-2 max-h-[80vh]">
+        <div
+          ref={scrollRef}
+          className="overflow-auto pb-2 max-h-[80vh]"
+        >
           <div
             className="relative"
-            style={{
-              width:  `${Math.round(Number(layout.viewbox_width)  * zoom)}px`,
-              height: `${Math.round(Number(layout.viewbox_height) * zoom)}px`,
-            }}
+            style={{ width: `${zoom * 100}%` }}
           >
             <VisualSeatMap
               layout={layout}
@@ -549,13 +569,14 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
                   : "#9CA3AF"
               }
             />
-            {/* Floating seat info card — anchored above the hovered seat,
-                converted from viewbox units to pixels via the current zoom. */}
+            {/* Floating seat info card — anchored above the hovered seat.
+                Position is expressed as a percentage of the viewbox so it
+                scales with the responsive SVG without needing a zoom factor. */}
             {hoveredSeat && hoveredSeat.x != null && hoveredSeat.y != null && (
               <SeatHoverCard
                 seat={hoveredSeat}
-                left={Number(hoveredSeat.x) * zoom}
-                top={Number(hoveredSeat.y) * zoom}
+                leftPct={(Number(hoveredSeat.x) / Number(layout.viewbox_width)) * 100}
+                topPct={(Number(hoveredSeat.y) / Number(layout.viewbox_height)) * 100}
                 tierIndex={hoveredSeat.ticket_type ? tierIndex.get(hoveredSeat.ticket_type.id) ?? 0 : 0}
                 isSelected={selectedIds.has(hoveredSeat.id)}
               />
@@ -935,7 +956,7 @@ const SEAT_R = 11   // seat circle radius, in viewbox units
 const HIT_R  = 16   // invisible hit-target radius (bigger tap area on mobile)
 
 function VisualSeat({
-  seat, isSelected, inFlight, otherTier, tierColor: _tierColor, onClick, onPointerEnter, onPointerLeave,
+  seat, isSelected, inFlight, otherTier, tierColor, onClick, onPointerEnter, onPointerLeave,
 }: {
   seat: SeatMapSeat
   isSelected: boolean
@@ -955,22 +976,19 @@ function VisualSeat({
   const isDisabled = isUnavailable || inFlight
   const lockedTier = !isSelected && otherTier && seat.status === "available"
 
-  // Cinema-clean palette: outlined white squares for available seats, filled
-  // light gray for sold, primary-tinted border for the user's picks. Tier
-  // color lives only in the legend + section headers, not on the seat itself
-  // — matches the reference cinema layout.
-  let fill = "#FFFFFF"          // outlined available
-  let stroke = "#D1D5DB"         // gray-300 border
-  let textFill = "#374151"       // gray-700 — readable seat number
+  // TicketsMinistry-style palette: every available seat wears its tier color
+  // as a solid dot; sold / held / disabled collapse to a single neutral gray
+  // so the buyer reads them as "not pickable" at a glance. The user's own
+  // pick keeps the tier color but gets a thick dark ring around it.
+  let fill = tierColor || "#9CA3AF"
+  let stroke = "transparent"
+  let strokeWidth = 0
   if (isUnavailable) {
-    fill = "#D1D5DB"             // gray-300 — clearly "sold / unavailable"
-    stroke = "#D1D5DB"
-    textFill = "#FFFFFF"         // washed-out white glyph
+    fill = "#9CA3AF"               // gray-400 — sold / not available
   }
   if (isSelected) {
-    fill = "#111827"             // near-black filled = clearly picked
-    stroke = "#111827"
-    textFill = "#FFFFFF"
+    stroke = "#111827"             // strong dark ring on the selected seat
+    strokeWidth = 2.5
   }
 
   const title = seat.ticket_type
@@ -1014,20 +1032,24 @@ function VisualSeat({
         rx={3} ry={3}
         fill={fill}
         stroke={stroke}
-        strokeWidth={isSelected ? 2 : 1}
+        strokeWidth={strokeWidth}
       />
-      <text
-        x={cx}
-        y={cy}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize={10}
-        fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        fill={textFill}
-        pointerEvents="none"
-      >
-        {isAccessible ? "H" : seat.seat_number}
-      </text>
+      {/* Accessibility seats keep an "H" glyph so they're still identifiable
+          at a glance. Numbered glyphs were dropped in favour of tier-color
+          fills — the seat label shows in the hover card instead. */}
+      {isAccessible && (
+        <text
+          x={cx} y={cy}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={10}
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+          fill="#FFFFFF"
+          pointerEvents="none"
+        >
+          H
+        </text>
+      )}
     </g>
   )
 }
@@ -1049,14 +1071,14 @@ function TierDot({ color }: { color: string }) {
 // the MyTickets pattern: CATEGORY / SEAT label, status, price.
 function SeatHoverCard({
   seat,
-  left,
-  top,
+  leftPct,
+  topPct,
   tierIndex,
   isSelected,
 }: {
   seat: SeatMapSeat
-  left: number
-  top: number
+  leftPct: number
+  topPct: number
   tierIndex: number
   isSelected: boolean
 }) {
@@ -1070,8 +1092,8 @@ function SeatHoverCard({
 
   return (
     <div
-      className="pointer-events-none absolute z-20 min-w-[140px] -translate-x-1/2 -translate-y-full rounded-lg border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg"
-      style={{ left: `${left}px`, top: `${top - 18}px` }}
+      className="pointer-events-none absolute z-20 min-w-[140px] -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded-lg border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg"
+      style={{ left: `${leftPct}%`, top: `${topPct}%` }}
       role="tooltip"
     >
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
