@@ -333,13 +333,12 @@ export default function HomePage() {
           home page stays clean before any partners are added. Sits as the
           last section before the global footer. */}
       {partners.length > 0 && (
-        <section className="py-12">
+        <section className="py-16 sm:py-20">
           <RevealOnScroll>
-          <div className="mx-auto mb-6 max-w-7xl px-4 sm:px-6">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Our partners</h2>
-            <p className="text-sm text-muted-foreground">
-              The brands and venues that help us bring shows to life.
-            </p>
+          <div className="mx-auto mb-8 max-w-7xl px-4 text-center sm:mb-10 sm:px-6">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-foreground sm:text-base">
+              Our Partners
+            </h2>
           </div>
           <PartnersMarquee items={partners} />
           </RevealOnScroll>

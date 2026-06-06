@@ -10,26 +10,15 @@ export interface PartnerItem {
   website_url: string | null
 }
 
-// Two parallel strips of partner logos, both scrolling leftward (same
-// direction) for a calm, continuous flow. Each row uses the same
+// Single calm strip of partner logos scrolling leftward. Uses the same
 // time-based scroll engine as PastEventsMarquee (integer steps +
 // auto-duplication for seamless wrap).
-//
-// Item split: alternate by index so both rows get a varied mix rather
-// than "first half" vs "second half". With a single partner, both rows
-// show that one logo.
 export function PartnersMarquee({ items }: { items: PartnerItem[] }) {
   if (!items?.length) return null
 
-  const rowA = items.filter((_, i) => i % 2 === 0)
-  const rowB = items.filter((_, i) => i % 2 === 1)
-  const top = rowA.length ? rowA : items
-  const bottom = rowB.length ? rowB : items
-
   return (
-    <div className="partners-strip relative space-y-2">
-      <MarqueeRow items={top} />
-      <MarqueeRow items={bottom} />
+    <div className="partners-strip relative">
+      <MarqueeRow items={items} />
 
       <style jsx>{`
         /* Many partner PNGs are uploaded with a non-transparent background
@@ -89,7 +78,7 @@ function MarqueeRow({ items }: { items: PartnerItem[] }) {
       return () => window.removeEventListener("resize", ensureCopies)
     }
 
-    const SPEED = 0.03 // px per ms (~30px/s)
+    const SPEED = 0.02 // px per ms (~20px/s) — calm, minimal pace
     let carry = 0
     let last = performance.now()
     let raf = 0
@@ -117,13 +106,13 @@ function MarqueeRow({ items }: { items: PartnerItem[] }) {
 
   return (
     <div className="relative">
-      {/* Edge fades so logos slide in/out softly instead of clipping hard. */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-linear-to-r from-background to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-linear-to-l from-background to-transparent" />
+      {/* Wider edge fades so logos slide in/out softly for a minimal look. */}
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-linear-to-r from-background to-transparent sm:w-32" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-linear-to-l from-background to-transparent sm:w-32" />
 
       <div
         ref={scrollerRef}
-        className="flex gap-0 overflow-x-auto px-4 pb-1 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-8 overflow-x-auto px-4 pb-1 sm:gap-12 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {repeated.map((item, i) => (
           <PartnerCard key={`${item.id}-${i}`} item={item} ariaHidden={i >= count} />
@@ -136,7 +125,7 @@ function MarqueeRow({ items }: { items: PartnerItem[] }) {
 function PartnerCard({ item, ariaHidden }: { item: PartnerItem; ariaHidden: boolean }) {
   const card = (
     <div
-      className="group/card relative flex h-24 w-40 shrink-0 items-center justify-center px-1 py-2 sm:h-28 sm:w-48"
+      className="group/card relative flex h-16 w-32 shrink-0 items-center justify-center sm:h-20 sm:w-40"
       title={item.name || undefined}
     >
       {/* Logo only — no card, no shadow, no border. The .partner-logo
