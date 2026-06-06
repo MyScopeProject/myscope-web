@@ -108,11 +108,14 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
   // screen (zoom-out) and tap individual seats comfortably on mobile (zoom-in).
   // Gesture-driven zoom — no buttons. Drives the inner canvas width as
   // `${zoom * 100}%` of its scroll container so:
-  //   - ctrl/⌘ + wheel zooms on desktop
+  //   - ctrl/⌘ + wheel zooms on desktop (incl. macOS trackpad pinch which
+  //     synthesises wheel events with ctrlKey set)
   //   - two-finger pinch zooms on mobile
   //   - default 1× = fits container width perfectly
+  // Range is wider than 1× both ways so users can zoom out below the
+  // fit-to-width baseline too.
   const [zoom, setZoom] = React.useState(1)
-  const MIN_ZOOM = 1
+  const MIN_ZOOM = 0.5
   const MAX_ZOOM = 4
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const pinchStartRef = React.useRef<{ dist: number; zoom: number } | null>(null)
@@ -549,7 +552,10 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
       {isVisual && layout && (
         <div
           ref={scrollRef}
-          className="overflow-auto pb-2 max-h-[80vh]"
+          // touch-action: pan-x pan-y keeps panning (scrolling) responsive
+          // while disabling the browser's native pinch — that lets our
+          // two-finger touchmove handler run instead of the page zooming.
+          className="overflow-auto pb-2 max-h-[80vh] [touch-action:pan-x_pan-y]"
         >
           <div
             className="relative"
@@ -979,7 +985,11 @@ function VisualSeat({
   // TicketsMinistry-style palette: every available seat wears its tier color
   // as a solid dot; sold / held / disabled collapse to a single neutral gray
   // so the buyer reads them as "not pickable" at a glance. The user's own
-  // pick keeps the tier color but gets a thick dark ring around it.
+  // pick keeps the tier color but gets a thick contrasting ring around it.
+  // Stroke uses `currentColor` so it inherits the wrapping <g>'s color,
+  // which we drive via Tailwind's `text-foreground` — that resolves to dark
+  // on light mode and white on dark mode, so the selected ring is always
+  // visible regardless of theme.
   let fill = tierColor || "#9CA3AF"
   let stroke = "transparent"
   let strokeWidth = 0
@@ -987,7 +997,7 @@ function VisualSeat({
     fill = "#9CA3AF"               // gray-400 — sold / not available
   }
   if (isSelected) {
-    stroke = "#111827"             // strong dark ring on the selected seat
+    stroke = "currentColor"        // theme-aware ring (dark in light, white in dark)
     strokeWidth = 2.5
   }
 
@@ -1016,7 +1026,9 @@ function VisualSeat({
       onPointerLeave={onPointerLeave}
       style={{ cursor: isDisabled ? "not-allowed" : "pointer" }}
       opacity={lockedTier ? 0.4 : 1}
-      className={inFlight ? "animate-pulse" : undefined}
+      // text-foreground drives `currentColor` for the selected seat ring,
+      // so it auto-adapts to light vs dark mode.
+      className={cn("text-foreground", inFlight && "animate-pulse")}
     >
       <title>{title}</title>
       {/* Hit target — invisible but pointer-receptive, sized larger than
