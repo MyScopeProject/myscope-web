@@ -510,24 +510,14 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
 
   return (
     <div className="space-y-5">
-      {/* Hold countdown — shows how long the picked seats stay reserved. */}
-      {holdSecondsLeft !== null && selectedIds.size > 0 && (
-        <div
-          className={cn(
-            "flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium",
-            holdSecondsLeft <= 60
-              ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-              : "border-primary/30 bg-primary/5 text-foreground",
-          )}
-        >
+      {/* Expired-hold notice only — silent during the active hold window
+          (matches MyTickets / TicketBox / BookMyShow behaviour). The picker
+          still reads `holdSecondsLeft` internally to surface the expiry
+          message and to reconcile selection on the next fetch tick. */}
+      {holdSecondsLeft !== null && holdSecondsLeft <= 0 && selectedIds.size > 0 && (
+        <div className="flex items-center justify-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400">
           <Clock className="h-4 w-4 shrink-0" />
-          {holdSecondsLeft > 0 ? (
-            <span>
-              Your seats are held — <span className="tabular-nums font-semibold">{fmtMMSS(holdSecondsLeft)}</span> to check out
-            </span>
-          ) : (
-            <span>Your hold has expired — please re-select your seats.</span>
-          )}
+          <span>Your hold has expired — please re-select your seats.</span>
         </div>
       )}
 
