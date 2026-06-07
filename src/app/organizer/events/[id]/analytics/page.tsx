@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   BarChart2,
   CheckCircle,
-  Download,
   Loader,
   Ticket,
   TrendingUp,
@@ -103,33 +102,6 @@ export default function OrganizerAnalyticsPage() {
     })()
   }, [user, eventId])
 
-  const exportCsv = () => {
-    if (!data) return
-    const ttMap = Object.fromEntries(data.ticket_types.map((tt) => [tt.id, tt.name]))
-    const rows = [
-      ["Booking Ref", "Name", "Email", "Phone", "Ticket Type", "Qty", "Amount (LKR)", "Checked In", "Booked At"],
-      ...data.attendees.map((a) => [
-        a.booking_reference,
-        a.attendee_info?.name ?? "",
-        a.attendee_info?.email ?? "",
-        a.attendee_info?.phone ?? "",
-        a.ticket_type_id ? ttMap[a.ticket_type_id] ?? "" : "",
-        String(a.number_of_tickets),
-        String(Number(a.total_amount).toFixed(2)),
-        a.checked_in_at ? new Date(a.checked_in_at).toLocaleString() : "No",
-        new Date(a.created_at).toLocaleString(),
-      ]),
-    ]
-    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `attendees-${data.event.title.replace(/\s+/g, "-")}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   if (authLoading || loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -164,27 +136,22 @@ export default function OrganizerAnalyticsPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Badge>Analytics</Badge>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            {event.title}
-          </h1>
-          {event.start_time && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {new Date(event.start_time).toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-              {event.venue_name && ` · ${event.venue_name}`}
-            </p>
-          )}
-        </div>
-        <Button variant="outline" onClick={exportCsv} disabled={attendees.length === 0}>
-          <Download /> Export CSV
-        </Button>
+      <div className="flex flex-col gap-3">
+        <Badge>Analytics</Badge>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          {event.title}
+        </h1>
+        {event.start_time && (
+          <p className="text-sm text-muted-foreground">
+            {new Date(event.start_time).toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+            {event.venue_name && ` · ${event.venue_name}`}
+          </p>
+        )}
       </div>
 
       {/* Summary cards */}
