@@ -35,6 +35,9 @@ export interface VisualPreviewSeat {
   x: number | null
   y: number | null
   rotation: number | null
+  // Used by the optional tierColorFor callback to paint seats in tier
+  // colors (matching what buyers see on the consumer seatmap).
+  ticket_type_id?: string | null
 }
 
 // Per-(section, row) extents — used to draw row letter labels at the edges
@@ -78,13 +81,17 @@ interface Props {
   // Caps height so the SVG doesn't dominate the page; defaults to a sensible
   // value but callers can override (e.g. modal vs sidebar).
   maxHeightClass?: string
+  // When supplied, available + held seats are painted in their tier color
+  // (matching the consumer seatmap). Without it, the preview falls back to
+  // status-only colors (emerald = available, yellow = held).
+  tierColorFor?: (ticketTypeId: string | null | undefined) => string | null
 }
 
 const SEAT_R = 11
 const ROW_LABEL_GAP = 14
 
 export function VisualSeatMapPreview({
-  layout, seats, className, maxHeightClass = "max-h-[55vh]",
+  layout, seats, className, maxHeightClass = "max-h-[55vh]", tierColorFor,
 }: Props) {
   const vbW = Number(layout.viewbox_width)  || 1600
   const vbH = Number(layout.viewbox_height) || 1200
@@ -145,7 +152,8 @@ export function VisualSeatMapPreview({
       ))}
       {seats.map(s => {
         if (s.x == null || s.y == null) return null
-        return <PreviewSeat key={s.id} seat={s} />
+        const tierColor = tierColorFor ? tierColorFor(s.ticket_type_id) : null
+        return <PreviewSeat key={s.id} seat={s} tierColor={tierColor} />
       })}
     </svg>
   )
@@ -199,29 +207,59 @@ function DecorShape({ d }: { d: VisualPreviewDecor }) {
   return null
 }
 
-function PreviewSeat({ seat }: { seat: VisualPreviewSeat }) {
+function PreviewSeat({ seat, tierColor }: { seat: VisualPreviewSeat; tierColor: string | null }) {
   const cx = seat.x as number
   const cy = seat.y as number
   const isAccessible = seat.seat_type === "accessible"
   const isBooked = seat.status === "booked"
   const isHeld   = seat.status === "held"
+  const isUnavailable = isBooked || seat.status === "disabled"
 
-  // Status-driven palette matches the picker's color scheme so the organizer
-  // sees seats colored the same way buyers will.
-  let fill     = "#D1FAE5"        // emerald-100 — available
+  // When a tier color is supplied (organizer/admin view), paint AVAILABLE seats
+  // in tier color — same visual language buyers see on the consumer picker.
+  // Booked / disabled seats fall back to a muted gray so sold seats read at
+  // a glance. Held seats keep the amber pill so the organizer notices active
+  // holds. Without a tier color, we use the legacy status-only palette.
+  let fill     = "#D1FAE5"
   let stroke   = "#10B981"
-  let textFill = "#065F46"
-  if (isAccessible)            { fill = "#DBEAFE"; stroke = "#3B82F6"; textFill = "#1E40AF" }
-  if (seat.seat_type === "restricted_view") { fill = "#F3F4F6"; stroke = "#6B7280"; textFill = "#374151" }
-  if (seat.status === "disabled")           { fill = "#E5E7EB"; stroke = "#9CA3AF"; textFill = "#6B7280" }
-  if (isHeld)                  { fill = "#FEF3C7"; stroke = "#F59E0B"; textFill = "#92400E" }
-  if (isBooked)                { fill = "#FECACA"; stroke = "#EF4444"; textFill = "#991B1B" }
+  let textFill = "#FFFFFF"
+
+  if (tierColor) {
+    fill   = tierColor
+    stroke = tierColor
+    textFill = "#FFFFFF"
+    if (isAccessible)            { fill = "#3B82F6"; stroke = "#3B82F6" }
+    if (seat.seat_type === "restricted_view") { fill = "#9CA3AF"; stroke = "#9CA3AF" }
+    if (isHeld)                  { fill = "#F59E0B"; stroke = "#F59E0B" }
+    if (isUnavailable)           { fill = "#4B5563"; stroke = "#4B5563" } // gray-600 — sold/disabled
+  } else {
+    // Legacy status-only palette (no tier info provided).
+    fill = "#D1FAE5"; stroke = "#10B981"; textFill = "#065F46"
+    if (isAccessible)            { fill = "#DBEAFE"; stroke = "#3B82F6"; textFill = "#1E40AF" }
+    if (seat.seat_type === "restricted_view") { fill = "#F3F4F6"; stroke = "#6B7280"; textFill = "#374151" }
+    if (seat.status === "disabled")           { fill = "#E5E7EB"; stroke = "#9CA3AF"; textFill = "#6B7280" }
+    if (isHeld)                  { fill = "#FEF3C7"; stroke = "#F59E0B"; textFill = "#92400E" }
+    if (isBooked)                { fill = "#FECACA"; stroke = "#EF4444"; textFill = "#991B1B" }
+  }
 
   const rot = seat.rotation
   const transform = rot ? `rotate(${rot} ${cx} ${cy})` : undefined
+  // Square seats with rounded corners — matches the consumer SeatMapPicker
+  // visual language (user preference: square, not circle/dot).
+  const size = SEAT_R * 2
   return (
     <g transform={transform}>
-      <circle cx={cx} cy={cy} r={SEAT_R} fill={fill} stroke={stroke} strokeWidth={1.25} />
+      <rect
+        x={cx - SEAT_R}
+        y={cy - SEAT_R}
+        width={size}
+        height={size}
+        rx={3}
+        ry={3}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={1.25}
+      />
       <text
         x={cx}
         y={cy}

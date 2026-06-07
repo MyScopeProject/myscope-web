@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Check,
   Edit3,
-  FileText,
   ImageIcon,
   Loader,
   MessageSquare,
@@ -58,13 +57,6 @@ interface EventRow {
   layout_source?: "grid" | "custom" | "visual" | null
   layout_status?: "ready" | "pending" | null
   layout_request_note?: string | null
-  layout_documents?: LayoutDocument[] | null
-}
-
-interface LayoutDocument {
-  url: string
-  name: string
-  type: string
 }
 
 interface TicketType {
@@ -552,7 +544,7 @@ export default function EditEventPage() {
                 via the canvas builder) — organizer view is read-only.
               - "grid" / null: organizer's self-serve grid path. */}
           {event.layout_source === "custom" || event.layout_source === "visual" ? (
-            <CustomLayoutPanel event={event} seats={seatsPreview} />
+            <CustomLayoutPanel event={event} seats={seatsPreview} ticketTypes={ticketTypes} />
           ) : (
             <EditSeatMap
               eventId={event.id}
@@ -626,16 +618,30 @@ function FieldGroup({
 // CustomLayoutPanel — read-only view for reserved events whose seat map is built
 // by the MyScope team (either via the canvas builder → layout_source="visual"
 // or from organizer-uploaded documents → layout_source="custom"). When seats
-// have per-seat (x, y) coords, renders the SVG canvas; otherwise falls back
-// to the legacy grid preview so older custom-built maps still display.
+// have per-seat (x, y) coords, renders the SVG canvas with TIER colors — same
+// visual language buyers see on the consumer seatmap. Booked seats show as
+// muted gray, held seats as amber, so the organizer can spot sold sections.
+// Falls back to the legacy grid preview for older custom-built maps.
 // ---------------------------------------------------------------------------
-function CustomLayoutPanel({ event, seats }: { event: EventRow; seats: LayoutData | null }) {
+
+// Tier palette — must mirror seat-map-picker's TIER_PALETTE so the organizer
+// preview reads identically to the buyer-facing seatmap.
+const ORGANIZER_TIER_PALETTE = ["#7F77DD", "#1D9E75", "#BA7517", "#D85A30", "#185FA5", "#993556", "#6B7280"]
+
+function CustomLayoutPanel({
+  event,
+  seats,
+  ticketTypes,
+}: {
+  event: EventRow
+  seats: LayoutData | null
+  ticketTypes: TicketType[]
+}) {
   const [visual, setVisual] = React.useState<{
     layout: VisualPreviewLayout
     seats: VisualPreviewSeat[]
   } | null>(null)
   const [visualLoading, setVisualLoading] = React.useState(true)
-  const docs = event.layout_documents ?? []
 
   // Pull the canvas seat-map state. The endpoint is admin/organizer-scoped
   // and 200s with empty seats[] for events that haven't had a map built yet.
@@ -664,6 +670,19 @@ function CustomLayoutPanel({ event, seats }: { event: EventRow; seats: LayoutDat
   const hasGridSeats = !!seats && seats.sections.length > 0
   const hasAnySeats = hasVisual || hasGridSeats
 
+  // Map ticket_type_id → swatch color. Tiers are indexed in first-seen order
+  // matching what the consumer picker does, so seat colors stay consistent
+  // between organizer preview and buyer view.
+  const tierColorFor = React.useCallback(
+    (ticketTypeId: string | null | undefined) => {
+      if (!ticketTypeId) return null
+      const idx = ticketTypes.findIndex(t => t.id === ticketTypeId)
+      if (idx < 0) return null
+      return ORGANIZER_TIER_PALETTE[idx % ORGANIZER_TIER_PALETTE.length]
+    },
+    [ticketTypes],
+  )
+
   return (
     <div className="space-y-4">
       {visualLoading ? (
@@ -672,18 +691,44 @@ function CustomLayoutPanel({ event, seats }: { event: EventRow; seats: LayoutDat
           <span>Loading your seat map…</span>
         </div>
       ) : hasAnySeats ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
             <Check className="h-4 w-4 shrink-0" />
-            <span>Your seat map is ready — built by the MyScope team.</span>
+            <span>This is the seat map buyers see at checkout.</span>
           </div>
           <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-3">
             {hasVisual && visual ? (
-              <VisualSeatMapPreview layout={visual.layout} seats={visualSeatsWithCoords} />
+              <VisualSeatMapPreview
+                layout={visual.layout}
+                seats={visualSeatsWithCoords}
+                tierColorFor={tierColorFor}
+                maxHeightClass="max-h-[70vh]"
+              />
             ) : (
               <SeatGridPreview layout={seats!} />
             )}
           </div>
+          {/* Tier legend — color swatch + name + price, mirrors the consumer
+              seatmap legend so the organizer can map each color back to a tier. */}
+          {ticketTypes.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+              {ticketTypes.map((t, i) => (
+                <span key={t.id} className="inline-flex items-center gap-1.5">
+                  <span
+                    aria-hidden
+                    className="inline-block h-3 w-3 rounded-sm"
+                    style={{ backgroundColor: ORGANIZER_TIER_PALETTE[i % ORGANIZER_TIER_PALETTE.length] }}
+                  />
+                  <span className="font-medium text-foreground">{t.name}</span>
+                  <span>· LKR {Number(t.price).toLocaleString()}</span>
+                </span>
+              ))}
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden className="inline-block h-3 w-3 rounded-sm bg-gray-500" />
+                Sold / unavailable
+              </span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
@@ -692,31 +737,6 @@ function CustomLayoutPanel({ event, seats }: { event: EventRow; seats: LayoutDat
             Our team is building your seat map from the documents you uploaded. You&rsquo;ll see it here
             once it&rsquo;s ready, and the event goes live after admin approval.
           </span>
-        </div>
-      )}
-
-      {docs.length > 0 && (
-        <div>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Your uploaded documents
-          </div>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {docs.map((doc) => (
-              <li key={doc.url} className="overflow-hidden rounded-lg border border-border bg-muted/30">
-                {doc.type === "application/pdf" ? (
-                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex h-28 flex-col items-center justify-center gap-1.5 p-2 text-center">
-                    <FileText className="h-6 w-6 text-primary" />
-                    <span className="line-clamp-2 text-[11px] text-muted-foreground">{doc.name}</span>
-                  </a>
-                ) : (
-                  <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={doc.url} alt={doc.name} className="h-28 w-full object-cover" />
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
         </div>
       )}
 
