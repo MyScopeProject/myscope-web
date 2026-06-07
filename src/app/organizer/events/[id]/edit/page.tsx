@@ -12,7 +12,6 @@ import {
   Loader,
   MessageSquare,
   Plus,
-  Save,
   Send,
   Tag,
   Trash2,
@@ -57,6 +56,18 @@ interface EventRow {
   layout_source?: "grid" | "custom" | "visual" | null
   layout_status?: "ready" | "pending" | null
   layout_request_note?: string | null
+}
+
+interface PendingEdit {
+  id: string
+  event_id: string
+  submitted_by: string
+  submitted_at: string
+  status: "pending" | "approved" | "declined"
+  changes: Record<string, unknown>
+  decline_reason: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
 }
 
 interface TicketType {
@@ -114,6 +125,12 @@ export default function EditEventPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
   const [busy, setBusy] = React.useState<null | "save" | "submit">(null)
+  // Moderation queue surface: a pending edit currently awaiting admin review
+  // (one outstanding per event) + the most recent declined edit so we can show
+  // the organizer the decline reason on next page load.
+  const [pendingEdit, setPendingEdit] = React.useState<PendingEdit | null>(null)
+  const [lastDecline, setLastDecline] = React.useState<PendingEdit | null>(null)
+  const [savedNotice, setSavedNotice] = React.useState<{ kind: "queued" | "saved"; text: string } | null>(null)
 
   const [form, setForm] = React.useState({
     title: "",
@@ -163,6 +180,8 @@ export default function EditEventPage() {
         setEvent(e)
         setTicketTypes(data.data.ticket_types ?? [])
         setSeatsPreview((data.data.seats_preview as LayoutData | null) ?? null)
+        setPendingEdit((data.data.pending_edit as PendingEdit | null) ?? null)
+        setLastDecline((data.data.last_decline as PendingEdit | null) ?? null)
         setForm({
           title: e.title ?? "",
           description: e.description ?? "",
@@ -210,17 +229,29 @@ export default function EditEventPage() {
   const canEdit =
     !!event && ["draft", "pending", "approved", "rejected"].includes(event.approval_status)
 
-  const handleSave = async (): Promise<boolean> => {
-    if (!event) return false
+  // Save + (when applicable) submit for review in one flow.
+  //
+  // The backend PATCH decides per-status what "save" actually means:
+  //   - draft / rejected / pending → applies the change immediately
+  //   - approved (live event)     → queues the change for admin review,
+  //                                  live event untouched (HTTP 202 + queued:true)
+  //
+  // For draft / rejected we ALSO call POST /:id/submit afterward to flip
+  // the event into the admin's review queue. For pending events the row
+  // is already in the queue; for approved events the queue is the
+  // pending-edits queue (different surface, no submit call needed).
+  const handleSaveAndSubmit = async () => {
+    if (!event) return
     setError("")
+    setSavedNotice(null)
 
     if (!form.title.trim()) {
       setError("Title is required.")
-      return false
+      return
     }
     if (!form.start_time) {
       setError("Start time is required.")
-      return false
+      return
     }
 
     setBusy("save")
@@ -247,36 +278,45 @@ export default function EditEventPage() {
       const data = await res.json()
       if (!data?.success) {
         setError(data?.message || "Failed to save.")
-        return false
-      }
-      setEvent(data.data.event)
-      return true
-    } catch {
-      setError("Network error. Please try again.")
-      return false
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  const handleSubmit = async () => {
-    if (!event) return
-    if (!confirm("Submit for admin review? You won't be able to edit until they respond.")) return
-    const saved = await handleSave()
-    if (!saved) return
-
-    setBusy("submit")
-    try {
-      const res = await fetch(`${API_URL}/api/organizer/events/${event.id}/submit`, {
-        method: "POST",
-        credentials: "include",
-      })
-      const data = await res.json()
-      if (!data?.success) {
-        setError(data?.message || "Failed to submit.")
         return
       }
-      router.push("/organizer/events")
+
+      // Approved event → backend queued the change instead of applying it.
+      // Update the pending-edit banner state and surface a confirmation.
+      if (data.queued) {
+        if (data.data?.pending_edit) setPendingEdit(data.data.pending_edit as PendingEdit)
+        setLastDecline(null) // any prior decline is superseded by this new submission
+        setSavedNotice({
+          kind: "queued",
+          text: data.message || "Submitted for admin review. The live event stays unchanged until they approve.",
+        })
+        return
+      }
+
+      // Direct save path (draft / pending / rejected). For draft + rejected
+      // we also need to flip the event into the admin review queue via the
+      // /submit endpoint. Pending is already in the queue, so no submit call.
+      setEvent(data.data.event)
+      const currentStatus = data.data.event?.approval_status ?? event.approval_status
+      if (currentStatus === "draft" || currentStatus === "rejected") {
+        setBusy("submit")
+        const submitRes = await fetch(`${API_URL}/api/organizer/events/${event.id}/submit`, {
+          method: "POST",
+          credentials: "include",
+        })
+        const submitBody = await submitRes.json()
+        if (!submitBody?.success) {
+          setError(submitBody?.message || "Saved, but couldn't submit for review.")
+          return
+        }
+        router.push("/organizer/events")
+        return
+      }
+
+      setSavedNotice({
+        kind: "saved",
+        text: "Changes saved.",
+      })
     } catch {
       setError("Network error. Please try again.")
     } finally {
@@ -333,6 +373,56 @@ export default function EditEventPage() {
             <span className="font-semibold">Rejection reason: </span>
             {event.rejection_reason}
           </div>
+        </div>
+      )}
+
+      {/* Pending review banner — a proposed edit on a live event is sitting
+          in the admin queue. Until they approve / decline, the live event
+          stays unchanged. */}
+      {pendingEdit && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+          <Send className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex-1">
+            <div className="font-semibold">Submitted for admin review</div>
+            <p className="mt-0.5 text-xs">
+              Your proposed changes are pending approval. The live event stays unchanged until an admin approves them.
+              Submitted {new Date(pendingEdit.submitted_at).toLocaleString("en-US", {
+                month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+              })}.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Most-recent decline — surface the admin's reason so the organizer
+          knows what to adjust before re-submitting. Hidden once a new
+          pending edit is in flight (the banner above takes precedence). */}
+      {!pendingEdit && lastDecline && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex-1">
+            <div className="font-semibold">Your last change was declined</div>
+            {lastDecline.decline_reason ? (
+              <p className="mt-0.5 text-xs">
+                <span className="font-medium">Reason:</span> {lastDecline.decline_reason}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs">No reason provided. Adjust your edits and re-submit.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Inline confirmation after a successful save / submit. */}
+      {savedNotice && (
+        <div className={cn(
+          "flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm",
+          savedNotice.kind === "queued"
+            ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+        )}>
+          <Check className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{savedNotice.text}</span>
         </div>
       )}
 
@@ -565,25 +655,28 @@ export default function EditEventPage() {
         seatingMode={event.seating_mode ?? null}
       />
 
-      {/* Footer actions */}
-      <div className="flex items-center justify-end gap-2">
+      {/* Footer action — single merged button. For approved events the
+          backend queues the change instead of applying it; for draft /
+          rejected events the same click saves + submits for admin review
+          in one step. The button is disabled while a pending edit is
+          already outstanding (organizer should wait for the admin
+          decision before submitting another revision). */}
+      <div className="flex flex-col items-end gap-2">
         <Button
           type="button"
-          variant="outline"
-          onClick={handleSave}
-          disabled={!canEdit || busy !== null}
+          onClick={handleSaveAndSubmit}
+          disabled={!canEdit || busy !== null || pendingEdit !== null}
         >
-          {busy === "save" ? <Loader className="animate-spin" /> : <Save />}
-          Save changes
+          {busy !== null ? <Loader className="animate-spin" /> : <Send />}
+          {busy === "submit" ? "Submitting…"
+            : busy === "save" ? "Saving…"
+            : "Save changes and submit for review"}
         </Button>
-        <Button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!canEdit || busy !== null}
-        >
-          {busy === "submit" ? <Loader className="animate-spin" /> : <Send />}
-          Submit for review
-        </Button>
+        {pendingEdit && (
+          <p className="text-xs text-muted-foreground">
+            A previous edit is still awaiting admin review. Wait for the decision before submitting another.
+          </p>
+        )}
       </div>
     </div>
   )
