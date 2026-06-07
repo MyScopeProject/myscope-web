@@ -10,6 +10,7 @@ import {
  Check,
  Loader,
  Lock,
+ Maximize2,
  Minus,
  Plus,
 } from "lucide-react"
@@ -629,35 +630,11 @@ function CheckoutPageInner() {
      )}
 
      {/* Seating / zone layout — a reference map the organizer uploaded.
-       Opens full-size in a new tab for zooming. Placed below the ticket
-       picker so users see the picker first, then can consult the map
-       before confirming their choice. */}
+       Zooms in-place (no new tab) via the +/− controls. Placed below the
+       ticket picker so users see the picker first, then can consult the
+       map before confirming their choice. */}
      {event.layout_image_url && (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
-       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">Seating layout</h2>
-        <span className="text-[10px] text-muted-foreground">Click to enlarge</span>
-       </header>
-       {/* Compact preview — caps the rendered height so the section
-         doesn't dominate the page. Click opens full-size in a new tab. */}
-       <div className="p-3">
-        <a
-         href={event.layout_image_url}
-         target="_blank"
-         rel="noopener noreferrer"
-         className="block"
-         title="Open full-size layout"
-        >
-         {/* eslint-disable-next-line @next/next/no-img-element */}
-         <img
-          src={event.layout_image_url}
-          alt="Seating layout"
-          className="mx-auto max-h-48 w-auto max-w-full rounded-md border border-border bg-muted object-contain"
-          onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-         />
-        </a>
-       </div>
-      </section>
+      <LayoutImageZoom imageUrl={event.layout_image_url} />
      )}
      </div>
      </div>
@@ -1153,3 +1130,55 @@ function SummaryRow({ label, value }: { label: React.ReactNode; value: string })
 // CheckoutSteps + CHECKOUT_STEPS moved to @/components/checkout/checkout-steps
 // so the same strip can render on the payment page (/bookings/event/[id])
 // with activeIndex={2}, keeping the flow visually continuous.
+
+// Inline zoomable view for the organizer-uploaded seating layout image.
+// Buyer can zoom in (+) / out (−) / reset (⤢) without leaving the page —
+// replaces the previous "open in new tab" affordance per UX feedback.
+// Implementation: width-driven scaling on the inner wrapper, with the
+// outer container providing the scroll viewport when zoomed beyond fit.
+const LAYOUT_MIN_ZOOM = 1
+const LAYOUT_MAX_ZOOM = 4
+function LayoutImageZoom({ imageUrl }: { imageUrl: string }) {
+ const [zoom, setZoom] = React.useState(LAYOUT_MIN_ZOOM)
+ const clamp = (v: number) => Math.max(LAYOUT_MIN_ZOOM, Math.min(LAYOUT_MAX_ZOOM, v))
+ const zoomIn = () => setZoom(z => clamp(z * 1.25))
+ const zoomOut = () => setZoom(z => clamp(z / 1.25))
+ const reset = () => setZoom(LAYOUT_MIN_ZOOM)
+ const btn = "inline-flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+ return (
+  <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
+   <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+    <h2 className="text-sm font-semibold text-foreground">Seating layout</h2>
+    <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shadow-sm dark:bg-card/40">
+     <button type="button" onClick={zoomOut} disabled={zoom <= LAYOUT_MIN_ZOOM} aria-label="Zoom out" className={btn}>
+      <Minus className="h-3.5 w-3.5" />
+     </button>
+     <span className="min-w-10 text-center text-[11px] font-medium tabular-nums text-muted-foreground">
+      {Math.round(zoom * 100)}%
+     </span>
+     <button type="button" onClick={zoomIn} disabled={zoom >= LAYOUT_MAX_ZOOM} aria-label="Zoom in" className={btn}>
+      <Plus className="h-3.5 w-3.5" />
+     </button>
+     <button type="button" onClick={reset} disabled={zoom === LAYOUT_MIN_ZOOM} aria-label="Reset zoom" className={btn}>
+      <Maximize2 className="h-3.5 w-3.5" />
+     </button>
+    </div>
+   </header>
+   {/* Scroll container — when zoom > 1 the image grows wider than the
+       container and overflow-auto exposes a scrollbar so the buyer can pan
+       around. max-h caps the vertical area at 1× so the layout doesn't
+       dominate the page; vertical scroll kicks in at higher zooms. */}
+   <div className="overflow-auto p-3 max-h-[60vh]">
+    <div style={{ width: `${zoom * 100}%` }} className="mx-auto">
+     {/* eslint-disable-next-line @next/next/no-img-element */}
+     <img
+      src={imageUrl}
+      alt="Seating layout"
+      className="block w-full rounded-md border border-border bg-muted object-contain"
+      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+     />
+    </div>
+   </div>
+  </section>
+ )
+}

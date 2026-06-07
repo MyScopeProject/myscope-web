@@ -112,7 +112,7 @@ function MarqueeRow({ items }: { items: PartnerItem[] }) {
 
       <div
         ref={scrollerRef}
-        className="flex gap-8 overflow-x-auto px-4 pb-1 sm:gap-12 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-3 overflow-x-auto px-4 pb-1 sm:gap-5 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {repeated.map((item, i) => (
           <PartnerCard key={`${item.id}-${i}`} item={item} ariaHidden={i >= count} />
