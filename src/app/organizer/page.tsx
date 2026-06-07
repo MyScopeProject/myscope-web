@@ -239,7 +239,7 @@ export default function OrganizerDashboardPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <Link
-                      href={`/organizer/events/${e.event_id}/analytics`}
+                      href={`/organizer/events/${e.event_id}`}
                       className="line-clamp-1 text-sm font-medium text-foreground transition-colors hover:text-primary"
                     >
                       {e.title}

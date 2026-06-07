@@ -11,6 +11,7 @@ import {
   Bell,
   Calendar,
   CalendarClock,
+  CheckCircle,
   CheckCircle2,
   ClipboardList,
   Edit3,
@@ -29,9 +30,11 @@ import {
   Tag,
   Ticket,
   Trash2,
+  TrendingUp,
   Users as UsersIcon,
   XCircle,
 } from "lucide-react"
+import { EventCommunicationsCard } from "@/components/events/event-communications-card"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -530,11 +533,25 @@ export default function OrganizerEventControlPage() {
 }
 
 // ===========================================================================
-// Overview — quick stats + a direct link to the full analytics page
+// Overview — the full analytics dashboard, surfaced inline on the manage
+// page so the organizer doesn't need to bounce to a separate route. Pulls
+// from /analytics + /invitations, then renders: 4 headline stat cards, a
+// small invitations tile, the communications log, and the per-tier sold/
+// revenue breakdown. The Attendees table that used to live on the separate
+// analytics page is intentionally left here — it's already its own tab.
 // ===========================================================================
 
+interface TicketTypeStat {
+  id: string
+  name: string
+  price: number
+  quantity: number
+  sold: number
+  revenue: number
+  checked_in: number
+}
+
 interface OverviewData {
-  // Mirrors GET /api/organizer/events/:id/analytics response → data.summary
   summary: {
     total_revenue: number | string
     total_sold: number
@@ -542,20 +559,21 @@ interface OverviewData {
     total_checked_in: number
     occupancy_pct: number
   }
+  ticket_types: TicketTypeStat[]
+  attendees?: Array<{ id: string }>  // length used for the Bookings tile
 }
 
 function OverviewTab({ eventId }: { eventId: string }) {
   const [data, setData] = React.useState<OverviewData | null>(null)
-  // Invitation counts surfaced as a 5th tile (sent / failed split). Fetched
-  // alongside analytics so the Overview reflects outreach at a glance. Soft-
-  // fails: a network error here doesn't block the rest of the tab.
+  // Invitation counts surfaced as a separate small tile (sent / failed
+  // split). Fetched alongside analytics so the Overview reflects outreach
+  // at a glance. Soft-fails: a network error here doesn't block the rest.
   const [invites, setInvites] = React.useState<{ sent: number; failed: number } | null>(null)
   const [err, setErr] = React.useState("")
   React.useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        // Two independent fetches in parallel — neither blocks the other.
         const [analyticsRes, invitesRes] = await Promise.all([
           fetch(`${API_URL}/api/organizer/events/${eventId}/analytics`, { credentials: "include" }),
           fetch(`${API_URL}/api/organizer/events/${eventId}/invitations`, { credentials: "include" }),
@@ -564,7 +582,6 @@ function OverviewTab({ eventId }: { eventId: string }) {
         const analyticsBody = await analyticsRes.json()
         if (analyticsBody?.success) setData(analyticsBody.data as OverviewData)
         else setErr(analyticsBody?.message || "Couldn't load overview.")
-        // Invitations: soft-fail. Aggregate sent vs failed for the tile.
         try {
           const invBody = await invitesRes.json()
           if (!cancelled && invBody?.success) {
@@ -591,33 +608,140 @@ function OverviewTab({ eventId }: { eventId: string }) {
   if (!data) return <CardSkeleton />
 
   const s = data.summary
+  const bookingsCount = data.attendees?.length ?? 0
   const checkinPct = s.total_sold > 0 ? Math.round((s.total_checked_in / s.total_sold) * 100) : 0
-  // Build the invitations cell — total with a small note if any failed.
   const invitesValue = invites ? String(invites.sent + invites.failed) : "—"
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Stat label="Revenue" value={formatLkr(s.total_revenue)} />
-        <Stat label="Tickets sold" value={String(s.total_sold)} />
-        <Stat label="Occupancy" value={`${s.occupancy_pct}%`} />
-        <Stat label="Check-in" value={`${checkinPct}%`} />
-        {/* Invitations: total invited via the Invite tab. Shows a tiny note
-            below the number when some failed so the organizer notices. */}
-        <Stat
-          label="Invitations"
-          value={invitesValue}
-          note={
-            invites && invites.failed > 0
-              ? `${invites.sent} sent · ${invites.failed} failed`
-              : undefined
-          }
+    <div className="space-y-5">
+      {/* Headline stat cards — same 4 the standalone analytics page used. */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <BigStat
+          icon={TrendingUp}
+          label="Revenue"
+          value={formatLkr(s.total_revenue)}
+        />
+        <BigStat
+          icon={Ticket}
+          label="Tickets sold"
+          value={`${s.total_sold} / ${s.total_capacity}`}
+          hint={`${s.occupancy_pct}% full`}
+        />
+        <BigStat
+          icon={UsersIcon}
+          label="Bookings"
+          value={bookingsCount.toLocaleString()}
+        />
+        <BigStat
+          icon={CheckCircle}
+          label="Checked in"
+          value={`${s.total_checked_in} / ${s.total_sold}`}
+          hint={s.total_sold > 0 ? `${checkinPct}%` : "—"}
+          tone="success"
         />
       </div>
-      <Button asChild variant="outline" size="sm">
-        <Link href={`/organizer/events/${eventId}/analytics`}>
-          <BarChart2 /> Open full analytics
-        </Link>
-      </Button>
+
+      {/* Invitations — small standalone tile so it doesn't crowd the headline
+          row when the organizer hasn't used the Invite tab yet. */}
+      <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Invitations</div>
+            <div className="mt-1 text-xl font-bold text-foreground">{invitesValue}</div>
+            {invites && invites.failed > 0 && (
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                {invites.sent} sent · {invites.failed} failed
+              </div>
+            )}
+          </div>
+          <Send className="h-5 w-5 text-muted-foreground" />
+        </div>
+      </div>
+
+      {/* Communications — email + SMS counts per type (booking confirmation,
+          postponement, etc.). Same component the standalone analytics page used. */}
+      <EventCommunicationsCard
+        endpoint={`/api/organizer/events/${eventId}/communications`}
+      />
+
+      {/* Per-tier sold + revenue breakdown — pulled from /analytics response. */}
+      {data.ticket_types && data.ticket_types.length > 0 && (
+        <section className="rounded-xl border border-border bg-card shadow-xs">
+          <div className="border-b border-border p-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <BarChart2 className="h-4 w-4 text-primary" /> Ticket-type breakdown
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-left">
+                <tr>
+                  <th className="px-4 py-3 font-medium text-muted-foreground">Type</th>
+                  <th className="px-4 py-3 font-medium text-muted-foreground">Price</th>
+                  <th className="px-4 py-3 font-medium text-muted-foreground">Sold</th>
+                  <th className="px-4 py-3 font-medium text-muted-foreground">Revenue</th>
+                  <th className="px-4 py-3 font-medium text-muted-foreground">Checked in</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.ticket_types.map((tt) => {
+                  const soldPct = tt.quantity > 0 ? Math.round((tt.sold / tt.quantity) * 100) : 0
+                  return (
+                    <tr key={tt.id} className="border-t border-border">
+                      <td className="px-4 py-3 font-medium text-foreground">{tt.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{formatLkr(tt.price)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-foreground">{tt.sold} / {tt.quantity}</span>
+                          <div className="hidden h-1.5 w-20 overflow-hidden rounded-full bg-muted sm:block">
+                            <div className="h-full bg-primary" style={{ width: `${soldPct}%` }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-foreground">{formatLkr(tt.revenue)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{tt.checked_in}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
+// Larger headline stat tile (replaces the separate analytics page's StatCard).
+function BigStat({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone = "default",
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string
+  hint?: string
+  tone?: "default" | "success" | "warning"
+}) {
+  const iconStyles = {
+    default: "bg-primary/10 text-primary",
+    success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  }[tone]
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className="mt-1 text-2xl font-bold text-foreground">{value}</div>
+        </div>
+        <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-md", iconStyles)}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      {hint && <p className="mt-2 truncate text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
 }
