@@ -25,6 +25,7 @@ import {
   SEATMAP_MAX_ZOOM,
   clampSeatmapZoom,
   type SelectedSeat,
+  type SelectedFreeSeating,
 } from "@/components/events/seat-map-picker"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -108,6 +109,10 @@ function CheckoutPageInner() {
 
  // Reserved-mode state — seat picker manages its own list, parent just holds the result.
  const [selectedSeats, setSelectedSeats] = React.useState<SelectedSeat[]>([])
+ // Free-seating (GA) tier quantities — populated by the picker for events
+ // that mix reserved sections with general-admission zones. Empty for the
+ // common all-reserved case.
+ const [freeSeating, setFreeSeating] = React.useState<SelectedFreeSeating[]>([])
  const [seatTotal, setSeatTotal] = React.useState(0)
  const isReserved = event?.seating_mode === "reserved"
 
@@ -146,7 +151,13 @@ function CheckoutPageInner() {
  // — empty slots default to the buyer at emission time.
  const [giftMode, setGiftMode] = React.useState(false)
  const [recipients, setRecipients] = React.useState<{ name: string; email: string }[]>([])
- const ticketCount = isReserved ? selectedSeats.length : quantity
+ // Total tickets across reserved-seat picks AND free-seating quantities,
+ // when reserved. Drives the gift-recipient input count and the buttons'
+ // disabled state.
+ const freeSeatingCount = freeSeating.reduce((s, f) => s + f.quantity, 0)
+ const ticketCount = isReserved
+   ? selectedSeats.length + freeSeatingCount
+   : quantity
 
  // Promo code state. The discount is server-validated against the current
  // subtotal — if the user changes quantity or tier after applying, we re-clear
@@ -326,13 +337,24 @@ function CheckoutPageInner() {
    : []
 
   if (isReserved) {
-   if (selectedSeats.length === 0) {
-    setSubmitError("Pick at least one seat.")
+   const freeQtyTotal = freeSeating.reduce((s, f) => s + f.quantity, 0)
+   if (selectedSeats.length === 0 && freeQtyTotal === 0) {
+    setSubmitError("Pick at least one seat or general admission ticket.")
     return
    }
    body = {
     event_id: event!.id,
     seat_ids: selectedSeats.map((s) => s.id),
+    // Free-seating tier quantities — backend reserves GA inventory via
+    // reserve_tickets() per entry, atomic with hold_seats for the
+    // per-seat picks. Empty array is fine and omitted to keep the
+    // payload minimal for the common all-reserved case.
+    ...(freeSeating.length ? {
+     free_seating: freeSeating.map(f => ({
+      ticket_type_id: f.ticket_type_id,
+      quantity: f.quantity,
+     })),
+    } : {}),
     attendee_info: {
      name: attendee.name.trim() || undefined,
      email: attendee.email.trim() || undefined,
@@ -497,12 +519,18 @@ function CheckoutPageInner() {
           max={SEATMAP_MAX_ZOOM}
           onIn={zoomIn} onOut={zoomOut} onReset={zoomReset}
          />
-         <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium dark:bg-card/40">
-          <span className="font-semibold text-foreground">{selectedSeats.length}</span>
-          <span className="text-muted-foreground">
-           {selectedSeats.length === 1 ? "seat" : "seats"} selected
-          </span>
-         </span>
+         {(() => {
+           const freeCount = freeSeating.reduce((s, f) => s + f.quantity, 0)
+           const total = selectedSeats.length + freeCount
+           return (
+             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium dark:bg-card/40">
+               <span className="font-semibold text-foreground">{total}</span>
+               <span className="text-muted-foreground">
+                 {total === 1 ? "ticket" : "tickets"} selected
+               </span>
+             </span>
+           )
+         })()}
         </div>
        </header>
        <SeatMapPicker
@@ -510,8 +538,9 @@ function CheckoutPageInner() {
         maxPerOrder={8}
         zoom={seatZoom}
         onZoomChange={setSeatZoom}
-        onSelectionChange={(seats, total) => {
+        onSelectionChange={(seats, total, free) => {
          setSelectedSeats(seats)
+         setFreeSeating(free)
          setSeatTotal(total)
         }}
        />
@@ -810,7 +839,7 @@ function CheckoutPageInner() {
         size="lg"
         className="w-full"
         onClick={advanceToPay}
-        disabled={isReserved ? selectedSeats.length === 0 : !selectedTt}
+        disabled={isReserved ? ticketCount === 0 : !selectedTt}
        >
         Continue to payment
        </Button>
@@ -820,7 +849,7 @@ function CheckoutPageInner() {
          type="submit"
          size="lg"
          className="w-full"
-         disabled={submitting || (isReserved ? selectedSeats.length === 0 : !selectedTt)}
+         disabled={submitting || (isReserved ? ticketCount === 0 : !selectedTt)}
         >
          <Lock />
          {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
@@ -865,6 +894,26 @@ function CheckoutPageInner() {
              </span>
             }
             value={formatLkr(s.price)}
+           />
+          ))}
+         </div>
+        )}
+        {/* Free-seating (GA) tier rows — one per tier with quantity. Shown
+            alongside the reserved per-seat rows so the buyer sees the
+            combined order in one place. */}
+        {isReserved && freeSeating.length > 0 && (
+         <div className="space-y-1.5">
+          {freeSeating.map((f) => (
+           <SummaryRow
+            key={f.ticket_type_id}
+            label={
+             <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="text-foreground">{f.ticket_type_name}</span>
+              <span className="text-muted-foreground/70">×</span>
+              <span className="font-medium text-foreground">{f.quantity}</span>
+             </span>
+            }
+            value={formatLkr(f.price * f.quantity)}
            />
           ))}
          </div>
@@ -957,7 +1006,7 @@ function CheckoutPageInner() {
         size="lg"
         className="hidden w-full lg:inline-flex"
         onClick={advanceToPay}
-        disabled={isReserved ? selectedSeats.length === 0 : !selectedTt}
+        disabled={isReserved ? ticketCount === 0 : !selectedTt}
        >
         Continue to payment
        </Button>
@@ -967,7 +1016,7 @@ function CheckoutPageInner() {
          type="submit"
          size="lg"
          className="hidden w-full lg:inline-flex"
-         disabled={submitting || (isReserved ? selectedSeats.length === 0 : !selectedTt)}
+         disabled={submitting || (isReserved ? ticketCount === 0 : !selectedTt)}
         >
          <Lock />
          {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}

@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   AlertCircle,
   Clock,
+  Info,
   Loader,
   Maximize2,
   Minus,
@@ -30,6 +31,24 @@ export interface SeatTicketType {
   id: string
   name: string
   price: number
+  // When true (and the event is reserved-seating), this tier is sold as
+  // general admission — buyers pick a quantity instead of specific seats.
+  // The seats in this tier still render on the map (so the zone is visible)
+  // but aren't individually clickable.
+  is_free_seating?: boolean
+  // Inventory — only present when is_free_seating is true. Drives the
+  // quantity stepper's max value and "sold out" state.
+  quantity_total?: number
+  quantity_sold?: number
+}
+
+// What the parent gets back for free-seating tiers (alongside the per-seat
+// SelectedSeat list). One entry per tier that has quantity > 0.
+export interface SelectedFreeSeating {
+  ticket_type_id: string
+  ticket_type_name: string
+  price: number
+  quantity: number
 }
 
 export interface SeatMapSeat {
@@ -95,7 +114,14 @@ interface SeatMapResponse {
 interface Props {
   eventId: string
   maxPerOrder?: number
-  onSelectionChange: (seats: SelectedSeat[], totalAmount: number) => void
+  // Reports both reserved-seat selections AND free-seating tier quantities
+  // up to the parent. `totalAmount` already sums both; the parent uses the
+  // breakdowns to render the cart line items + build the checkout payload.
+  onSelectionChange: (
+    seats: SelectedSeat[],
+    totalAmount: number,
+    freeSeating: SelectedFreeSeating[],
+  ) => void
   // Controlled zoom — when supplied, the parent owns the zoom state and can
   // render <ZoomControls/> wherever it wants (e.g. inside its own header).
   // When omitted, the picker manages zoom internally and shows its own
@@ -227,6 +253,26 @@ export function SeatMapPicker({
   // no-op.
   const activeTicketTypeId: string | null = null
 
+  // Derive the unique list of free-seating tiers in this event. Each free
+  // tier has a single entry (first-seen) carrying its price + inventory.
+  // Drives both the quantity-selector panel and the toggleSeat early-return.
+  const freeSeatingTiers = React.useMemo(() => {
+    const map = new Map<string, { id: string; name: string; price: number; quantity_total: number; quantity_sold: number }>()
+    for (const s of allSeats) {
+      const tt = s.ticket_type
+      if (!tt || !tt.is_free_seating) continue
+      if (map.has(tt.id)) continue
+      map.set(tt.id, {
+        id: tt.id,
+        name: tt.name,
+        price: tt.price,
+        quantity_total: tt.quantity_total ?? 0,
+        quantity_sold: tt.quantity_sold ?? 0,
+      })
+    }
+    return Array.from(map.values())
+  }, [allSeats])
+
   // Fetch (called on mount + every 30s + manual refresh).
   // credentials: include lets the server detect the logged-in user so it can
   // mark seats with held_by_me: true (which the picker then pre-selects).
@@ -316,12 +362,33 @@ export function SeatMapPicker({
     onSelectionChangeRef.current = onSelectionChange
   })
 
-  // Notify parent whenever the selection changes.
+  // Free-seating quantity selections, keyed by ticket_type_id. Each entry is
+  // the number of GA tickets the buyer wants in that tier. Empty when no
+  // free-seating tier has any quantity, OR for events without any free
+  // tiers (the most common case). Tracked separately from selectedIds because
+  // free tiers don't claim specific seats.
+  const [freeSeatingQty, setFreeSeatingQty] = React.useState<Map<string, number>>(new Map())
+  // Which free-seating tier should the quantity-selector panel highlight?
+  // Set when the user taps a seat in a free zone — drives a subtle ring on
+  // the matching card so they understand where to pick a quantity.
+  const [freeTierFocus, setFreeTierFocus] = React.useState<string | null>(null)
+  // Auto-clear the focus ring after a couple seconds so it doesn't linger.
+  React.useEffect(() => {
+    if (!freeTierFocus) return
+    const t = setTimeout(() => setFreeTierFocus(null), 2500)
+    return () => clearTimeout(t)
+  }, [freeTierFocus])
+
+  // Notify parent whenever the selection changes (per-seat picks OR free
+  // quantities OR the seat list reloading). `total` sums both.
   React.useEffect(() => {
     const picked: SelectedSeat[] = []
     let total = 0
     for (const seat of allSeats) {
       if (!selectedIds.has(seat.id) || !seat.ticket_type) continue
+      // Free-seating tiers are quantity-based — their seats live in the map
+      // for visual layout only and never enter the per-seat selection.
+      if (seat.ticket_type.is_free_seating) continue
       picked.push({
         id: seat.id,
         seat_label: seat.seat_label || `${seat.seat_number}`,
@@ -331,8 +398,24 @@ export function SeatMapPicker({
       })
       total += seat.ticket_type.price
     }
-    onSelectionChangeRef.current(picked, total)
-  }, [selectedIds, allSeats])
+    // Build the free-seating breakdown. Skip empty entries so the parent
+    // gets a clean array it can iterate without filtering.
+    const free: SelectedFreeSeating[] = []
+    for (const [ticketTypeId, qty] of freeSeatingQty.entries()) {
+      if (qty <= 0) continue
+      const tier = freeSeatingTiers.find(t => t.id === ticketTypeId)
+      if (!tier) continue
+      free.push({
+        ticket_type_id: tier.id,
+        ticket_type_name: tier.name,
+        price: tier.price,
+        quantity: qty,
+      })
+      total += tier.price * qty
+    }
+    onSelectionChangeRef.current(picked, total, free)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds, allSeats, freeSeatingQty])
 
   // Track a seat as in-flight (disables clicks + protects from reconcile races).
   const markInFlight = React.useCallback((id: string, on: boolean) => {
@@ -347,6 +430,14 @@ export function SeatMapPicker({
   const toggleSeat = async (seat: SeatMapSeat) => {
     setSelectionWarning(null)
     if (inFlightIds.has(seat.id)) return // already busy
+
+    // Free-seating tiers aren't individually clickable — the seats live in
+    // the map for visual layout only. Tapping a seat in a free zone reveals
+    // (and scrolls to) the tier's quantity selector instead.
+    if (seat.ticket_type?.is_free_seating) {
+      setFreeTierFocus(seat.ticket_type.id)
+      return
+    }
 
     const isCurrentlySelected = selectedIds.has(seat.id)
 
@@ -543,10 +634,26 @@ export function SeatMapPicker({
   tierList.forEach((t, i) => tierIndex.set(t.id, i))
 
   // Selected total — drives the "N seats selected · LKR X" footer.
+  // Per-seat picks contribute their ticket_type.price; free-seating tiers
+  // contribute price × quantity. Free seats are skipped in the per-seat
+  // loop (they should never be in selectedIds anyway, but defense).
   let selectedTotal = 0
+  let perSeatCount = 0
   for (const s of allSeats) {
-    if (selectedIds.has(s.id) && s.ticket_type) selectedTotal += s.ticket_type.price
+    if (!selectedIds.has(s.id) || !s.ticket_type) continue
+    if (s.ticket_type.is_free_seating) continue
+    selectedTotal += s.ticket_type.price
+    perSeatCount += 1
   }
+  let freeSeatingCount = 0
+  for (const [tierId, qty] of freeSeatingQty.entries()) {
+    if (qty <= 0) continue
+    const tier = freeSeatingTiers.find(t => t.id === tierId)
+    if (!tier) continue
+    selectedTotal += tier.price * qty
+    freeSeatingCount += qty
+  }
+  const combinedCount = perSeatCount + freeSeatingCount
 
   return (
     <div className="space-y-5">
@@ -633,16 +740,17 @@ export function SeatMapPicker({
         </div>
       )}
 
-      {/* Selection footer — confirms how many seats are picked and the
-          running total. Always visible (visual + grid modes) so users see
-          their pick before reaching the cart. */}
+      {/* Selection footer — confirms how many tickets are picked (both
+          per-seat picks and free-seating quantities) plus the running
+          total. Always visible (visual + grid modes) so users see their
+          pick before reaching the cart. */}
       <div className="flex items-center justify-center text-sm">
-        {selectedIds.size === 0 ? (
-          <span className="text-muted-foreground">0 seats selected</span>
+        {combinedCount === 0 ? (
+          <span className="text-muted-foreground">0 tickets selected</span>
         ) : (
           <span className="text-foreground">
             <span className="font-semibold">
-              {selectedIds.size} seat{selectedIds.size === 1 ? "" : "s"} selected
+              {combinedCount} ticket{combinedCount === 1 ? "" : "s"} selected
             </span>
             <span className="text-muted-foreground"> · LKR {selectedTotal.toLocaleString()}</span>
           </span>
@@ -725,6 +833,46 @@ export function SeatMapPicker({
           )
         })}
       </div>
+      )}
+
+      {/* Free-seating tier cards — one per GA tier (none for the common
+          all-reserved case). Each renders the TicketsMinistry-style info
+          banner and a quantity stepper. Tapping a seat in a free zone on
+          the map highlights the matching card via freeTierFocus. */}
+      {freeSeatingTiers.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            General admission
+          </h3>
+          {freeSeatingTiers.map(tier => {
+            const available = Math.max(0, tier.quantity_total - tier.quantity_sold)
+            const qty = freeSeatingQty.get(tier.id) ?? 0
+            const tierColorIdx = tierIndex.get(tier.id) ?? 0
+            const setQty = (n: number) => {
+              const clamped = Math.max(0, Math.min(n, Math.min(available, maxPerOrder)))
+              setFreeSeatingQty(prev => {
+                const next = new Map(prev)
+                if (clamped === 0) next.delete(tier.id)
+                else next.set(tier.id, clamped)
+                return next
+              })
+            }
+            return (
+              <FreeSeatingTierCard
+                key={tier.id}
+                name={tier.name}
+                price={tier.price}
+                available={available}
+                qty={qty}
+                maxPerOrder={maxPerOrder}
+                color={tierColorByIndex(tierColorIdx)}
+                focused={freeTierFocus === tier.id}
+                onIncrement={() => setQty(qty + 1)}
+                onDecrement={() => setQty(qty - 1)}
+              />
+            )
+          })}
+        </div>
       )}
 
       {/* Legend — ticket categories with their tier colors + price, plus
@@ -1206,6 +1354,97 @@ export function ZoomControls({ zoom, min, max, onIn, onOut, onReset }: ZoomContr
       <button type="button" onClick={onReset} disabled={zoom === 1} aria-label="Reset zoom" className={btn}>
         <Maximize2 className="h-3.5 w-3.5" />
       </button>
+    </div>
+  )
+}
+
+// Quantity-stepper card for a single free-seating tier. Shown inside the
+// picker's "General admission" section beneath the seatmap, one per tier.
+// The TicketsMinistry-style info banner explains that picking happens at
+// the gate, not on the map.
+function FreeSeatingTierCard({
+  name,
+  price,
+  available,
+  qty,
+  maxPerOrder,
+  color,
+  focused,
+  onIncrement,
+  onDecrement,
+}: {
+  name: string
+  price: number
+  available: number
+  qty: number
+  maxPerOrder: number
+  color: string
+  focused: boolean
+  onIncrement: () => void
+  onDecrement: () => void
+}) {
+  const isSoldOut = available <= 0
+  const atMax = qty >= Math.min(available, maxPerOrder)
+  const subtotal = price * qty
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border bg-card p-4 dark:bg-card/40",
+        focused && "ring-2 ring-primary/40",
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            aria-hidden
+            className="inline-block h-3.5 w-3.5 rounded-sm shrink-0"
+            style={{ backgroundColor: color }}
+          />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-foreground truncate">{name}</div>
+            <div className="text-xs text-muted-foreground">LKR {price.toLocaleString()}</div>
+          </div>
+        </div>
+        {isSoldOut ? (
+          <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            Sold out
+          </span>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onDecrement}
+              disabled={qty <= 0}
+              aria-label="Decrease quantity"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <span className="min-w-8 text-center text-sm font-semibold tabular-nums">{qty}</span>
+            <button
+              type="button"
+              onClick={onIncrement}
+              disabled={atMax}
+              aria-label="Increase quantity"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="mt-3 flex items-start gap-2 rounded-md border border-border/60 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <span>
+          This section offers free seating. Seats will be allocated on a first-come, first-served basis.
+          Select the number of tickets you need.
+        </span>
+      </div>
+      {qty > 0 && (
+        <div className="mt-2 text-right text-xs font-medium text-foreground">
+          Subtotal: LKR {subtotal.toLocaleString()}
+        </div>
+      )}
     </div>
   )
 }

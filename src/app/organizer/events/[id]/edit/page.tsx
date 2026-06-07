@@ -78,6 +78,9 @@ interface TicketType {
   sale_start: string | null
   sale_end: string | null
   is_active: boolean
+  // Inside a reserved-seating event, marks the tier as GA (quantity-based)
+  // rather than per-seat. See migrations/2026-06-09-free-seating-tier.sql.
+  is_free_seating?: boolean
 }
 
 const STATUS_META: Record<ApprovalStatus, { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }> = {
@@ -567,6 +570,7 @@ export default function EditEventPage() {
         canEdit={!!canEdit}
         tickets={ticketTypes}
         onChange={setTicketTypes}
+        seatingMode={event.seating_mode ?? null}
       />
 
       {/* Footer actions */}
@@ -860,6 +864,7 @@ interface TicketDraft {
   quantity_total: string
   per_order_limit: string
   is_active: boolean
+  is_free_seating: boolean
 }
 
 const emptyDraft = (): TicketDraft => ({
@@ -869,6 +874,7 @@ const emptyDraft = (): TicketDraft => ({
   quantity_total: "",
   per_order_limit: "10",
   is_active: true,
+  is_free_seating: false,
 })
 
 const fromTicket = (t: TicketType): TicketDraft => ({
@@ -878,6 +884,7 @@ const fromTicket = (t: TicketType): TicketDraft => ({
   quantity_total: String(t.quantity_total),
   per_order_limit: String(t.per_order_limit),
   is_active: t.is_active,
+  is_free_seating: t.is_free_seating === true,
 })
 
 const validateDraft = (
@@ -901,6 +908,7 @@ const validateDraft = (
       quantity_total: qty,
       per_order_limit: limit,
       is_active: d.is_active,
+      is_free_seating: d.is_free_seating === true,
     },
   }
 }
@@ -910,11 +918,13 @@ function TicketTypesEditor({
   canEdit,
   tickets,
   onChange,
+  seatingMode,
 }: {
   eventId: string
   canEdit: boolean
   tickets: TicketType[]
   onChange: (next: TicketType[]) => void
+  seatingMode: "none" | "free" | "zoned" | "reserved" | null
 }) {
   const [editing, setEditing] = React.useState<string | null>(null)
   const [draft, setDraft] = React.useState<TicketDraft>(emptyDraft())
@@ -1049,6 +1059,7 @@ function TicketTypesEditor({
               busy={busyId === t.id}
               onSave={save}
               onCancel={cancel}
+              seatingMode={seatingMode}
             />
           ) : (
             <DisplayRow
@@ -1068,6 +1079,7 @@ function TicketTypesEditor({
             busy={busyId === "new"}
             onSave={save}
             onCancel={cancel}
+            seatingMode={seatingMode}
           />
         )}
       </ul>
@@ -1139,12 +1151,14 @@ function DraftRow({
   busy,
   onSave,
   onCancel,
+  seatingMode,
 }: {
   draft: TicketDraft
   setDraft: (d: TicketDraft) => void
   busy: boolean
   onSave: () => void
   onCancel: () => void
+  seatingMode: "none" | "free" | "zoned" | "reserved" | null
 }) {
   const upd = (patch: Partial<TicketDraft>) => setDraft({ ...draft, ...patch })
 
@@ -1186,6 +1200,22 @@ function DraftRow({
         value={draft.description}
         onChange={(e) => upd({ description: e.target.value })}
       />
+      {seatingMode === "reserved" && (
+        <label className="flex items-start gap-2 rounded-md border border-border bg-background/40 px-3 py-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={draft.is_free_seating}
+            onChange={(e) => upd({ is_free_seating: e.target.checked })}
+            className="mt-0.5 h-4 w-4 accent-primary"
+          />
+          <span className="text-sm">
+            <span className="font-medium text-foreground">Free seating tier</span>
+            <span className="block text-xs text-muted-foreground">
+              Sold as general admission — first-come, first-served. Buyers pick a quantity instead of specific seats.
+            </span>
+          </span>
+        </label>
+      )}
       <div className="flex items-center justify-between">
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input

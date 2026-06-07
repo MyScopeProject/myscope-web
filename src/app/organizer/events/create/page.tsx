@@ -89,6 +89,11 @@ interface TicketTypeForm {
   price: string
   quantity_total: string
   per_order_limit: string
+  // When the event is reserved-seating and this flag is true, the tier is
+  // sold as general-admission (quantity-based) instead of per-seat. The
+  // admin still paints seats for the zone (so it shows on the venue map),
+  // but those seats aren't individually clickable at checkout.
+  is_free_seating: boolean
 }
 
 interface MediaForm {
@@ -149,6 +154,7 @@ const emptyTicket = (): TicketTypeForm => ({
   price: "",
   quantity_total: "",
   per_order_limit: "10",
+  is_free_seating: false,
 })
 
 const emptyMedia: MediaForm = { banner_url: "", layout_image_url: "", trailer_url: "" }
@@ -184,6 +190,7 @@ const buildPayload = (
     price: t.price === "" ? 0 : Number(t.price),
     quantity_total: t.quantity_total === "" ? 0 : parseInt(t.quantity_total, 10),
     per_order_limit: t.per_order_limit === "" ? 10 : parseInt(t.per_order_limit, 10),
+    is_free_seating: t.is_free_seating === true,
   })),
 })
 
@@ -968,6 +975,27 @@ function TicketsStep({
                   placeholder="What's included with this ticket?"
                 />
               </div>
+              {/* Reserved-seating events can have GA tiers mixed in (e.g. a
+                  general "Balcony" alongside specific-seat "Gold" / "Silver").
+                  When this is checked, the admin still paints seats for the
+                  zone so it shows on the venue map, but the buyer picks a
+                  quantity instead of individual seats. */}
+              {seatingMode === "reserved" && (
+                <label className="sm:col-span-2 mt-1 flex items-start gap-2 rounded-md border border-border bg-background/40 px-3 py-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={t.is_free_seating}
+                    onChange={(e) => updTicket(idx, { is_free_seating: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium text-foreground">Free seating tier</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Sold as general admission — first-come, first-served. Buyers pick a quantity instead of specific seats.
+                    </span>
+                  </span>
+                </label>
+              )}
             </div>
           </div>
         ))}
