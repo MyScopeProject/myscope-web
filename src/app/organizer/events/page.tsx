@@ -18,7 +18,6 @@ import {
   Search,
   Send,
   Ticket,
-  Trash2,
   XCircle,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
@@ -93,9 +92,6 @@ export default function OrganizerEventsPage() {
   // Background count of past events so the "Past" tab has a number badge even
   // before the user clicks it. Fetched on mount alongside the upcoming list.
   const [pastCount, setPastCount] = React.useState<number | null>(null)
-  const [deleteTarget, setDeleteTarget] = React.useState<EventRow | null>(null)
-  const [deleting, setDeleting] = React.useState(false)
-  const [deleteError, setDeleteError] = React.useState("")
 
   // Auth guard
   React.useEffect(() => {
@@ -166,29 +162,6 @@ export default function OrganizerEventsPage() {
       }
     } finally {
       setSubmittingId(null)
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true)
-    setDeleteError("")
-    try {
-      const res = await fetch(`${API_URL}/api/events/${deleteTarget.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      })
-      const data = await res.json()
-      if (data?.success) {
-        setDeleteTarget(null)
-        await fetchEvents(viewMode)
-      } else {
-        setDeleteError(data?.message || "Couldn't delete this event.")
-      }
-    } catch {
-      setDeleteError("Network error. Please try again.")
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -363,73 +336,9 @@ export default function OrganizerEventsPage() {
               event={event}
               submitting={submittingId === event.id}
               onSubmit={() => handleSubmit(event.id)}
-              onDelete={() => {
-                setDeleteError("")
-                setDeleteTarget(event)
-              }}
             />
           ))}
         </ul>
-      )}
-
-      {/* Delete confirmation modal */}
-      {deleteTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => !deleting && setDeleteTarget(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3">
-              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                <Trash2 className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-semibold text-foreground">Delete this event?</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  You&rsquo;re about to delete{" "}
-                  <span className="font-semibold text-foreground">&ldquo;{deleteTarget.title}&rdquo;</span>
-                  . This also removes its ticket types and pending bookings. This action can&rsquo;t be undone.
-                </p>
-                {deleteTarget.approval_status === "approved" && (
-                  <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>
-                      This event is live. If anyone has booked a ticket, the delete will be blocked — refund and cancel bookings first.
-                    </span>
-                  </div>
-                )}
-                {deleteError && (
-                  <div className="mt-3 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{deleteError}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? <Loader className="animate-spin" /> : <Trash2 />}
-                {deleting ? "Deleting…" : "Delete event"}
-              </Button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )
@@ -438,12 +347,10 @@ export default function OrganizerEventsPage() {
 function OrganizerEventRow({
   event,
   onSubmit,
-  onDelete,
   submitting,
 }: {
   event: EventRow
   onSubmit: () => void
-  onDelete: () => void
   submitting: boolean
 }) {
   const meta = STATUS_META[event.approval_status] ?? STATUS_META.draft
@@ -556,14 +463,6 @@ function OrganizerEventRow({
                 </Link>
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onDelete}
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 /> Delete
-            </Button>
             {canSubmit && (
               <Button size="sm" onClick={onSubmit} disabled={submitting}>
                 {submitting ? <Loader className="animate-spin" /> : <Send />}
