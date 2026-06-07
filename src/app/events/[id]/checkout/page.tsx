@@ -18,7 +18,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { CheckoutSteps } from "@/components/checkout/checkout-steps"
-import { SeatMapPicker, type SelectedSeat } from "@/components/events/seat-map-picker"
+import {
+  SeatMapPicker,
+  ZoomControls,
+  SEATMAP_MIN_ZOOM,
+  SEATMAP_MAX_ZOOM,
+  clampSeatmapZoom,
+  type SelectedSeat,
+} from "@/components/events/seat-map-picker"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -103,6 +110,14 @@ function CheckoutPageInner() {
  const [selectedSeats, setSelectedSeats] = React.useState<SelectedSeat[]>([])
  const [seatTotal, setSeatTotal] = React.useState(0)
  const isReserved = event?.seating_mode === "reserved"
+
+ // Seat-map zoom — lifted here so we can render <ZoomControls/> in the
+ // section header (next to the "seats selected" pill) rather than above
+ // the seatmap. The picker becomes controlled when we pass `zoom` to it.
+ const [seatZoom, setSeatZoom] = React.useState(1)
+ const zoomIn    = () => setSeatZoom(z => clampSeatmapZoom(z * 1.2))
+ const zoomOut   = () => setSeatZoom(z => clampSeatmapZoom(z / 1.2))
+ const zoomReset = () => setSeatZoom(1)
 
  // Customer-visible platform fee %. Fetched once on mount; default to 0.02
  // (2%) so we don't render a zero fee on first paint when the public settings
@@ -475,16 +490,26 @@ function CheckoutPageInner() {
           Tap a seat to add it. Pinch / Ctrl+scroll to zoom.
          </p>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium dark:bg-card/40">
-         <span className="font-semibold text-foreground">{selectedSeats.length}</span>
-         <span className="text-muted-foreground">
-          {selectedSeats.length === 1 ? "seat" : "seats"} selected
+        <div className="flex items-center gap-2">
+         <ZoomControls
+          zoom={seatZoom}
+          min={SEATMAP_MIN_ZOOM}
+          max={SEATMAP_MAX_ZOOM}
+          onIn={zoomIn} onOut={zoomOut} onReset={zoomReset}
+         />
+         <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium dark:bg-card/40">
+          <span className="font-semibold text-foreground">{selectedSeats.length}</span>
+          <span className="text-muted-foreground">
+           {selectedSeats.length === 1 ? "seat" : "seats"} selected
+          </span>
          </span>
-        </span>
+        </div>
        </header>
        <SeatMapPicker
         eventId={event.id}
         maxPerOrder={8}
+        zoom={seatZoom}
+        onZoomChange={setSeatZoom}
         onSelectionChange={(seats, total) => {
          setSelectedSeats(seats)
          setSeatTotal(total)

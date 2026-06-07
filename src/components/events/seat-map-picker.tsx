@@ -5,6 +5,9 @@ import {
   AlertCircle,
   Clock,
   Loader,
+  Maximize2,
+  Minus,
+  Plus,
   RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -93,11 +96,28 @@ interface Props {
   eventId: string
   maxPerOrder?: number
   onSelectionChange: (seats: SelectedSeat[], totalAmount: number) => void
+  // Controlled zoom — when supplied, the parent owns the zoom state and can
+  // render <ZoomControls/> wherever it wants (e.g. inside its own header).
+  // When omitted, the picker manages zoom internally and shows its own
+  // toolbar above the seatmap.
+  zoom?: number
+  onZoomChange?: (z: number) => void
 }
+
+export const SEATMAP_MIN_ZOOM = 0.5
+export const SEATMAP_MAX_ZOOM = 4
+export const clampSeatmapZoom = (v: number) =>
+  Math.max(SEATMAP_MIN_ZOOM, Math.min(SEATMAP_MAX_ZOOM, v))
 
 const REFRESH_MS = 30_000
 
-export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: Props) {
+export function SeatMapPicker({
+  eventId,
+  maxPerOrder = 8,
+  onSelectionChange,
+  zoom: zoomProp,
+  onZoomChange,
+}: Props) {
   const [sections, setSections] = React.useState<Record<string, Record<string, SeatMapSeat[]>>>({})
   const [layout, setLayout] = React.useState<LayoutMeta | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -114,16 +134,36 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
   //   - default 1× = fits container width perfectly
   // Range is wider than 1× both ways so users can zoom out below the
   // fit-to-width baseline too.
-  const [zoom, setZoom] = React.useState(1)
-  const MIN_ZOOM = 0.5
-  const MAX_ZOOM = 4
+  // Internal fallback zoom — only used when the parent doesn't supply
+  // a controlled `zoom` prop. The controlled path lets the parent render
+  // <ZoomControls/> wherever it wants (e.g. inside its own card header).
+  const [internalZoom, setInternalZoom] = React.useState(1)
+  const isControlled = zoomProp !== undefined
+  const zoom = isControlled ? (zoomProp as number) : internalZoom
+  const setZoom = React.useCallback(
+    (updater: number | ((z: number) => number)) => {
+      const next = typeof updater === 'function' ? (updater as (z: number) => number)(zoom) : updater
+      if (isControlled) onZoomChange?.(next)
+      else setInternalZoom(next)
+    },
+    [isControlled, onZoomChange, zoom],
+  )
+  const MIN_ZOOM = SEATMAP_MIN_ZOOM
+  const MAX_ZOOM = SEATMAP_MAX_ZOOM
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const pinchStartRef = React.useRef<{ dist: number; zoom: number } | null>(null)
+  const clampZoom = React.useCallback(
+    (v: number) => clampSeatmapZoom(v),
+    [],
+  )
+  const zoomIn   = () => setZoom(z => clampZoom(z * 1.2))
+  const zoomOut  = () => setZoom(z => clampZoom(z / 1.2))
+  const zoomReset = () => setZoom(1)
 
   React.useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const clamp = (v: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, v))
+    const clamp = clampZoom
 
     const onWheel = (e: WheelEvent) => {
       // Only act when the user holds Ctrl (Windows/Linux) or ⌘ (macOS pinch
@@ -535,6 +575,18 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
         </div>
       )}
 
+      {/* Zoom toolbar — only rendered when the picker is uncontrolled. In
+          controlled mode the parent owns zoom state and renders its own
+          <ZoomControls/> wherever it likes. */}
+      {!isControlled && (
+        <div className="flex justify-end">
+          <ZoomControls
+            zoom={zoom} min={MIN_ZOOM} max={MAX_ZOOM}
+            onIn={zoomIn} onOut={zoomOut} onReset={zoomReset}
+          />
+        </div>
+      )}
+
       {/* Visual canvas — only when every seat has x/y. Default 1× fits
           the container width; gesture zoom (ctrl/⌘+wheel on desktop,
           two-finger pinch on mobile) grows the inner element beyond it,
@@ -844,7 +896,7 @@ function VisualSeatMap({
       viewBox={`0 0 ${vbW} ${vbH}`}
       width="100%"
       preserveAspectRatio="xMidYMid meet"
-      className="block max-h-[70vh] w-full rounded-md border border-border bg-card touch-manipulation dark:bg-white/[0.92]"
+      className="block w-full rounded-md border border-border bg-card touch-manipulation dark:bg-white/[0.92]"
       role="img"
       aria-label="Venue seat map"
     >
@@ -1127,4 +1179,33 @@ function formatRelative(ms: number): string {
   if (seconds < 60) return `${seconds}s`
   const minutes = Math.floor(seconds / 60)
   return `${minutes}m`
+}
+
+interface ZoomControlsProps {
+  zoom: number
+  min: number
+  max: number
+  onIn:    () => void
+  onOut:   () => void
+  onReset: () => void
+}
+
+export function ZoomControls({ zoom, min, max, onIn, onOut, onReset }: ZoomControlsProps) {
+  const btn = "inline-flex h-7 w-7 items-center justify-center rounded-md text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shadow-sm dark:bg-card/40">
+      <button type="button" onClick={onOut} disabled={zoom <= min} aria-label="Zoom out" className={btn}>
+        <Minus className="h-3.5 w-3.5" />
+      </button>
+      <span className="min-w-10 text-center text-[11px] font-medium tabular-nums text-muted-foreground">
+        {Math.round(zoom * 100)}%
+      </span>
+      <button type="button" onClick={onIn} disabled={zoom >= max} aria-label="Zoom in" className={btn}>
+        <Plus className="h-3.5 w-3.5" />
+      </button>
+      <button type="button" onClick={onReset} disabled={zoom === 1} aria-label="Reset zoom" className={btn}>
+        <Maximize2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
 }
