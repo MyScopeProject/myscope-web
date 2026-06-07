@@ -607,7 +607,7 @@ export default function EventBookingDetailPage() {
     {/* Status hero — only for confirmed/cancelled. Pending no longer shows
       a "Review your order" hero. */}
     {(isConfirmed || isCancelled) && (
-     <div className="p-6 rounded-2xl border border-border bg-card mb-6">
+     <div className="p-6 rounded-2xl border border-border bg-card mb-6 dark:bg-card/40">
       {isConfirmed && (
        <StatusHero
         tone="success"
@@ -628,7 +628,7 @@ export default function EventBookingDetailPage() {
     )}
 
     {/* Order summary */}
-    <div className="p-6 rounded-2xl border border-border bg-card space-y-4">
+    <div className="p-6 rounded-2xl border border-border bg-card space-y-4 dark:bg-card/40">
      {event && (
       <div>
        <h2 className="text-xl font-outfit font-bold text-foreground">{event.title}</h2>
@@ -734,7 +734,7 @@ export default function EventBookingDetailPage() {
     {/* Phone verification — confirm the attendee's number is reachable so
       SMS reminders / alerts actually land. Shown until verified. */}
     {showPhoneVerify && (
-     <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+     <div className="mt-6 rounded-2xl border border-border bg-card p-5 dark:bg-card/40">
       <div className="flex items-start gap-3">
        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Smartphone className="h-5 w-5" />
@@ -917,7 +917,7 @@ export default function EventBookingDetailPage() {
         <Loader className="w-4 h-4 animate-spin" /> Loading tickets…
        </div>
       ) : seatTickets.length === 0 ? (
-       <div className="p-3 text-sm text-muted-foreground rounded-2xl border border-border bg-card">
+       <div className="p-3 text-sm text-muted-foreground rounded-2xl border border-border bg-card dark:bg-card/40">
         Tickets are being generated. Refresh in a moment.
        </div>
       ) : (
@@ -929,7 +929,7 @@ export default function EventBookingDetailPage() {
          return (
           <li
            key={t.id}
-           className="flex flex-col gap-3 p-4 rounded-2xl border border-border bg-card sm:flex-row sm:items-center sm:justify-between"
+           className="flex flex-col gap-3 p-4 rounded-2xl border border-border bg-card dark:bg-card/40 sm:flex-row sm:items-center sm:justify-between"
           >
            <div className="min-w-0">
             <div className="font-outfit font-semibold text-foreground">Seat {seatLabel}</div>
@@ -953,7 +953,7 @@ export default function EventBookingDetailPage() {
              onClick={() => handleTransferSeatTicket(t)}
              disabled={transferringId === t.id || checkedIn}
              title={checkedIn ? 'Already used — cannot transfer' : 'Send to a different email'}
-             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-semibold disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl border border-border bg-card hover:bg-muted text-foreground"
+             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-semibold disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl border border-border bg-card dark:bg-card/40 hover:bg-muted text-foreground"
             >
              {transferringId === t.id ? (
               <Loader className="w-3.5 h-3.5 animate-spin" />
@@ -982,7 +982,7 @@ export default function EventBookingDetailPage() {
        </ul>
       )}
       {event?.start_time && (
-       <div className="mt-4 p-4 rounded-2xl border border-border bg-card">
+       <div className="mt-4 p-4 rounded-2xl border border-border bg-card dark:bg-card/40">
         <AddToCalendar
          title={event.title}
          startIso={event.start_time}
@@ -1020,7 +1020,7 @@ export default function EventBookingDetailPage() {
        {downloadingTicket ? 'Preparing…' : 'Download ticket (QR)'}
       </button>
       {event?.start_time && (
-       <div className="w-full p-4 rounded-2xl border border-border bg-card">
+       <div className="w-full p-4 rounded-2xl border border-border bg-card dark:bg-card/40">
         <AddToCalendar
          title={event.title}
          startIso={event.start_time}
@@ -1127,7 +1127,7 @@ function AddToCalendar({
  };
 
  const btn =
-  'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-medium rounded-2xl border border-border bg-card hover:bg-muted text-foreground';
+  'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-medium rounded-2xl border border-border bg-card dark:bg-card/40 hover:bg-muted text-foreground';
 
  return (
   <div className="w-full">
