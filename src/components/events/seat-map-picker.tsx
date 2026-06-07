@@ -602,7 +602,8 @@ export function SeatMapPicker({ eventId, maxPerOrder = 8, onSelectionChange }: P
           reflows surrounding content correctly so the scroll container
           knows the scaled width. */}
       {!isVisual && (
-      <div className="space-y-6 overflow-x-auto pb-2 [zoom:var(--seat-zoom)]"
+      <div ref={scrollRef}
+           className="space-y-6 overflow-x-auto pb-2 [zoom:var(--seat-zoom)] [touch-action:pan-x_pan-y]"
            style={{ '--seat-zoom': zoom } as React.CSSProperties}
       >
         {sectionNames.map(sectionName => {
