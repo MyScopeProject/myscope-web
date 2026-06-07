@@ -210,7 +210,7 @@ export default function OrganizerEventControlPage() {
   const [error, setError] = React.useState("")
   const [tab, setTab] = React.useState<Tab>("overview")
   // Header-action busy flags (one at a time is fine).
-  const [headerBusy, setHeaderBusy] = React.useState<null | "pause" | "resume" | "cancel" | "unpostpone">(null)
+  const [headerBusy, setHeaderBusy] = React.useState<null | "pause" | "resume" | "unpostpone">(null)
   const [headerMsg, setHeaderMsg] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
   const [postponeOpen, setPostponeOpen] = React.useState(false)
 
@@ -284,34 +284,6 @@ export default function OrganizerEventControlPage() {
     }
   }
 
-  const cancelEvent = async () => {
-    if (!eventId) return
-    const reason = window.prompt(
-      "Cancel this event?\n\nAll confirmed bookings will be queued for refund and attendees will receive a cancellation email.\n\nOptional reason:",
-      "",
-    )
-    if (reason === null) return
-    setHeaderBusy("cancel")
-    setHeaderMsg(null)
-    try {
-      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/cancel`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: reason.trim() || undefined }),
-      })
-      const body = await res.json()
-      setHeaderMsg({
-        text: body?.message || (body?.success ? "Cancelled." : "Failed."),
-        tone: body?.success ? "ok" : "err",
-      })
-      if (body?.success) await fetchEvent()
-    } catch {
-      setHeaderMsg({ text: "Network error.", tone: "err" })
-    } finally {
-      setHeaderBusy(null)
-    }
-  }
 
   const unpostponeEvent = async () => {
     if (!eventId) return
@@ -488,16 +460,6 @@ export default function OrganizerEventControlPage() {
                   Postpone
                 </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={cancelEvent}
-                disabled={headerBusy !== null}
-                className="hover:bg-destructive/10 hover:text-destructive"
-              >
-                {headerBusy === "cancel" ? <Loader className="animate-spin" /> : <XCircle />}
-                Cancel event
-              </Button>
             </>
           )}
         </div>
