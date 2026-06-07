@@ -153,7 +153,7 @@ const TABS: Array<{ value: Tab; label: string; icon: React.ComponentType<{ class
   { value: "attendees", label: "Attendees",  icon: UsersIcon },
   { value: "checkin",   label: "Check-in",   icon: ClipboardList },
   { value: "scanners",  label: "Scanners",   icon: QrCode },
-  { value: "promo",     label: "Promo codes", icon: Tag },
+  { value: "promo",     label: "Promos & offers", icon: Tag },
   { value: "waitlist",  label: "Waitlist",   icon: Bell },
   { value: "comms",     label: "Comms",      icon: Mail },
   { value: "invite",    label: "Invite",     icon: Send },
@@ -214,7 +214,10 @@ export default function OrganizerEventControlPage() {
   const [tab, setTab] = React.useState<Tab>("overview")
   // Header-action busy flags (one at a time is fine).
   const [headerBusy, setHeaderBusy] = React.useState<null | "pause" | "resume" | "unpostpone">(null)
-  const [headerMsg, setHeaderMsg] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
+  // tone="info" used for "submitted for admin review" responses on
+  // postpone / pause-sales / resume-sales — the action didn't happen yet,
+  // it's queued. Renders amber so the organizer doesn't think it landed.
+  const [headerMsg, setHeaderMsg] = React.useState<{ text: string; tone: "ok" | "err" | "info" } | null>(null)
   const [postponeOpen, setPostponeOpen] = React.useState(false)
 
   // Auth + role guard.
@@ -275,11 +278,15 @@ export default function OrganizerEventControlPage() {
         credentials: "include",
       })
       const body = await res.json()
+      // For organizers, the backend returns 202 + queued:true and the live
+      // sales state DOES NOT change yet (admin must approve). Reflect that
+      // with an amber "info" tone and skip refreshTickets (nothing changed).
+      const queued = body?.queued === true
       setHeaderMsg({
         text: body?.message || (body?.success ? "Updated." : "Failed."),
-        tone: body?.success ? "ok" : "err",
+        tone: !body?.success ? "err" : queued ? "info" : "ok",
       })
-      if (body?.success) await refreshTickets()
+      if (body?.success && !queued) await refreshTickets()
     } catch {
       setHeaderMsg({ text: "Network error.", tone: "err" })
     } finally {
@@ -473,7 +480,9 @@ export default function OrganizerEventControlPage() {
           "rounded-md border px-3 py-2 text-sm",
           headerMsg.tone === "ok"
             ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-            : "border-destructive/30 bg-destructive/10 text-destructive",
+            : headerMsg.tone === "info"
+              ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              : "border-destructive/30 bg-destructive/10 text-destructive",
         )}>
           {headerMsg.text}
         </div>
@@ -483,10 +492,12 @@ export default function OrganizerEventControlPage() {
         <PostponeModal
           eventId={eventId}
           onClose={() => setPostponeOpen(false)}
-          onDone={(msg) => {
+          onDone={(msg, queued) => {
             setPostponeOpen(false)
-            setHeaderMsg({ text: msg, tone: "ok" })
-            fetchEvent()
+            // Queued = admin still has to approve, live event hasn't changed.
+            // Use info (amber) tone and skip the event refetch.
+            setHeaderMsg({ text: msg, tone: queued ? "info" : "ok" })
+            if (!queued) fetchEvent()
           }}
         />
       )}
@@ -523,7 +534,7 @@ export default function OrganizerEventControlPage() {
         {tab === "attendees" && <AttendeesTab eventId={eventId!} />}
         {tab === "checkin"   && <CheckinTab   eventId={eventId!} />}
         {tab === "scanners"  && <ScannersTab  eventId={eventId!} />}
-        {tab === "promo"     && <PromoTab     eventId={eventId!} />}
+        {tab === "promo"     && <PromoTab     eventId={eventId!} tickets={tickets} />}
         {tab === "waitlist"  && <WaitlistTab  eventId={eventId!} />}
         {tab === "comms"     && <CommsTab     eventId={eventId!} />}
         {tab === "invite"    && <InviteTab    eventId={eventId!} tickets={tickets} />}
@@ -1265,10 +1276,12 @@ function ScannersTab({ eventId }: { eventId: string }) {
 }
 
 // ===========================================================================
-// Promo codes — create / list / delete
+// Promos & offers — code-entry promo codes (existing) + auto-applied
+// quantity-threshold offers (new). Both live in the same tab so organizers
+// see all price-incentive levers in one place.
 // ===========================================================================
 
-function PromoTab({ eventId }: { eventId: string }) {
+function PromoTab({ eventId, tickets }: { eventId: string; tickets: TicketType[] | null }) {
   const [codes, setCodes] = React.useState<PromoCode[] | null>(null)
   const [err, setErr] = React.useState("")
   const [form, setForm] = React.useState({
@@ -1341,7 +1354,16 @@ function PromoTab({ eventId }: { eventId: string }) {
   if (err) return <ErrorBanner message={err} />
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
+      {/* --- Promo codes section --- */}
+      <section className="space-y-5">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Promo codes</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Buyers enter a code at checkout to get a discount.
+          </p>
+        </div>
+
       {/* Create form */}
       <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4">
         <h3 className="text-sm font-semibold text-foreground">New promo code</h3>
@@ -1425,7 +1447,234 @@ function PromoTab({ eventId }: { eventId: string }) {
           })}
         </ul>
       )}
+      </section>
+
+      {/* --- Offers section --- automatic discounts when the cart hits a
+          quantity threshold. Distinct from promo codes (no code entry). */}
+      <OffersCard eventId={eventId} tickets={tickets} />
     </div>
+  )
+}
+
+// ===========================================================================
+// Offers — quantity-threshold auto-discounts (buy N get M free / X% / LKR Y).
+// Sits inside the Promos & offers tab beneath the promo codes card.
+// ===========================================================================
+
+type OfferDiscountType = "free_tickets" | "percent" | "fixed"
+
+interface EventOffer {
+  id: string
+  event_id: string
+  ticket_type_id: string | null
+  name: string
+  min_quantity: number
+  discount_type: OfferDiscountType
+  discount_value: number | string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+function OffersCard({ eventId, tickets }: { eventId: string; tickets: TicketType[] | null }) {
+  const [offers, setOffers] = React.useState<EventOffer[] | null>(null)
+  const [err, setErr] = React.useState("")
+  const [creating, setCreating] = React.useState(false)
+  const [formErr, setFormErr] = React.useState("")
+  const [form, setForm] = React.useState({
+    name: "",
+    min_quantity: "",
+    discount_type: "free_tickets" as OfferDiscountType,
+    discount_value: "",
+    ticket_type_id: "" as string,  // "" = all tiers
+  })
+
+  const fetchOffers = React.useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/offers`, { credentials: "include" })
+      const body = await res.json()
+      if (body?.success) setOffers((body.data?.offers ?? []) as EventOffer[])
+      else setErr(body?.message || "Couldn't load offers.")
+    } catch {
+      setErr("Network error.")
+    }
+  }, [eventId])
+
+  React.useEffect(() => { fetchOffers() }, [fetchOffers])
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormErr("")
+    setCreating(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${eventId}/offers`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          min_quantity: Number(form.min_quantity),
+          discount_type: form.discount_type,
+          discount_value: Number(form.discount_value),
+          ticket_type_id: form.ticket_type_id || null,
+        }),
+      })
+      const body = await res.json()
+      if (!body?.success) {
+        setFormErr(body?.message || "Couldn't create offer.")
+        return
+      }
+      setForm({ name: "", min_quantity: "", discount_type: "free_tickets", discount_value: "", ticket_type_id: "" })
+      await fetchOffers()
+    } catch {
+      setFormErr("Network error.")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const toggleActive = async (offer: EventOffer) => {
+    try {
+      await fetch(`${API_URL}/api/organizer/events/${eventId}/offers/${offer.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !offer.is_active }),
+      })
+      await fetchOffers()
+    } catch {
+      setErr("Network error toggling offer.")
+    }
+  }
+
+  const removeOffer = async (id: string) => {
+    if (!window.confirm("Delete this offer? Bookings that already used it keep their discount.")) return
+    try {
+      await fetch(`${API_URL}/api/organizer/events/${eventId}/offers/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      await fetchOffers()
+    } catch {
+      setErr("Network error deleting offer.")
+    }
+  }
+
+  // Pretty value-label depending on discount type. Mirrors the consumer
+  // checkout's eventual display so the organizer previews the copy.
+  const valueLabel = (o: EventOffer): string => {
+    const v = Number(o.discount_value) || 0
+    if (o.discount_type === "free_tickets") return `${v} free ticket${v === 1 ? "" : "s"}`
+    if (o.discount_type === "percent") return `${v}% off`
+    return `${formatLkr(v)} off`
+  }
+  const tierLabel = (o: EventOffer): string => {
+    if (!o.ticket_type_id) return "Any tier"
+    const t = (tickets ?? []).find(x => x.id === o.ticket_type_id)
+    return t ? t.name : "Tier (deleted)"
+  }
+
+  if (err) return <ErrorBanner message={err} />
+
+  return (
+    <section className="space-y-5">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Offers</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Auto-applied at checkout when the buyer&rsquo;s cart hits the threshold. No code required.
+        </p>
+      </div>
+
+      {/* Create form */}
+      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <h3 className="text-sm font-semibold text-foreground">New offer</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input
+            placeholder="Name (e.g. Group of 5)"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
+          <Input
+            type="number"
+            min="1"
+            placeholder="Min tickets to qualify (e.g. 5)"
+            value={form.min_quantity}
+            onChange={(e) => setForm({ ...form, min_quantity: e.target.value })}
+            required
+          />
+          <select
+            aria-label="Discount type"
+            value={form.discount_type}
+            onChange={(e) => setForm({ ...form, discount_type: e.target.value as OfferDiscountType, discount_value: "" })}
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm"
+          >
+            <option value="free_tickets">Free tickets (buy N get M free)</option>
+            <option value="percent">Percent off (%)</option>
+            <option value="fixed">Fixed amount off (LKR)</option>
+          </select>
+          <Input
+            type="number"
+            min="0"
+            step={form.discount_type === "free_tickets" ? "1" : "0.01"}
+            placeholder={
+              form.discount_type === "free_tickets" ? "Free count (e.g. 1)"
+              : form.discount_type === "percent"    ? "Percent (e.g. 10)"
+              :                                       "LKR off (e.g. 500)"
+            }
+            value={form.discount_value}
+            onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
+            required
+          />
+          <select
+            aria-label="Applies to tier"
+            value={form.ticket_type_id}
+            onChange={(e) => setForm({ ...form, ticket_type_id: e.target.value })}
+            className="sm:col-span-2 h-9 rounded-md border border-input bg-card px-3 text-sm"
+          >
+            <option value="">Any tier (cart-wide)</option>
+            {(tickets ?? []).map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+        {formErr && <p className="text-xs text-destructive">{formErr}</p>}
+        <Button type="submit" size="sm" disabled={creating}>
+          {creating ? <Loader className="animate-spin" /> : <Tag />}
+          Create offer
+        </Button>
+      </form>
+
+      {/* List */}
+      {!offers ? (
+        <CardSkeleton />
+      ) : offers.length === 0 ? (
+        <EmptyHint icon={Tag} text="No offers yet. Create one above to reward bulk purchases." />
+      ) : (
+        <ul className="space-y-2">
+          {offers.map(o => (
+            <li key={o.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="font-semibold text-foreground">{o.name}</span>
+                  <Badge variant="outline">{`Buy ${o.min_quantity} get ${valueLabel(o)}`}</Badge>
+                  <Badge variant="outline">{tierLabel(o)}</Badge>
+                  {!o.is_active && <Badge variant="outline">Inactive</Badge>}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button variant="outline" size="sm" onClick={() => toggleActive(o)}>
+                  {o.is_active ? "Pause" : "Resume"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => removeOffer(o.id)} className="hover:bg-destructive/10 hover:text-destructive">
+                  <Trash2 /> Delete
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
@@ -2015,7 +2264,9 @@ function PostponeModal({
 }: {
   eventId: string
   onClose: () => void
-  onDone: (message: string) => void
+  // queued=true when the backend returned 202 (organizer hit; admin must
+  // approve before the postpone actually applies).
+  onDone: (message: string, queued: boolean) => void
 }) {
   const [start, setStart] = React.useState("")
   const [reason, setReason] = React.useState("")
@@ -2044,7 +2295,7 @@ function PostponeModal({
         setErr(body?.message || "Failed to postpone.")
         return
       }
-      onDone(body.message || "Event postponed.")
+      onDone(body.message || "Event postponed.", body.queued === true)
     } catch {
       setErr("Network error.")
     } finally {
