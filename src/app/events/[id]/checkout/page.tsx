@@ -28,6 +28,7 @@ import {
   type SelectedSeat,
   type SelectedFreeSeating,
 } from "@/components/events/seat-map-picker"
+import { pickBestOffer, type EventOffer } from "@/lib/offers"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -59,6 +60,10 @@ interface EventDetail {
  postponed?: boolean
  postponed_to?: string | null
  ticket_types: TicketType[]
+ // Auto-applied bulk-purchase offers configured by the organizer. The
+ // server already runs the same evaluator at POST /checkout — we mirror
+ // it client-side so the cart shows a preview before the buyer commits.
+ offers?: EventOffer[]
 }
 
 const formatLkr = (n: number) =>
@@ -255,8 +260,48 @@ function CheckoutPageInner() {
   : selectedTt
    ? selectedTt.price * quantity
    : 0
- const discount = promoApplied?.discount ?? 0
- const subtotalAfterDiscount = Math.max(0, subtotal - discount)
+
+ // Build cart lines for the offer evaluator. Reserved: one line per seat
+ // at the seat's tier price. Free-seating + non-reserved: one line per
+ // ticket-type qty. Matches the shape lib/offerEvaluator.js expects
+ // server-side so cart preview === actual checkout discount.
+ const offerCartLines = React.useMemo(() => {
+   if (isReserved) {
+     return [
+       ...selectedSeats.map(s => ({
+         ticket_type_id: s.ticket_type_id ?? null,
+         unit_price: Number(s.price) || 0,
+         quantity: 1,
+       })),
+       ...freeSeating.map(f => ({
+         ticket_type_id: f.ticket_type_id,
+         unit_price: Number(f.price) || 0,
+         quantity: f.quantity,
+       })),
+     ]
+   }
+   if (selectedTt && quantity > 0) {
+     return [{
+       ticket_type_id: selectedTt.id,
+       unit_price: Number(selectedTt.price) || 0,
+       quantity,
+     }]
+   }
+   return []
+ }, [isReserved, selectedSeats, freeSeating, selectedTt, quantity])
+
+ const appliedOffer = React.useMemo(
+   () => pickBestOffer(event?.offers ?? null, offerCartLines),
+   [event?.offers, offerCartLines],
+ )
+ const offerDiscount = appliedOffer?.discount ?? 0
+
+ const promoDiscount = promoApplied?.discount ?? 0
+ // Offer applies first, promo stacks on the post-offer subtotal (same
+ // ordering the server uses at POST /checkout).
+ const subtotalAfterOffer = Math.max(0, subtotal - offerDiscount)
+ const discount = promoDiscount
+ const subtotalAfterDiscount = Math.max(0, subtotalAfterOffer - promoDiscount)
  // Convenience fee is added on top of the (post-discount) subtotal. The %
  // comes from /api/settings/fees so an admin rate change propagates without
  // a deploy. Default to 2% so the UI never renders a zero fee if the public
@@ -938,6 +983,18 @@ function CheckoutPageInner() {
            </div>
           )}
          </div>
+        )}
+
+        {appliedOffer && offerDiscount > 0 && (
+         <SummaryRow
+          label={
+           <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+            <span className="font-medium">Offer applied</span>
+            <span className="text-muted-foreground">· {appliedOffer.offer.name}</span>
+           </span>
+          }
+          value={`− ${formatLkr(offerDiscount)}`}
+         />
         )}
 
         {discount > 0 && (

@@ -1587,7 +1587,16 @@ function OffersCard({ eventId, tickets }: { eventId: string; tickets: TicketType
 
       {/* Create form */}
       <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <h3 className="text-sm font-semibold text-foreground">New offer</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">New offer</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            How it works: <strong>1.</strong> Give the offer a name (buyers don&rsquo;t see this &mdash; it&rsquo;s for your records).{" "}
+            <strong>2.</strong> Set the minimum tickets the buyer must add to qualify (e.g. 5).{" "}
+            <strong>3.</strong> Pick the reward: free tickets, a percent off, or a fixed LKR amount off.{" "}
+            <strong>4.</strong> Optionally restrict to a single tier &mdash; otherwise the threshold counts every ticket in the cart.{" "}
+            The discount applies automatically at checkout once the threshold is reached. No code needed.
+          </p>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
             placeholder="Name (e.g. Group of 5)"
@@ -1626,17 +1635,33 @@ function OffersCard({ eventId, tickets }: { eventId: string; tickets: TicketType
             onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
             required
           />
-          <select
-            aria-label="Applies to tier"
-            value={form.ticket_type_id}
-            onChange={(e) => setForm({ ...form, ticket_type_id: e.target.value })}
-            className="sm:col-span-2 h-9 rounded-md border border-input bg-card px-3 text-sm"
-          >
-            <option value="">Any tier (cart-wide)</option>
-            {(tickets ?? []).map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
+          <div className="sm:col-span-2 space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">
+              {form.discount_type === "free_tickets"
+                ? "Which tier gets free tickets?"
+                : "Applies to tier"}
+            </label>
+            <select
+              aria-label="Applies to tier"
+              value={form.ticket_type_id}
+              onChange={(e) => setForm({ ...form, ticket_type_id: e.target.value })}
+              className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+            >
+              <option value="">
+                {form.discount_type === "free_tickets"
+                  ? "Any tier (free the cheapest in cart)"
+                  : "Any tier (cart-wide)"}
+              </option>
+              {(tickets ?? []).map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              {form.discount_type === "free_tickets"
+                ? "Pick a tier to make M free tickets come from that tier specifically, or keep \"Any tier\" so the buyer's cheapest tickets become free."
+                : "Pick a tier to count only those tickets toward the threshold and apply the discount to that tier's subtotal."}
+            </p>
+          </div>
         </div>
         {formErr && <p className="text-xs text-destructive">{formErr}</p>}
         <Button type="submit" size="sm" disabled={creating}>
