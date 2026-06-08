@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { Heart, MessageCircle, Trash2, X } from 'lucide-react';
 
 interface Comment {
@@ -101,7 +102,7 @@ export default function CommunityPage() {
     }
 
     if (!newPostContent.trim()) {
-      alert('Please enter post content');
+      toast.error('Please enter post content');
       return;
     }
 
@@ -133,11 +134,11 @@ export default function CommunityPage() {
         setShowCreatePost(false);
         fetchPosts();
       } else {
-        alert(data.message || 'Failed to create post');
+        toast.error(data.message || 'Failed to create post');
       }
     } catch (err) {
       console.error('Error:', err);
-      alert('Error creating post');
+      toast.error('Error creating post');
     } finally {
       setCreating(false);
     }

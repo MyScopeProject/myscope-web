@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 import {
   AlertCircle,
   Archive,
@@ -126,10 +127,10 @@ export default function OrganizerShopPage() {
       if (data?.success) {
         await fetchProducts()
       } else {
-        alert(data?.message || "Action failed.")
+        toast.error(data?.message || "Action failed.")
       }
     } catch {
-      alert("Network error.")
+      toast.error("Network error.")
     } finally {
       setActingId(null)
     }
@@ -147,7 +148,7 @@ export default function OrganizerShopPage() {
       if (data?.success) {
         await fetchProducts()
       } else {
-        alert(data?.message || "Couldn't archive.")
+        toast.error(data?.message || "Couldn't archive.")
       }
     } finally {
       setActingId(null)

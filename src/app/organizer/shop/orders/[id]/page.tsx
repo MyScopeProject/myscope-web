@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 import {
   AlertCircle,
   ArrowLeft,
@@ -164,10 +165,10 @@ export default function OrganizerOrderDetailPage() {
       if (data?.success) {
         setOrder(data.data?.order)
       } else {
-        alert(data?.message || "Update failed.")
+        toast.error(data?.message || "Update failed.")
       }
     } catch {
-      alert("Network error.")
+      toast.error("Network error.")
     } finally {
       setUpdating(false)
     }

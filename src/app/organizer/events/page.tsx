@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 import {
   AlertCircle,
   Archive,
@@ -158,7 +159,7 @@ export default function OrganizerEventsPage() {
       if (data?.success) {
         await fetchEvents(viewMode)
       } else {
-        alert(data?.message || "Failed to submit.")
+        toast.error(data?.message || "Failed to submit.")
       }
     } finally {
       setSubmittingId(null)

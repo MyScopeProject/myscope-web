@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 import {
  AlertCircle,
  ArrowLeft,
@@ -202,10 +203,10 @@ export default function EventDetailsPage() {
    if (data?.success) {
     setEvent(data.data.event)
    } else {
-    alert(data?.message || "Couldn't register for this event.")
+    toast.error(data?.message || "Couldn't register for this event.")
    }
   } catch {
-   alert("Network error. Please try again.")
+   toast.error("Network error. Please try again.")
   } finally {
    setBusy(false)
   }
@@ -224,10 +225,10 @@ export default function EventDetailsPage() {
    if (data?.success) {
     setEvent(data.data.event)
    } else {
-    alert(data?.message || "Couldn't unregister.")
+    toast.error(data?.message || "Couldn't unregister.")
    }
   } catch {
-   alert("Network error. Please try again.")
+   toast.error("Network error. Please try again.")
   } finally {
    setBusy(false)
   }

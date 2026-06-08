@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 import {
   AlertCircle,
   ArrowLeft,
@@ -239,10 +240,10 @@ export default function ShopPromoCodesPage() {
       if (data?.success) {
         await fetchCodes()
       } else {
-        alert(data?.message || "Couldn't delete.")
+        toast.error(data?.message || "Couldn't delete.")
       }
     } catch {
-      alert("Network error.")
+      toast.error("Network error.")
     }
   }
 

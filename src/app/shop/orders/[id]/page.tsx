@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import toast from "react-hot-toast"
 import {
   AlertCircle,
   ArrowLeft,
@@ -176,7 +177,7 @@ function OrderDetailInner() {
       })
       const data = await res.json()
       if (!data?.success) {
-        alert(data?.message || "Couldn't initialize payment.")
+        toast.error(data?.message || "Couldn't initialize payment.")
         setPayInFlight(false)
         return
       }
@@ -193,7 +194,7 @@ function OrderDetailInner() {
       document.body.appendChild(form)
       form.submit()
     } catch {
-      alert("Network error.")
+      toast.error("Network error.")
       setPayInFlight(false)
     }
   }

@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { AnnouncementBar } from "@/components/site/announcement-bar";
 import { MaintenanceBanner } from "@/components/site/maintenance-banner";
 import { LightBeamsBackground } from "@/components/site/light-beams-background";
+import { Toaster } from "react-hot-toast";
 
 // Body / default sans — IBM Plex Sans (preserves the original brand voice).
 const plexSans = IBM_Plex_Sans({
@@ -169,6 +170,27 @@ export default function RootLayout({
               </Suspense>
               <main className="min-h-[calc(100vh-4rem)]">{children}</main>
               <SiteFooter />
+              {/* Professional in-app toaster — replaces native browser
+                  alert()/confirm() dialogs (which prefix with
+                  "www.myscope.lk says…"). Styled to match the project's
+                  theme tokens so it reads cleanly in both light + dark. */}
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: "var(--color-card, #ffffff)",
+                    color: "var(--color-foreground, #111111)",
+                    border: "1px solid var(--color-border, #e5e7eb)",
+                    borderRadius: "0.75rem",
+                    fontSize: "0.875rem",
+                    fontFamily: "var(--font-inter), system-ui, sans-serif",
+                    boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.3)",
+                  },
+                  success: { iconTheme: { primary: "#10b981", secondary: "#ffffff" } },
+                  error:   { iconTheme: { primary: "#ef4444", secondary: "#ffffff" } },
+                }}
+              />
               </ShopCartProvider>
             </AuthProvider>
           </GoogleOAuthProvider>

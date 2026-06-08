@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 import {
   Archive,
   ArrowLeft,
@@ -149,10 +150,10 @@ export default function EditProductPage() {
       if (data?.success) {
         setProduct(data.data?.product)
       } else {
-        alert(data?.message || "Action failed.")
+        toast.error(data?.message || "Action failed.")
       }
     } catch {
-      alert("Network error.")
+      toast.error("Network error.")
     } finally {
       setActing(false)
     }
@@ -171,7 +172,7 @@ export default function EditProductPage() {
       if (data?.success) {
         setProduct(data.data?.product)
       } else {
-        alert(data?.message || "Couldn't archive.")
+        toast.error(data?.message || "Couldn't archive.")
       }
     } finally {
       setActing(false)

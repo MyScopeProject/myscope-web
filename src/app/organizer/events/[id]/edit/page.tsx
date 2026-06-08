@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 import {
   AlertCircle,
   ArrowLeft,
@@ -1088,9 +1089,10 @@ function TicketTypesEditor({
         // `ticket_type` would corrupt the array with undefined and the
         // next render's .map(t => t.id) would crash.
         if (data.queued) {
-          alert(data.message || "New ticket tier submitted for admin review.")
+          toast.success(data.message || "New ticket tier submitted for admin review.")
         } else if (data.data?.ticket_type) {
           onChange([...tickets, data.data.ticket_type as TicketType])
+          toast.success("Ticket tier added.")
         }
       } else if (editing) {
         const res = await fetch(
@@ -1110,10 +1112,11 @@ function TicketTypesEditor({
         // Same queued-response shape as create above. When queued the
         // live tier is unchanged so we leave the local array alone.
         if (data.queued) {
-          alert(data.message || "Ticket tier update submitted for admin review.")
+          toast.success(data.message || "Ticket tier update submitted for admin review.")
         } else if (data.data?.ticket_type) {
           const updated = data.data.ticket_type as TicketType
           onChange(tickets.map((t) => (t.id === updated.id ? updated : t)))
+          toast.success("Ticket tier updated.")
         }
       }
       setEditing(null)
@@ -1126,7 +1129,7 @@ function TicketTypesEditor({
 
   const remove = async (t: TicketType) => {
     if (t.quantity_sold > 0) {
-      alert("This ticket type has bookings and cannot be deleted.")
+      toast.error("This ticket type has bookings and cannot be deleted.")
       return
     }
     if (!confirm(`Delete ticket type "${t.name}"?`)) return
@@ -1146,9 +1149,10 @@ function TicketTypesEditor({
       // is STILL LIVE until admin approves removal. Don't drop it from
       // the local list; just notify the organizer.
       if (data.queued) {
-        alert(data.message || "Ticket tier deletion submitted for admin review.")
+        toast.success(data.message || "Ticket tier deletion submitted for admin review.")
       } else {
         onChange(tickets.filter((x) => x.id !== t.id))
+        toast.success("Ticket tier deleted.")
       }
     } catch {
       setError("Network error. Please try again.")

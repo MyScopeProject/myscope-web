@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
+import toast from "react-hot-toast"
 import {
   AlertCircle,
   Calendar,
@@ -73,9 +74,9 @@ function DashboardContent() {
       if (res.ok) setMyEvents(prev => prev.filter(e => (e.id ?? e._id) !== id))
       else {
         const data = await res.json().catch(() => null)
-        alert(data?.message || "Failed to unregister.")
+        toast.error(data?.message || "Failed to unregister.")
       }
-    } catch { alert("Network error. Please try again.") }
+    } catch { toast.error("Network error. Please try again.") }
     finally { setUnregisteringId(null) }
   }
 
