@@ -74,12 +74,14 @@ export const metadata: Metadata = {
 };
 
 // Resolves the active theme before React mounts so the first paint matches the
-// final color scheme — prevents a white flash on dark mode.
+// final color scheme — prevents a white flash on dark mode. First-time
+// visitors (no stored preference) get dark mode by default; users who
+// explicitly chose 'system' or 'light' keep that choice.
 const themeInitScript = `
 (function(){
   try {
     var stored = localStorage.getItem('myscope-web-theme');
-    var theme = stored || 'system';
+    var theme = stored || 'dark';
     var resolved = theme === 'system'
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       : theme;
@@ -144,7 +146,7 @@ export default function RootLayout({
             }),
           }}
         />
-        <ThemeProvider defaultTheme="system">
+        <ThemeProvider defaultTheme="dark">
           <GoogleOAuthProvider clientId={googleClientId}>
             <AuthProvider>
               <ShopCartProvider>
