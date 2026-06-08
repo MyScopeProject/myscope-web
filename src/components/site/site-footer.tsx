@@ -61,19 +61,25 @@ export function SiteFooter() {
             and Contact column span the full 2 cols. On md+ everything
             flattens into the original 12-col layout. */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:grid-cols-12 md:gap-x-10 md:gap-y-10">
-          {/* Brand block — full width on mobile (col-span-2). Uses the same
-              navbar_logo.png the header uses; `brightness-0 invert` flips
-              it to a white silhouette so it reads on the violet footer
-              band (the source asset is dark-on-light, designed for the
-              navbar). */}
+          {/* Brand block — full width on mobile (col-span-2). Uses
+              `footer_logo.png`, the dark-background variant of the brand
+              mark (white hexagon, violet "v", white "SCOPE" wordmark) so
+              it sits cleanly on the violet footer band without any filter
+              tricks or a white pill wrapper. */}
           <div className="col-span-2 md:col-span-4">
             <Link href="/" className="inline-flex items-center">
               <Image
-                src="/Images/navbar_logo.png"
+                src="/Images/footer_logo.png"
                 alt="MyScope"
-                width={320}
-                height={96}
-                className="h-12 w-auto brightness-0 invert sm:h-20"
+                width={640}
+                height={192}
+                // The PNG has transparent padding baked in around the
+                // visible mark, which leaves a big empty band above and
+                // below the logo. Negative vertical margins pull the
+                // surrounding content (tagline / nothing-above) back in
+                // toward the actual ink so the brand block stays compact
+                // without re-exporting the asset.
+                className="-my-4 h-20 w-auto sm:-my-10 sm:h-40"
               />
             </Link>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/75 sm:mt-5">
