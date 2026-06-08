@@ -21,10 +21,18 @@ const COL_SUPPORT = [
   { label: "Cookies", href: "/cookies" },
 ]
 
-const SOCIAL = [
-  { icon: Instagram, href: "https://www.instagram.com/myscope.lk/", label: "Instagram" },
-  { icon: Facebook, href: "https://www.facebook.com/profile.php?id=61583531460821", label: "Facebook" },
-  { icon: Mail, href: "mailto:hello.myscope@gmail.com", label: "Email" },
+// Per-platform brand colour for the social pill icons. White-on-violet was
+// the previous treatment; this surfaces the platform identity instead so
+// the icons read instantly without the user reading the tooltip.
+const SOCIAL: Array<{
+  icon: typeof Instagram
+  href: string
+  label: string
+  iconClass: string
+}> = [
+  { icon: Instagram, href: "https://www.instagram.com/myscope.lk/", label: "Instagram", iconClass: "text-[#E4405F]" },
+  { icon: Facebook, href: "https://www.facebook.com/profile.php?id=61583531460821", label: "Facebook", iconClass: "text-[#1877F2]" },
+  { icon: Mail, href: "mailto:hello.myscope@gmail.com", label: "Email", iconClass: "text-[oklch(0.37_0.17_302)]" },
 ]
 
 const CONTACT_PHONE = "+94 76 482 9645"
@@ -72,16 +80,16 @@ export function SiteFooter() {
               MyScope is Sri Lanka&rsquo;s home for live events — concerts, theatre, sports, and everything in between. Discover, book, and show up with QR-coded tickets, real-time seat maps, and instant gate check-in.
             </p>
             <div className="mt-4 flex gap-3 sm:mt-7">
-              {SOCIAL.map(({ icon: Icon, href, label }) => (
+              {SOCIAL.map(({ icon: Icon, href, label, iconClass }) => (
                 <a
                   key={label}
                   href={href}
                   aria-label={label}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-700 text-white transition-transform hover:scale-110 sm:h-11 sm:w-11"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm transition-transform hover:scale-110 sm:h-11 sm:w-11"
                 >
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2} />
+                  <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${iconClass}`} strokeWidth={2} />
                 </a>
               ))}
             </div>
@@ -175,11 +183,11 @@ function FooterCol({
 }
 
 function ContactIcon({ children }: { children: React.ReactNode }) {
-  // Dark-purple chip that sits above the violet footer band — same shade as
-  // the social pills (violet-700) so the contact icons and the social icons
-  // share a single visual language.
+  // White chip with a brand-violet icon — matches the social pills' new
+  // treatment (white pill + coloured icon) so the brand block reads as a
+  // single visual family.
   return (
-    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-700 text-white">
+    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[oklch(0.37_0.17_302)] shadow-sm">
       {children}
     </span>
   )
