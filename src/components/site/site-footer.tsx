@@ -46,34 +46,32 @@ const CONTACT_LOCATION = "Colombo, Sri Lanka"
 export function SiteFooter() {
   const year = new Date().getFullYear()
   return (
-    <footer className="mt-16 bg-[oklch(0.37_0.17_302)] text-white">
-      <div className="mx-auto max-w-7xl px-4 pb-8 pt-14 sm:px-6 sm:pb-10 sm:pt-16">
-        <div className="grid grid-cols-1 gap-x-10 gap-y-10 md:grid-cols-12">
-          {/* Brand block */}
-          <div className="md:col-span-4">
+    <footer className="mt-12 bg-[oklch(0.37_0.17_302)] text-white sm:mt-16">
+      <div className="mx-auto max-w-7xl px-4 pb-6 pt-8 sm:px-6 sm:pb-10 sm:pt-16">
+        {/* Mobile grid uses 2 columns so the link sections sit side-by-side
+            instead of stacking — halves the vertical height. Brand block
+            and Contact column span the full 2 cols. On md+ everything
+            flattens into the original 12-col layout. */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:grid-cols-12 md:gap-x-10 md:gap-y-10">
+          {/* Brand block — full width on mobile (col-span-2). Uses the same
+              navbar_logo.png the header uses; `brightness-0 invert` flips
+              it to a white silhouette so it reads on the violet footer
+              band (the source asset is dark-on-light, designed for the
+              navbar). */}
+          <div className="col-span-2 md:col-span-4">
             <Link href="/" className="inline-flex items-center">
               <Image
                 src="/Images/navbar_logo.png"
                 alt="MyScope"
                 width={320}
                 height={96}
-                // Wordmark variant (same asset the navbar uses) — fuller and
-                // more identifiable than the square "v" mark on the dark
-                // band. brightness-0 invert flips the dark logo to pure
-                // white so it sits cleanly on the violet band without
-                // needing a separate light-on-dark asset.
-                //
-                // Sized generously (h-20 / sm:h-24) so the brand reads from
-                // a distance. The Support column (8 links) sets the footer
-                // height, so the brand column can grow without making the
-                // footer taller.
-                className="h-20 w-auto brightness-0 invert sm:h-24"
+                className="h-12 w-auto brightness-0 invert sm:h-20"
               />
             </Link>
-            <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/75">
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/75 sm:mt-5">
               MyScope is Sri Lanka&rsquo;s home for live events — concerts, theatre, sports, and everything in between. Discover, book, and show up with QR-coded tickets, real-time seat maps, and instant gate check-in.
             </p>
-            <div className="mt-7 flex gap-3">
+            <div className="mt-4 flex gap-3 sm:mt-7">
               {SOCIAL.map(({ icon: Icon, href, label }) => (
                 <a
                   key={label}
@@ -81,27 +79,29 @@ export function SiteFooter() {
                   aria-label={label}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-700 text-white transition-transform hover:scale-110"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-700 text-white transition-transform hover:scale-110 sm:h-11 sm:w-11"
                 >
-                  <Icon className="h-5 w-5" strokeWidth={2} />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2} />
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Link columns */}
-          <div className="md:col-span-2">
+          {/* Link columns — sit side-by-side on mobile (col-span-1 each)
+              so the Support column's 8 links don't push the footer way
+              down on phones. */}
+          <div className="col-span-1 md:col-span-2">
             <FooterCol title="Explore" items={COL_PRODUCT} />
           </div>
-          <div className="md:col-span-2">
+          <div className="col-span-1 md:col-span-2">
             <FooterCol title="Support" items={COL_SUPPORT} />
           </div>
 
-          {/* Contact column — fuchsia-tinted icons + text rows. Mirrors the
-              reference design's pattern: accent-coloured icon + light text. */}
-          <div className="md:col-span-4">
+          {/* Contact column — full width on mobile (col-span-2) so the
+              email + phone rows don't wrap awkwardly inside a narrow column. */}
+          <div className="col-span-2 md:col-span-4">
             <FooterColHeading>Contact</FooterColHeading>
-            <ul className="mt-5 space-y-4 text-sm">
+            <ul className="mt-3 space-y-3 text-sm sm:mt-5 sm:space-y-4">
               <li>
                 <a
                   href={`tel:${CONTACT_PHONE.replace(/\s/g, "")}`}
@@ -136,7 +136,7 @@ export function SiteFooter() {
 
         {/* Bottom strip — single-line copyright. Border uses /15 opacity so
             the divider reads on the violet band without being harsh. */}
-        <div className="mt-14 border-t border-white/15 pt-6 text-xs text-white/65">
+        <div className="mt-8 border-t border-white/15 pt-4 text-xs text-white/65 sm:mt-14 sm:pt-6">
           &copy; Copyright {year} MyScope Private Limited &nbsp;|&nbsp; All Rights Reserved
         </div>
       </div>
@@ -158,7 +158,7 @@ function FooterCol({
   return (
     <div>
       <FooterColHeading>{title}</FooterColHeading>
-      <ul className="mt-5 space-y-3">
+      <ul className="mt-3 space-y-2 text-sm sm:mt-5 sm:space-y-3">
         {items.map((item) => (
           <li key={item.href}>
             <Link

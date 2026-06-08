@@ -130,14 +130,14 @@ export default function HomePage() {
       {showCarousel ? (
         <HeroCarousel slides={heroSlides} />
       ) : (
-      // Compact violet band hero. In light mode uses the same
-      // `oklch(0.37 0.17 302)` token as the announcement bar and footer so
-      // the page is bracketed by the MyScope identity colour. In dark mode
-      // it goes transparent so the page-wide LightBeamsBackground aurora
-      // shows through here too — otherwise the hero would sit as a flat
-      // black rectangle while the rest of the page glows with the violet
-      // beam sweep. `isolate` is dropped (no halos to contain anymore) so
-      // the fixed-position beams aren't clipped by a new stacking context.
+      // Compact violet band hero. In light mode uses `oklch(0.37 0.17 302)`
+      // — the same violet as the SiteFooter and AnnouncementBar — so the
+      // page is bracketed top-to-bottom by one identity colour. In dark
+      // mode it goes transparent so the page-wide LightBeamsBackground
+      // aurora shows through; otherwise the hero would sit as a flat black
+      // rectangle while the rest of the page glows with the violet beam
+      // sweep. No `isolate` (no halos to contain anymore) so the
+      // fixed-position beams aren't clipped by a new stacking context.
       <section className="relative overflow-hidden bg-[oklch(0.37_0.17_302)] text-white dark:bg-transparent dark:text-foreground">
 
         <div className="relative mx-auto flex max-w-3xl flex-col items-center justify-center px-4 py-14 text-center sm:px-6 sm:py-16 lg:py-20">
