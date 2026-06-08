@@ -94,8 +94,15 @@ export function SiteHeader() {
 
   return (
     <>
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+    {/* Floating navbar: the outer <header> stays sticky and edge-to-edge so
+        it has somewhere to pin; the inner pill is what actually renders —
+        rounded, bordered, lifted on a soft shadow, sitting a few px in from
+        every edge. Pattern is now consistent with how the announcement bar
+        + footer bracket the page: clean self-contained blocks rather than
+        full-bleed bars. */}
+    <header className="sticky top-0 z-40 w-full">
+      <div className="mx-auto max-w-7xl px-3 pt-3 sm:px-4 sm:pt-4">
+        <div className="flex h-16 items-center gap-3 rounded-2xl border border-border bg-background/80 px-3 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/60 dark:border-white/50 sm:px-5">
         {/* Brand */}
         <Link href="/" className="flex items-center">
           <Image
@@ -126,7 +133,9 @@ export function SiteHeader() {
                     // the white-on-violet contrast. currentColor cascades to
                     // both the label and the inline SVG icon.
                     ? "bg-primary/10 text-primary dark:text-white"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    // Inactive: muted in light mode, near-white in dark mode
+                    // so the nav reads crisply against the dark page.
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -145,7 +154,7 @@ export function SiteHeader() {
               placeholder="Search events…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+              className="h-9 w-full rounded-md bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
             />
           </div>
         </form>
@@ -161,7 +170,7 @@ export function SiteHeader() {
               <button
                 type="button"
                 onClick={() => setUserMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1 text-sm transition-colors hover:bg-muted"
+                className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-muted"
                 aria-haspopup="true"
                 // ARIA lint plugin false-positives on expression values, but
                 // React serializes booleans correctly for aria-expanded.
@@ -234,6 +243,7 @@ export function SiteHeader() {
             {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
         </div>
+      </div>
       </div>
     </header>
 
