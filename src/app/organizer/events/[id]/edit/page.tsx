@@ -1082,7 +1082,16 @@ function TicketTypesEditor({
           setError(data?.message || "Failed to create.")
           return
         }
-        onChange([...tickets, data.data.ticket_type as TicketType])
+        // On an APPROVED event the backend returns 202 + queued:true and
+        // NO ticket_type (the change is sitting in the admin queue).
+        // Skip the local-state push in that case — pushing the missing
+        // `ticket_type` would corrupt the array with undefined and the
+        // next render's .map(t => t.id) would crash.
+        if (data.queued) {
+          alert(data.message || "New ticket tier submitted for admin review.")
+        } else if (data.data?.ticket_type) {
+          onChange([...tickets, data.data.ticket_type as TicketType])
+        }
       } else if (editing) {
         const res = await fetch(
           `${API_URL}/api/organizer/events/${eventId}/ticket-types/${editing}`,
@@ -1098,8 +1107,14 @@ function TicketTypesEditor({
           setError(data?.message || "Failed to save.")
           return
         }
-        const updated = data.data.ticket_type as TicketType
-        onChange(tickets.map((t) => (t.id === updated.id ? updated : t)))
+        // Same queued-response shape as create above. When queued the
+        // live tier is unchanged so we leave the local array alone.
+        if (data.queued) {
+          alert(data.message || "Ticket tier update submitted for admin review.")
+        } else if (data.data?.ticket_type) {
+          const updated = data.data.ticket_type as TicketType
+          onChange(tickets.map((t) => (t.id === updated.id ? updated : t)))
+        }
       }
       setEditing(null)
     } catch {
@@ -1127,7 +1142,14 @@ function TicketTypesEditor({
         setError(data?.message || "Failed to delete.")
         return
       }
-      onChange(tickets.filter((x) => x.id !== t.id))
+      // Approved-event deletes route through the admin queue — the tier
+      // is STILL LIVE until admin approves removal. Don't drop it from
+      // the local list; just notify the organizer.
+      if (data.queued) {
+        alert(data.message || "Ticket tier deletion submitted for admin review.")
+      } else {
+        onChange(tickets.filter((x) => x.id !== t.id))
+      }
     } catch {
       setError("Network error. Please try again.")
     } finally {
