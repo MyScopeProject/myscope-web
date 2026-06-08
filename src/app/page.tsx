@@ -176,9 +176,8 @@ export default function HomePage() {
                   className="h-12 w-full rounded-full bg-transparent pl-11 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
                 />
               </div>
-              <Button type="submit" size="lg" className="h-12 shrink-0 rounded-full px-5 shadow-md">
-                <span className="hidden sm:inline">Search</span>
-                <ArrowRight className="h-4 w-4" />
+              <Button type="submit" size="lg" className="h-12 shrink-0 rounded-full px-6 shadow-md">
+                Search
               </Button>
             </div>
           </form>
