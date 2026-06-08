@@ -130,21 +130,15 @@ export default function HomePage() {
       {showCarousel ? (
         <HeroCarousel slides={heroSlides} />
       ) : (
-      // Compact violet band hero. Same `oklch(0.37 0.17 302)` token used by
-      // the announcement bar and the site footer, so the whole page is
-      // bracketed by the MyScope identity colour — top strip, hero, footer.
-      <section className="relative isolate overflow-hidden bg-[oklch(0.37_0.17_302)] text-white">
-        {/* Two soft halos for depth — one fuchsia bloom upper-left, one
-            primary bloom lower-right. Subtle (mix-blend overlay style),
-            adds visual interest without competing with the headline. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-24 -top-32 h-[28rem] w-[28rem] rounded-full bg-fuchsia-500/20 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-32 -bottom-32 h-[28rem] w-[28rem] rounded-full bg-violet-400/20 blur-3xl"
-        />
+      // Compact violet band hero. In light mode uses the same
+      // `oklch(0.37 0.17 302)` token as the announcement bar and footer so
+      // the page is bracketed by the MyScope identity colour. In dark mode
+      // it goes transparent so the page-wide LightBeamsBackground aurora
+      // shows through here too — otherwise the hero would sit as a flat
+      // black rectangle while the rest of the page glows with the violet
+      // beam sweep. `isolate` is dropped (no halos to contain anymore) so
+      // the fixed-position beams aren't clipped by a new stacking context.
+      <section className="relative overflow-hidden bg-[oklch(0.37_0.17_302)] text-white dark:bg-transparent dark:text-foreground">
 
         <div className="relative mx-auto flex max-w-3xl flex-col items-center justify-center px-4 py-14 text-center sm:px-6 sm:py-16 lg:py-20">
           <h1 className="text-balance text-3xl font-bold leading-[1.1] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
