@@ -1890,6 +1890,13 @@ interface Invitation {
   // what shows on the ticket QR + on the printed pass.
   booking_id: string | null
   booking_short_code: string | null
+  booking_reference?: string | null
+  // Tier metadata for the "Invitations sent" list — null when the send
+  // failed before a booking was created.
+  ticket_type?: { id: string; name: string; price: number } | null
+  quantity?: number | null
+  unit_price?: number | null
+  face_value?: number | null
 }
 
 function InviteTab({ eventId, tickets }: { eventId: string; tickets: TicketType[] | null }) {
@@ -2201,10 +2208,31 @@ function InviteTab({ eventId, tickets }: { eventId: string; tickets: TicketType[
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm text-foreground">{inv.email}</div>
-                  {inv.status === "sent" && inv.booking_short_code && (
-                    <div className="truncate text-xs text-muted-foreground">
-                      Ticket <span className="font-mono">{inv.booking_short_code}</span>
-                    </div>
+                  {inv.status === "sent" && (
+                    <>
+                      {/* Tier + qty + face-value chip row — gives the
+                          organizer a glance at WHAT was issued. Falls back
+                          to the short code alone for legacy invitations
+                          that pre-date this join. */}
+                      {(inv.ticket_type || inv.quantity) && (
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                          {inv.ticket_type?.name && (
+                            <span className="font-medium text-foreground">{inv.ticket_type.name}</span>
+                          )}
+                          {inv.quantity != null && inv.quantity > 0 && (
+                            <span>· {inv.quantity} ticket{inv.quantity === 1 ? "" : "s"}</span>
+                          )}
+                          {inv.face_value != null && inv.face_value > 0 && (
+                            <span>· {formatLkr(inv.face_value)} value (comp)</span>
+                          )}
+                        </div>
+                      )}
+                      {inv.booking_short_code && (
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                          Ticket code <span className="font-mono text-foreground">{inv.booking_short_code}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                   {inv.status !== "sent" && inv.error_message && (
                     <div className="truncate text-xs text-destructive">{inv.error_message}</div>
