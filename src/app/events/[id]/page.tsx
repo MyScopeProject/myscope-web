@@ -89,6 +89,11 @@ interface Event {
  status: string
  featured: boolean
  seating_mode?: SeatingMode | null
+ // Free-seating venues optionally upload a reference floor plan so buyers can
+ // see the layout before purchase. Rendered as a "Seating layout" section on
+ // the event detail page (and again at checkout). Not used by 'reserved' mode
+ // (which has its own seat picker) or 'none' (no seating concept).
+ layout_image_url?: string | null
  ticket_types?: TicketType[]
  // True when the organizer has hit "Pause sales" — event still exists, but
  // every ticket tier is inactive. Surface as "Event on hold" in the UI
@@ -553,6 +558,25 @@ export default function EventDetailsPage() {
       </section>
      )}
 
+     {/* Seating layout preview — for free / zoned events the organizer
+       optionally uploads a reference floor plan. Surfaced here so buyers
+       can see the venue before clicking through to checkout. Reserved
+       events have their own seat picker and skip this. */}
+     {event.layout_image_url && (event.seating_mode === "free" || event.seating_mode === "zoned") && (
+      <section>
+       <SectionHeading icon={ImageIcon}>Seating layout</SectionHeading>
+       <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card/30 backdrop-blur-md">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+         src={event.layout_image_url}
+         alt="Seating layout"
+         className="block w-full bg-muted object-contain"
+         onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+        />
+       </div>
+      </section>
+     )}
+
      {/* Ticket tiers used to render here as their own card. Merged into the
        right-rail "Buy tickets" aside so price browsing and the Buy CTA
        live together. On mobile (<lg) the aside falls below this column,
@@ -697,7 +721,7 @@ export default function EventDetailsPage() {
            size="lg"
            onClick={handleContinueToCheckout}
           >
-           <Ticket /> Buy Tickets
+           <Ticket /> {event.seating_mode === "reserved" ? "Pick seats" : "Buy Tickets"}
           </Button>
          )
         ) : isSoldOut ? (
@@ -789,7 +813,7 @@ export default function EventDetailsPage() {
      ) : hasTicketTypes ? (
       <Button size="lg" onClick={handleContinueToCheckout} className="shrink-0">
        <Ticket />
-       Buy Tickets
+       {event.seating_mode === "reserved" ? "Pick seats" : "Buy Tickets"}
       </Button>
      ) : (
       <Button size="lg" onClick={handleRegister} disabled={busy} className="shrink-0">
