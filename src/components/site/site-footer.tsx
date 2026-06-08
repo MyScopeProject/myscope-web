@@ -54,7 +54,7 @@ const CONTACT_LOCATION = "Colombo, Sri Lanka"
 export function SiteFooter() {
   const year = new Date().getFullYear()
   return (
-    <footer className="mt-12 bg-[oklch(0.37_0.17_302)] text-white sm:mt-16">
+    <footer className="mt-12 bg-[oklch(0.37_0.17_302)] text-white sm:mt-16 dark:bg-transparent">
       <div className="mx-auto max-w-7xl px-4 pb-6 pt-8 sm:px-6 sm:pb-10 sm:pt-16">
         {/* Mobile grid uses 2 columns so the link sections sit side-by-side
             instead of stacking — halves the vertical height. Brand block
