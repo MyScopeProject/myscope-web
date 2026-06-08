@@ -1,6 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
-import { Facebook, Instagram, Mail } from "lucide-react"
+import { Facebook, Instagram, Mail, MapPin, Phone } from "lucide-react"
 
 const COL_PRODUCT = [
   { label: "Concerts", href: "/events?category=Concerts" },
@@ -27,29 +27,53 @@ const SOCIAL = [
   { icon: Mail, href: "mailto:hello.myscope@gmail.com", label: "Email" },
 ]
 
+const CONTACT_PHONE = "+94 76 482 9645"
+const CONTACT_EMAIL = "hello.myscope@gmail.com"
+const CONTACT_LOCATION = "Colombo, Sri Lanka"
+
+// MyScope footer palette — matches the announcement bar at the top of the
+// page so the violet band bookends the site. Header + footer share the same
+// `oklch(0.37 0.17 302)` so anyone scrolling top-to-bottom sees the same
+// MyScope identity colour open and close the page. Stable across light + dark
+// theme by design.
+//
+//   bg-[oklch(0.37_0.17_302)] — deep violet body (same token the
+//                               AnnouncementBar uses).
+//   bg-violet-700             — slightly-lighter violet for the social pills
+//                               + contact-icon chips so they sit one tone
+//                               above the body without disappearing into it.
+
 export function SiteFooter() {
   const year = new Date().getFullYear()
   return (
-    <footer className="border-t border-border bg-card/40">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
-        {/* Brand block on top, two link columns below.
-            Cleaner than 5-col + brand: less density, more whitespace. */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 sm:gap-8">
-          {/* Brand */}
-          <div className="col-span-2">
+    <footer className="mt-16 bg-[oklch(0.37_0.17_302)] text-white">
+      <div className="mx-auto max-w-7xl px-4 pb-8 pt-14 sm:px-6 sm:pb-10 sm:pt-16">
+        <div className="grid grid-cols-1 gap-x-10 gap-y-10 md:grid-cols-12">
+          {/* Brand block */}
+          <div className="md:col-span-4">
             <Link href="/" className="inline-flex items-center">
               <Image
-                src="/Images/logo.png"
+                src="/Images/navbar_logo.png"
                 alt="MyScope"
-                width={160}
-                height={56}
-                className="h-12 w-auto sm:h-14"
+                width={320}
+                height={96}
+                // Wordmark variant (same asset the navbar uses) — fuller and
+                // more identifiable than the square "v" mark on the dark
+                // band. brightness-0 invert flips the dark logo to pure
+                // white so it sits cleanly on the violet band without
+                // needing a separate light-on-dark asset.
+                //
+                // Sized generously (h-20 / sm:h-24) so the brand reads from
+                // a distance. The Support column (8 links) sets the footer
+                // height, so the brand column can grow without making the
+                // footer taller.
+                className="h-20 w-auto brightness-0 invert sm:h-24"
               />
             </Link>
-            <p className="mt-3 max-w-sm text-sm text-muted-foreground">
-              Sri Lanka&rsquo;s home for live events, concerts, theatre, and sports. Discover, book, and show up.
+            <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/75">
+              MyScope is Sri Lanka&rsquo;s home for live events — concerts, theatre, sports, and everything in between. Discover, book, and show up with QR-coded tickets, real-time seat maps, and instant gate check-in.
             </p>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-7 flex gap-3">
               {SOCIAL.map(({ icon: Icon, href, label }) => (
                 <a
                   key={label}
@@ -57,25 +81,71 @@ export function SiteFooter() {
                   aria-label={label}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-700 text-white transition-transform hover:scale-110"
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-5 w-5" strokeWidth={2} />
                 </a>
               ))}
             </div>
           </div>
 
-          <FooterCol title="Explore" items={COL_PRODUCT} />
-          <FooterCol title="Support" items={COL_SUPPORT} />
+          {/* Link columns */}
+          <div className="md:col-span-2">
+            <FooterCol title="Explore" items={COL_PRODUCT} />
+          </div>
+          <div className="md:col-span-2">
+            <FooterCol title="Support" items={COL_SUPPORT} />
+          </div>
+
+          {/* Contact column — fuchsia-tinted icons + text rows. Mirrors the
+              reference design's pattern: accent-coloured icon + light text. */}
+          <div className="md:col-span-4">
+            <FooterColHeading>Contact</FooterColHeading>
+            <ul className="mt-5 space-y-4 text-sm">
+              <li>
+                <a
+                  href={`tel:${CONTACT_PHONE.replace(/\s/g, "")}`}
+                  className="group inline-flex items-center gap-3 text-white/90 transition-colors hover:text-white"
+                >
+                  <ContactIcon>
+                    <Phone className="h-4 w-4" strokeWidth={2.25} />
+                  </ContactIcon>
+                  <span>{CONTACT_PHONE}</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="group inline-flex items-center gap-3 break-all text-white/90 transition-colors hover:text-white"
+                >
+                  <ContactIcon>
+                    <Mail className="h-4 w-4" strokeWidth={2.25} />
+                  </ContactIcon>
+                  <span>{CONTACT_EMAIL}</span>
+                </a>
+              </li>
+              <li className="inline-flex items-center gap-3 text-white/90">
+                <ContactIcon>
+                  <MapPin className="h-4 w-4" strokeWidth={2.25} />
+                </ContactIcon>
+                <span>{CONTACT_LOCATION}</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        {/* Bottom bar — single line, centered on phones */}
-        <div className="mt-8 border-t border-border pt-5 text-center text-xs text-muted-foreground sm:mt-10 sm:pt-6 sm:text-left">
-          &copy; {year} MyScope. All rights reserved.
+        {/* Bottom strip — single-line copyright. Border uses /15 opacity so
+            the divider reads on the violet band without being harsh. */}
+        <div className="mt-14 border-t border-white/15 pt-6 text-xs text-white/65">
+          &copy; Copyright {year} MyScope Private Limited &nbsp;|&nbsp; All Rights Reserved
         </div>
       </div>
     </footer>
   )
+}
+
+function FooterColHeading({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-xl font-bold text-white">{children}</h3>
 }
 
 function FooterCol({
@@ -87,13 +157,13 @@ function FooterCol({
 }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
-      <ul className="mt-3 space-y-2">
+      <FooterColHeading>{title}</FooterColHeading>
+      <ul className="mt-5 space-y-3">
         {items.map((item) => (
           <li key={item.href}>
             <Link
               href={item.href}
-              className="text-sm text-foreground/80 transition-colors hover:text-primary"
+              className="text-sm text-white/80 transition-colors hover:text-white"
             >
               {item.label}
             </Link>
@@ -101,5 +171,16 @@ function FooterCol({
         ))}
       </ul>
     </div>
+  )
+}
+
+function ContactIcon({ children }: { children: React.ReactNode }) {
+  // Dark-purple chip that sits above the violet footer band — same shade as
+  // the social pills (violet-700) so the contact icons and the social icons
+  // share a single visual language.
+  return (
+    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-700 text-white">
+      {children}
+    </span>
   )
 }

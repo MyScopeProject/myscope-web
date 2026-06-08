@@ -7,13 +7,9 @@ import {
   ArrowRight,
   BarChart3,
   Calendar,
-  Drama,
-  Music2,
   QrCode,
   Search,
-  Ticket,
   TicketCheck,
-  Trophy,
   Wallet,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -26,15 +22,6 @@ import { PartnersMarquee, type PartnerItem } from "@/components/home/partners-ma
 import { RevealOnScroll } from "@/components/site/reveal-on-scroll"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-
-// Quick-access category chips beneath the hero search. Mirrors the navbar
-// taxonomy so users see the same categories everywhere.
-const HERO_CATEGORIES = [
-  { label: "Concerts", href: "/events?category=Concerts", icon: Music2 },
-  { label: "Theatre", href: "/events?category=Theatre", icon: Drama },
-  { label: "Sports", href: "/events?category=Sports", icon: Trophy },
-  { label: "Events", href: "/events?category=Events", icon: Ticket },
-]
 
 export default function HomePage() {
   const router = useRouter()
@@ -143,32 +130,42 @@ export default function HomePage() {
       {showCarousel ? (
         <HeroCarousel slides={heroSlides} />
       ) : (
-      <section className="relative isolate overflow-hidden">
-        {/* Single soft halo centred above the headline. Just one. */}
+      // Compact violet band hero. Same `oklch(0.37 0.17 302)` token used by
+      // the announcement bar and the site footer, so the whole page is
+      // bracketed by the MyScope identity colour — top strip, hero, footer.
+      <section className="relative isolate overflow-hidden bg-[oklch(0.37_0.17_302)] text-white">
+        {/* Two soft halos for depth — one fuchsia bloom upper-left, one
+            primary bloom lower-right. Subtle (mix-blend overlay style),
+            adds visual interest without competing with the headline. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[-8rem] -z-10 h-[36rem] w-[44rem] -translate-x-1/2 rounded-full bg-primary/[0.12] blur-3xl"
+          className="pointer-events-none absolute -left-24 -top-32 h-[28rem] w-[28rem] rounded-full bg-fuchsia-500/20 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-32 -bottom-32 h-[28rem] w-[28rem] rounded-full bg-violet-400/20 blur-3xl"
         />
 
-        <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-3xl flex-col items-center justify-center px-4 py-20 text-center sm:px-6 sm:py-24 lg:py-28">
-          {/* Headline — first element in the hero. The single halo above
-              anchors it visually so it doesn't feel like it's floating. */}
-          <h1 className="text-balance text-4xl font-bold leading-[1.05] tracking-[-0.025em] text-foreground sm:text-5xl lg:text-6xl">
+        <div className="relative mx-auto flex max-w-3xl flex-col items-center justify-center px-4 py-14 text-center sm:px-6 sm:py-16 lg:py-20">
+          <h1 className="text-balance text-3xl font-bold leading-[1.1] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
             Every show worth showing up for,{" "}
-            <span className="bg-gradient-to-r from-primary via-fuchsia-500 to-fuchsia-400 bg-clip-text text-transparent">
+            {/* Gradient accent phrase — lighter fuchsia → white so it reads
+                cleanly on the violet band (the original primary→fuchsia
+                gradient was tuned for white backgrounds). */}
+            <span className="bg-linear-to-r from-fuchsia-300 via-pink-200 to-white bg-clip-text text-transparent">
               one tap away.
             </span>
           </h1>
 
-          {/* Subtitle */}
-          <p className="mt-5 max-w-md text-pretty text-base leading-relaxed text-muted-foreground sm:mt-6">
-            Entertain in a perfect scope
+          <p className="mt-3 max-w-md text-pretty text-sm leading-relaxed text-white/80 sm:mt-4 sm:text-base">
+            Entertain in a perfect scope — concerts, theatre, sports, and more.
           </p>
 
-          {/* Search — the only interactive element above the fold. Refined
-              pill with a soft coloured shadow + bright focus ring. */}
-          <form onSubmit={handleSearch} className="mt-10 w-full max-w-xl sm:mt-12">
-            <div className="group flex items-center gap-2 rounded-full border border-border bg-card p-1.5 shadow-[0_12px_40px_-18px_rgba(99,102,241,0.35)] transition-shadow focus-within:shadow-[0_18px_50px_-18px_rgba(99,102,241,0.5)] focus-within:ring-2 focus-within:ring-primary/20">
+          {/* Search — white pill against the violet band so it pops as the
+              single call-to-action. Button stays primary purple to match the
+              rest of the site's CTA language. */}
+          <form onSubmit={handleSearch} className="mt-6 w-full max-w-xl sm:mt-8">
+            <div className="group flex items-center gap-2 rounded-full bg-white p-1.5 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.45)] ring-1 ring-white/40 focus-within:ring-2 focus-within:ring-fuchsia-400/60">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -185,39 +182,7 @@ export default function HomePage() {
               </Button>
             </div>
           </form>
-
-          {/* Category links — inline editorial, dot-separated. No chrome.
-              Reads like a magazine footer; clean and quiet. */}
-          <nav className="mt-7 flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-sm font-medium text-foreground/70 sm:mt-8">
-            {HERO_CATEGORIES.map(({ label, href }, i) => (
-              <React.Fragment key={label}>
-                {i > 0 && (
-                  <span aria-hidden className="text-border">·</span>
-                )}
-                <Link
-                  href={href}
-                  className="rounded px-1 transition-colors hover:text-primary"
-                >
-                  {label}
-                </Link>
-              </React.Fragment>
-            ))}
-            <span aria-hidden className="text-border">·</span>
-            <Link
-              href="/events"
-              className="inline-flex items-center gap-1 rounded px-1 text-muted-foreground transition-colors hover:text-primary"
-            >
-              Browse all
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </nav>
         </div>
-
-        {/* Hairline accent — coloured gradient, not a flat border. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"
-        />
       </section>
       )}
 
