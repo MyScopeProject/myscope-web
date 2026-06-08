@@ -103,20 +103,18 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 w-full">
       <div className="mx-auto max-w-7xl px-3 pt-3 sm:px-4 sm:pt-4">
         <div className="flex h-16 items-center gap-3 rounded-2xl border border-border bg-background/80 px-3 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/60 dark:border-white/50 sm:px-5">
-        {/* Brand — sized to sit inside the pill with even breathing room
-            top and bottom. The previous overflow-style sizing (h-24 with
-            -my-4) made the navbar bar look top-heavy because the PNG has
-            asymmetric transparent padding around the visible mark. Pulling
-            the image inside the pill bounds removes that asymmetry as a
-            factor: even if the PNG's internal padding is uneven, the
-            empty space is now contained within a fixed centered box. */}
+        {/* Brand — image renders at h-20 (80px) but `-my-2` shrinks the
+            flex layout box back to 64px so the pill stays h-16. The logo
+            overflows the pill by 4px above and below, giving it more
+            visual presence than h-12 inside-only sizing without making
+            the navbar taller. */}
         <Link href="/" className="flex items-center">
           <Image
             src="/Images/navbar_logo.png"
             alt="MyScope"
-            width={220}
-            height={64}
-            className="h-12 w-auto"
+            width={275}
+            height={80}
+            className="-my-2 h-20 w-auto"
             priority
           />
         </Link>
