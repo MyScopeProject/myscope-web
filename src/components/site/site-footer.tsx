@@ -69,16 +69,16 @@ export function SiteFooter() {
           <div className="col-span-2 md:col-span-4">
             <Link href="/" className="inline-flex items-center">
               <Image
-                src="/Images/footer_logo.jpeg"
+                src="/Images/footer_logo.png"
                 alt="MyScope"
                 width={640}
                 height={192}
-                // The JPEG has whitespace baked in around the visible mark,
-                // which leaves a big empty band above and below the logo.
-                // Negative vertical margins pull the surrounding content
-                // (tagline / nothing-above) back in toward the actual ink
-                // so the brand block stays compact without re-exporting
-                // the asset.
+                // The PNG has transparent padding baked in around the
+                // visible mark, which leaves a big empty band above and
+                // below the logo. Negative vertical margins pull the
+                // surrounding content back in toward the actual ink so
+                // the brand block stays compact without re-exporting the
+                // asset.
                 className="-my-4 h-20 w-auto sm:-my-10 sm:h-40"
               />
             </Link>
