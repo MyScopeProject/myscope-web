@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Clock, ImageIcon, MapPin, Ticket } from "lucide-react"
+import { Clock, ImageIcon, Ticket } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -136,7 +136,7 @@ export function EventCard({ event, className }: EventCardProps) {
       </Link>
 
       {/* Info block — tighter on phones since the card is now half-width */}
-      <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5 sm:gap-2 sm:p-3">
         {/* Meta row: category + low-stock cue */}
         <div className="flex flex-wrap items-center gap-1.5">
           {event.category && (
@@ -159,12 +159,12 @@ export function EventCard({ event, className }: EventCardProps) {
           </h3>
         </Link>
 
-        {/* Compact meta — venue only. The date is on the poster stub already
-            and the time was dropped to keep cards short across breakpoints. */}
+        {/* Compact meta — venue text only, no map-pin icon. Date is on the
+            poster stub already and the icon was removed to keep cards
+            short and unfussy across breakpoints. */}
         {venue && (
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground sm:text-xs">
-            <MapPin className="h-3 w-3 shrink-0" />
-            <span className="line-clamp-1">{venue}</span>
+          <div className="line-clamp-1 text-[11px] text-muted-foreground sm:text-xs">
+            {venue}
           </div>
         )}
 
@@ -172,7 +172,7 @@ export function EventCard({ event, className }: EventCardProps) {
             we hide the price (which would otherwise show "Free" because the
             server filters active-only tiers) and replace the CTA with a
             non-clickable "On hold" affordance. */}
-        <div className="mt-auto space-y-2 border-t border-border pt-2 sm:space-y-3 sm:pt-3">
+        <div className="mt-auto space-y-1.5 border-t border-border pt-2 sm:space-y-2 sm:pt-2.5">
           {event.sales_paused ? (
             <>
               <div>

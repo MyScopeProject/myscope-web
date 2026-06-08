@@ -32,7 +32,7 @@ export function EventCardSkeleton({ className }: { className?: string }) {
       </div>
 
       {/* Info block — same paddings + rhythm as the real card */}
-      <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5 sm:gap-2 sm:p-3">
         {/* Category chip placeholder */}
         <div className="h-3.5 w-16 animate-pulse rounded-full bg-muted sm:h-4 sm:w-20" />
 
@@ -47,7 +47,7 @@ export function EventCardSkeleton({ className }: { className?: string }) {
         <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
 
         {/* Price + CTA tail (mirrors the bordered footer block) */}
-        <div className="mt-auto space-y-2 border-t border-border pt-2 sm:space-y-3 sm:pt-3">
+        <div className="mt-auto space-y-1.5 border-t border-border pt-2 sm:space-y-2 sm:pt-2.5">
           <div className="space-y-1">
             <div className="h-2.5 w-8 animate-pulse rounded bg-muted" />
             <div className="h-5 w-20 animate-pulse rounded bg-muted sm:h-7 sm:w-24" />
