@@ -27,8 +27,10 @@ if (dsn) {
     environment: process.env.NODE_ENV,
     release: process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_SENTRY_RELEASE,
 
-    // 10% trace sampling in prod — generous for the 5M-spans/mo free tier.
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    // 1% trace sampling in prod — keeps perf overhead minimal while still
+    // giving a usable sample of server traces. Bumped down from 10% after
+    // first-load latency investigation in June 2026.
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.01 : 1.0,
 
     // Strict default. The wizard ships `true` which auto-attaches user IPs,
     // cookies, and request bodies — we don't need that and it grows the
