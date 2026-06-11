@@ -1,4 +1,4 @@
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * holds the secret in its env and uses it for every revalidate call.
  * Without auth this would let anyone force the cache to thrash.
  *
- * Body: { path?: string, tag?: string } — at least one required.
+ * Body: { path: string } — e.g. '/' to refresh the homepage.
  *
  * Example:
  *   curl -X POST https://myscope.lk/api/revalidate \
@@ -44,9 +44,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { path?: string; tag?: string };
+  let body: { path?: string };
   try {
-    body = (await req.json()) as { path?: string; tag?: string };
+    body = (await req.json()) as { path?: string };
   } catch {
     return NextResponse.json(
       { success: false, error: 'Invalid JSON body' },
@@ -54,19 +54,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!body.path && !body.tag) {
+  if (!body.path) {
     return NextResponse.json(
-      { success: false, error: 'Provide `path` or `tag`' },
+      { success: false, error: 'Provide `path`' },
       { status: 400 },
     );
   }
 
-  if (body.path) revalidatePath(body.path);
-  if (body.tag) revalidateTag(body.tag);
+  revalidatePath(body.path);
 
   return NextResponse.json({
     success: true,
-    revalidated: { path: body.path ?? null, tag: body.tag ?? null },
+    revalidated: { path: body.path },
     now: Date.now(),
   });
 }
