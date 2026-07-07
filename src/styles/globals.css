@@ -103,6 +103,102 @@
   outline: none;
 }
 
+/* Partner logo blend — lives here (not in a styled-jsx block) so it's plain
+   global CSS with no per-component scoped class, which is what styled-jsx's
+   `:global()` rules were emulating anyway. Keeping it out of styled-jsx also
+   avoids a server/client scoped-class hydration mismatch on the marquee.
+
+   Many partner PNGs ship with a flat (non-transparent) background — white in
+   light mode, black/dark in dark mode. mix-blend-mode drops those flat pixels
+   out against the page without re-exporting each logo as a transparent PNG:
+   multiply turns white → transparent (light page), lighten turns black →
+   transparent (dark page). `html:not(.light)` covers the pre-paint default,
+   which is dark. */
+:root.light .partners-strip .partner-logo {
+  mix-blend-mode: multiply;
+  filter: none;
+}
+:root.dark .partners-strip .partner-logo,
+html:not(.light) .partners-strip .partner-logo {
+  mix-blend-mode: lighten;
+  filter: none;
+}
+
+/* Ambient light-beam background (LightBeamsBackground). Static CSS moved out
+   of styled-jsx for the same reason as the partner blend rules above — the
+   scoped-class stamping caused a server/client hydration mismatch, and none of
+   this is dynamic. Class hooks (.beam-wrap/.beam/.beam-N) are set in the TSX. */
+.beam {
+  position: absolute;
+  /* 200% so the beam can travel its full width without ever exposing the edge
+     of the gradient. */
+  width: 200%;
+  height: 60vh;
+  /* Heavy blur dissolves the gradient edges into the page background. Beyond
+     ~120px it hurts paint perf on low-end mobile; ~90px is the sweet spot. */
+  filter: blur(90px);
+  opacity: 0.55;
+  transform-origin: center;
+  will-change: transform;
+}
+.beam-1 {
+  top: -10%;
+  left: -50%;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(109, 40, 217, 0.65) 48%,
+    rgba(124, 58, 237, 0.45) 55%,
+    transparent 70%
+  );
+  animation: sweep-1 22s ease-in-out infinite alternate;
+}
+.beam-2 {
+  top: 25%;
+  left: -50%;
+  background: linear-gradient(
+    85deg,
+    transparent 28%,
+    rgba(91, 33, 182, 0.55) 50%,
+    rgba(76, 29, 149, 0.35) 58%,
+    transparent 72%
+  );
+  animation: sweep-2 30s ease-in-out infinite alternate;
+}
+.beam-3 {
+  top: 55%;
+  left: -40%;
+  background: linear-gradient(
+    120deg,
+    transparent 35%,
+    rgba(124, 58, 237, 0.5) 52%,
+    rgba(167, 139, 250, 0.28) 60%,
+    transparent 75%
+  );
+  animation: sweep-3 36s ease-in-out infinite alternate;
+}
+@keyframes sweep-1 {
+  0%   { transform: translate(-5%, -3%) rotate(-3deg); }
+  100% { transform: translate(15%, 5%) rotate(2deg); }
+}
+@keyframes sweep-2 {
+  0%   { transform: translate(0%, 0%) rotate(2deg); }
+  100% { transform: translate(-12%, -4%) rotate(-3deg); }
+}
+@keyframes sweep-3 {
+  0%   { transform: translate(-8%, 0%) rotate(1deg); }
+  100% { transform: translate(10%, -6%) rotate(-2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .beam {
+    animation: none;
+  }
+}
+/* Light mode opts out — beams only read as atmosphere against the dark canvas. */
+:root.light .beam-wrap {
+  display: none;
+}
+
 @theme inline {
   /* Brand fonts wired from next/font in layout.tsx.
      Tailwind v4 auto-generates utilities for each --font-* key:

@@ -4,6 +4,7 @@ import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { DropdownMenu } from "radix-ui"
 
 import {
   Calendar,
@@ -20,6 +21,7 @@ import {
   X,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
+import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { cn } from "@/lib/utils"
 
@@ -39,20 +41,8 @@ export function SiteHeader() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [mobileOpen, setMobileOpen] = React.useState(false)
-  const [userMenuOpen, setUserMenuOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
-  const userMenuRef = React.useRef<HTMLDivElement>(null)
-
-  // Close user menu when clicking outside
-  React.useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setUserMenuOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", onClick)
-    return () => document.removeEventListener("mousedown", onClick)
-  }, [])
+  const searchRef = React.useRef<HTMLInputElement>(null)
 
   // Close mobile drawer on route change
   React.useEffect(() => {
@@ -74,6 +64,25 @@ export function SiteHeader() {
     }
   }, [mobileOpen])
 
+  // Press "/" anywhere (outside a text field) to jump into search — a small
+  // command-bar affordance that keeps the search a keystroke away without a
+  // full modal palette.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return
+      const el = document.activeElement
+      const typing =
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        (el instanceof HTMLElement && el.isContentEditable)
+      if (typing) return
+      e.preventDefault()
+      searchRef.current?.focus()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [])
+
   const isActive = (category: string) => {
     if (category === "__shop") return pathname?.startsWith("/shop") ?? false
     if (pathname !== "/events") return false
@@ -88,39 +97,36 @@ export function SiteHeader() {
 
   const handleLogout = () => {
     logout()
-    setUserMenuOpen(false)
     router.push("/")
   }
+
+  const isOrganizer = user?.role === "organizer" || user?.role === "superadmin"
 
   return (
     <>
     {/* Floating navbar: the outer <header> stays sticky and edge-to-edge so
         it has somewhere to pin; the inner pill is what actually renders —
         rounded, bordered, lifted on a soft shadow, sitting a few px in from
-        every edge. Pattern is now consistent with how the announcement bar
-        + footer bracket the page: clean self-contained blocks rather than
-        full-bleed bars. */}
+        every edge. Border/blur/shadow all ride theme tokens so the pill reads
+        the same way the announcement bar + footer bracket the page: a clean
+        self-contained block rather than a full-bleed bar. */}
     <header className="sticky top-0 z-40 w-full">
       <div className="mx-auto max-w-7xl px-3 pt-3 sm:px-4 sm:pt-4">
-        <div className="flex h-16 items-center gap-3 rounded-2xl border border-border bg-background/80 px-3 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/60 dark:border-white/50 sm:px-5">
-        {/* Brand — image renders at h-20 (80px) but `-my-2` shrinks the
-            flex layout box back to 64px so the pill stays h-16. The logo
-            overflows the pill by 4px above and below, giving it more
-            visual presence than h-12 inside-only sizing without making
-            the navbar taller. */}
-        <Link href="/" className="flex items-center">
+        <div className="flex h-16 items-center gap-1.5 rounded-2xl border border-border bg-background/80 px-2.5 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/65 sm:gap-2 sm:px-4">
+        {/* Brand */}
+        <Link href="/" className="flex shrink-0 items-center" aria-label="MyScope home">
           <Image
             src="/Images/navbar_logo.png"
             alt="MyScope"
             width={275}
             height={80}
-            className="-my-2 h-20 w-auto"
+            className="h-12 w-auto"
             priority
           />
         </Link>
 
         {/* Desktop nav */}
-        <nav className="ml-2 hidden items-center gap-1 md:flex">
+        <nav className="ml-1 hidden items-center gap-0.5 md:flex">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const active = isActive(item.category)
@@ -128,18 +134,16 @@ export function SiteHeader() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  // One active/idle rule for both themes — dark `--primary` is
+                  // a bright, legible violet and dark `--foreground` is already
+                  // near-white, so the tokens carry the contrast without any
+                  // per-theme white overrides.
                   active
-                    // Active chip color tracks the theme: white reads on the
-                    // dark navbar, but vanishes on the light one — so light
-                    // mode gets the brand violet text/icon, dark mode keeps
-                    // the white-on-violet contrast. currentColor cascades to
-                    // both the label and the inline SVG icon.
-                    ? "bg-primary/10 text-primary dark:text-white"
-                    // Inactive: muted in light mode, near-white in dark mode
-                    // so the nav reads crisply against the dark page.
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white",
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -149,91 +153,78 @@ export function SiteHeader() {
           })}
         </nav>
 
-        {/* Search (desktop) */}
-        <form onSubmit={handleSearch} className="ml-auto hidden flex-1 max-w-sm md:block">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        {/* Search (desktop) — rounded pill matching the nav chips, with a "/"
+            keyboard hint that fades out once the field is focused. */}
+        <form onSubmit={handleSearch} className="ml-auto hidden max-w-sm flex-1 md:block">
+          <div className="group relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
+              ref={searchRef}
               type="search"
               placeholder="Search events…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-9 w-full rounded-md bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+              className="h-9 w-full rounded-full border border-transparent bg-muted/60 pl-10 pr-10 text-sm transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             />
+            <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 select-none rounded border border-border bg-background px-1.5 font-sans text-[11px] font-medium text-muted-foreground group-focus-within:opacity-0 lg:inline-block">
+              /
+            </kbd>
           </div>
         </form>
 
-        {/* Right side */}
-        <div className="ml-auto flex items-center gap-2 md:ml-0">
+        {/* Right cluster */}
+        <div className="ml-auto flex items-center gap-0.5 sm:gap-1 md:ml-0">
           <ThemeToggle />
 
           {user ? (
             // Account dropdown is desktop-only — on mobile the drawer menu
-            // handles dashboard / profile / sign out.
-            <div ref={userMenuRef} className="relative hidden md:block">
-              <button
-                type="button"
-                onClick={() => setUserMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-muted"
-                aria-haspopup="true"
-                // ARIA lint plugin false-positives on expression values, but
-                // React serializes booleans correctly for aria-expanded.
-                // eslint-disable-next-line jsx-a11y/aria-proptypes
-                aria-expanded={userMenuOpen}
-              >
-                <span className="inline-flex h-7 w-7 shrink-0 overflow-hidden rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                  {user.profileImage ? (
-                    <Image
-                      src={user.profileImage}
-                      alt={user.name ?? "User"}
-                      width={28}
-                      height={28}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center">
-                      {user.name?.charAt(0).toUpperCase() ?? "U"}
-                    </span>
-                  )}
-                </span>
-                <span className="hidden text-sm font-medium sm:inline">{user.name?.split(" ")[0]}</span>
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
+            // handles dashboard / profile / sign out. Radix owns the a11y:
+            // roving focus, escape, outside-click, aria wiring.
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  type="button"
+                  className="group hidden items-center gap-2 rounded-full py-1 pl-1 pr-2 text-sm transition-colors hover:bg-muted data-[state=open]:bg-muted md:inline-flex"
+                >
+                  <Avatar user={user} className="h-7 w-7 text-xs" />
+                  <span className="text-sm font-medium">{user.name?.split(" ")[0]}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </button>
+              </DropdownMenu.Trigger>
 
-              {userMenuOpen && (
-                <div className="absolute right-0 top-full z-50 mt-1 w-56 max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md">
-                  <div className="border-b border-border px-3 py-2">
-                    <div className="truncate text-sm font-medium">{user.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={10}
+                  className="z-50 w-60 origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-hidden rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-lg data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-1"
+                >
+                  <div className="flex items-center gap-3 px-2 py-2">
+                    <Avatar user={user} className="h-9 w-9 text-sm" />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{user.name}</div>
+                      <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+                    </div>
                   </div>
-                  <div className="py-1">
-                    <UserMenuLink href="/dashboard" icon={Calendar}>My Events</UserMenuLink>
-                    {(user.role === "organizer" || user.role === "superadmin") && (
-                      <UserMenuLink href="/organizer" icon={Ticket}>Organizer</UserMenuLink>
-                    )}
-                    <UserMenuLink href="/dashboard/profile" icon={User}>Profile</UserMenuLink>
-                  </div>
-                  <div className="border-t border-border py-1">
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                  <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                  <MenuItem href="/dashboard" icon={Calendar}>My Events</MenuItem>
+                  {isOrganizer && <MenuItem href="/organizer" icon={Ticket}>Organizer</MenuItem>}
+                  <MenuItem href="/dashboard/profile" icon={User}>Profile</MenuItem>
+                  <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                  <DropdownMenu.Item
+                    onSelect={handleLogout}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-destructive outline-none transition-colors data-[highlighted]:bg-destructive/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           ) : (
             <div className="hidden items-center sm:flex">
-              <Link
-                href="/auth/login"
-                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-              >
-                Sign in
-              </Link>
+              <Button asChild className="rounded-full">
+                <Link href="/auth/login">Sign in</Link>
+              </Button>
             </div>
           )}
 
@@ -261,18 +252,16 @@ export function SiteHeader() {
         )}
         role="dialog"
         aria-modal="true"
-        // eslint-disable-next-line jsx-a11y/aria-proptypes
-        aria-hidden={!mobileOpen || undefined}
+        {...(mobileOpen ? {} : { "aria-hidden": true })}
       >
-        {/* Backdrop — tap anywhere outside the drawer to close.
-            bg-black/50 works in both themes; fades via opacity transition. */}
+        {/* Backdrop — tap anywhere outside the drawer to close. */}
         <button
           type="button"
           aria-label="Close menu"
           tabIndex={mobileOpen ? 0 : -1}
           onClick={() => setMobileOpen(false)}
           className={cn(
-            "absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200",
+            "absolute inset-0 bg-foreground/40 backdrop-blur-sm transition-opacity duration-200",
             mobileOpen ? "opacity-100" : "opacity-0",
           )}
         />
@@ -320,7 +309,7 @@ export function SiteHeader() {
                     placeholder="Search events…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-input bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-background focus-visible:outline-none"
+                    className="h-10 w-full rounded-lg border border-input bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                   />
                 </div>
               </form>
@@ -340,10 +329,11 @@ export function SiteHeader() {
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
+                      aria-current={active ? "page" : undefined}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         active
-                          ? "bg-primary/10 text-primary dark:text-white"
+                          ? "bg-primary/10 text-primary"
                           : "text-foreground hover:bg-muted",
                       )}
                     >
@@ -363,7 +353,7 @@ export function SiteHeader() {
                     <DrawerLink href="/dashboard" icon={Calendar} onNavigate={() => setMobileOpen(false)}>
                       My Events
                     </DrawerLink>
-                    {(user.role === "organizer" || user.role === "superadmin") && (
+                    {isOrganizer && (
                       <DrawerLink href="/organizer" icon={Ticket} onNavigate={() => setMobileOpen(false)}>
                         Organizer
                       </DrawerLink>
@@ -376,54 +366,93 @@ export function SiteHeader() {
               )}
             </nav>
 
-            {/* Drawer footer — user identity + sign out, or sign-in CTA */}
+            {/* Drawer footer — user identity + sign out, or auth CTAs */}
             <div className="border-t border-border p-4">
               {user ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2.5">
-                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                      {user.profileImage ? (
-                        <Image
-                          src={user.profileImage}
-                          alt={user.name ?? "User"}
-                          width={36}
-                          height={36}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span>{user.name?.charAt(0).toUpperCase() ?? "U"}</span>
-                      )}
-                    </span>
+                    <Avatar user={user} className="h-9 w-9 text-sm" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium text-foreground">{user.name}</div>
                       <div className="truncate text-xs text-muted-foreground">{user.email}</div>
                     </div>
                   </div>
-                  <button
-                    type="button"
+                  <Button
+                    variant="destructive"
+                    className="w-full rounded-lg"
                     onClick={() => {
                       setMobileOpen(false)
                       handleLogout()
                     }}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-destructive/30 px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign out
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <Link
-                  href="/auth/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="block w-full rounded-lg bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  Sign in
-                </Link>
+                <Button asChild className="w-full rounded-lg">
+                  <Link href="/auth/login" onClick={() => setMobileOpen(false)}>
+                    Sign in
+                  </Link>
+                </Button>
               )}
             </div>
         </aside>
       </div>
     </>
+  )
+}
+
+// Shared avatar chip — profile image when present, otherwise the first
+// initial on the brand-tint disc. Sized by the caller via `className`.
+function Avatar({
+  user,
+  className,
+}: {
+  user: { name?: string | null; profileImage?: string | null }
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-semibold text-primary",
+        className,
+      )}
+    >
+      {user.profileImage ? (
+        <Image
+          src={user.profileImage}
+          alt={user.name ?? "User"}
+          width={40}
+          height={40}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span>{user.name?.charAt(0).toUpperCase() ?? "U"}</span>
+      )}
+    </span>
+  )
+}
+
+function MenuItem({
+  href,
+  icon: Icon,
+  children,
+}: {
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  children: React.ReactNode
+}) {
+  return (
+    <DropdownMenu.Item asChild>
+      <Link
+        href={href}
+        className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-foreground outline-none transition-colors data-[highlighted]:bg-muted"
+      >
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        {children}
+      </Link>
+    </DropdownMenu.Item>
   )
 }
 
@@ -445,26 +474,6 @@ function DrawerLink({
       className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
     >
       <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-      {children}
-    </Link>
-  )
-}
-
-function UserMenuLink({
-  href,
-  icon: Icon,
-  children,
-}: {
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-  children: React.ReactNode
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted"
-    >
-      <Icon className="h-4 w-4 text-muted-foreground" />
       {children}
     </Link>
   )

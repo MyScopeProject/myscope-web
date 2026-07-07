@@ -229,9 +229,6 @@ function EmptyEvents() {
         <Calendar className="h-5 w-5" />
       </span>
       <h3 className="text-base font-semibold text-foreground">No upcoming events right now</h3>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        Check back soon — organizers are adding new shows every day.
-      </p>
       <Button asChild variant="outline" size="sm">
         <Link href="/events">Browse all events</Link>
       </Button>

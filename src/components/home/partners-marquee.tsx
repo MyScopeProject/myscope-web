@@ -16,30 +16,12 @@ export interface PartnerItem {
 export function PartnersMarquee({ items }: { items: PartnerItem[] }) {
   if (!items?.length) return null
 
+  // The .partner-logo mix-blend-mode rules live in globals.css (keyed off
+  // .partners-strip) — moved out of styled-jsx to avoid a scoped-class
+  // hydration mismatch.
   return (
     <div className="partners-strip relative">
       <MarqueeRow items={items} />
-
-      <style jsx>{`
-        /* Many partner PNGs are uploaded with a non-transparent background
-           (white in light mode, black/dark in dark mode). mix-blend-mode
-           multiplies/lightens the image against the page so those flat
-           background pixels effectively drop out without us needing to
-           re-export every logo as a transparent PNG.
-
-           Light mode (white-ish page): multiply makes white → transparent,
-           keeping the dark glyph. Dark mode (dark violet page): lighten
-           makes black → transparent, keeping the bright glyph. */
-        :global(:root.light) .partners-strip :global(.partner-logo) {
-          mix-blend-mode: multiply;
-          filter: none;
-        }
-        :global(:root.dark) .partners-strip :global(.partner-logo),
-        :global(html:not(.light)) .partners-strip :global(.partner-logo) {
-          mix-blend-mode: lighten;
-          filter: none;
-        }
-      `}</style>
     </div>
   )
 }
