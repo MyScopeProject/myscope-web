@@ -118,7 +118,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16">
           {/* Flat card — no gradient, just border + bg-card. Tighter padding
               + smaller type on phones so it doesn't dominate the scroll. */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-12">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 sm:p-12">
             <div className="grid items-center gap-6 sm:gap-8 md:grid-cols-2">
               <div>
                 <Badge>For organizers</Badge>

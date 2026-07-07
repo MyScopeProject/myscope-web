@@ -460,7 +460,7 @@ export default function CreateEventPage() {
       )}
 
       {/* Step card */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8">
+      <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs sm:p-8">
         {step === stepIdx.details && <DetailsStep value={details} onChange={setDetails} />}
         {step === stepIdx.tickets && (
           <TicketsStep

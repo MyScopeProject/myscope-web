@@ -446,7 +446,7 @@ export default function EditEventPage() {
       )}
 
       {/* Event form */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8">
+      <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs sm:p-8">
         <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-foreground">
           <Edit3 className="h-5 w-5 text-primary" />
           Event details
@@ -625,7 +625,7 @@ export default function EditEventPage() {
 
       {/* Seat map (reserved events) */}
       {event.seating_mode === "reserved" && (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8">
+        <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs sm:p-8">
           <div className="mb-4 flex items-center gap-2">
             <Tag className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-base font-semibold text-foreground">Seat map</h2>
@@ -1162,7 +1162,7 @@ function TicketTypesEditor({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8">
+    <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs sm:p-8">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Tag className="h-5 w-5 text-primary" />

@@ -606,7 +606,7 @@ export default function EventDetailsPage() {
         card: header → tier list (or paused-status / fallback price) →
         CTAs → reassurance. `overflow-hidden` clips the edge-to-edge
         tier list to the card's rounded corners. */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xs">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs">
        {/* Header — title + tier/zone count */}
        <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -859,7 +859,7 @@ function CountdownCard({ target }: { target: Date }) {
  const seconds = Math.floor((diff / 1000) % 60)
 
  return (
-  <div className="overflow-hidden rounded-2xl border border-border bg-card p-5">
+  <div className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
     Event starts in
    </div>

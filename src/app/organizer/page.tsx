@@ -189,7 +189,7 @@ export default function OrganizerDashboardPage() {
       </section>
 
       {/* Events status strip */}
-      <section className="rounded-2xl border border-border bg-card">
+      <section className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
         <div className="flex items-center justify-between px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Events overview</h2>
           <Link
@@ -223,7 +223,7 @@ export default function OrganizerDashboardPage() {
       {/* Top events + Recent bookings */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Top events */}
-        <div className="rounded-2xl border border-border bg-card">
+        <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h3 className="text-base font-semibold text-foreground">Top events</h3>
             <span className="text-xs text-muted-foreground">by revenue</span>
@@ -258,7 +258,7 @@ export default function OrganizerDashboardPage() {
         </div>
 
         {/* Recent bookings */}
-        <div className="rounded-2xl border border-border bg-card">
+        <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h3 className="text-base font-semibold text-foreground">Recent bookings</h3>
             <span className="text-xs text-muted-foreground">latest 5</span>
@@ -298,7 +298,7 @@ export default function OrganizerDashboardPage() {
 
       {/* Payout summary */}
       {balance && (
-        <section className="rounded-2xl border border-border bg-card">
+        <section className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h3 className="text-base font-semibold text-foreground">Payouts</h3>
             <Button asChild variant="outline" size="sm">
@@ -331,7 +331,7 @@ function KpiCard({
   hint?: string
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+    <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 sm:p-5">
       <div className="flex items-center gap-2 text-muted-foreground">
         <Icon className="h-3.5 w-3.5 shrink-0" />
         <span className="text-[10px] sm:text-xs font-medium uppercase tracking-wider truncate">{label}</span>

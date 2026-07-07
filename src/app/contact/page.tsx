@@ -22,7 +22,7 @@ export default function ContactPage() {
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <a
           href="mailto:hello.myscope@gmail.com"
-          className="flex items-start gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+          className="flex items-start gap-3 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 transition-colors hover:border-primary/40"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EA4335]/10 text-[#EA4335]">
             <SiGmail className="h-5 w-5" />
@@ -37,7 +37,7 @@ export default function ContactPage() {
           href={`https://wa.me/${WHATSAPP}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-start gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+          className="flex items-start gap-3 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 transition-colors hover:border-primary/40"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-[#25D366]">
             <SiWhatsapp className="h-5 w-5" />
@@ -53,7 +53,7 @@ export default function ContactPage() {
         href="https://www.google.com/maps/search/?api=1&query=Sri+Lanka"
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+        className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 transition-colors hover:border-primary/40"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1A73E8]/10 text-[#1A73E8]">
           <SiGooglemaps className="h-5 w-5" />

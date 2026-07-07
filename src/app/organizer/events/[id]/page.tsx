@@ -2043,7 +2043,7 @@ function InviteTab({ eventId, tickets }: { eventId: string; tickets: TicketType[
       {/* Composer */}
       <form
         onSubmit={send}
-        className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-xs"
+        className="space-y-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 shadow-xs"
       >
         <header className="flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -2162,7 +2162,7 @@ function InviteTab({ eventId, tickets }: { eventId: string; tickets: TicketType[
       </form>
 
       {/* History */}
-      <section className="rounded-2xl border border-border bg-card shadow-xs">
+      <section className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-muted-foreground" />
@@ -2362,7 +2362,7 @@ function PostponeModal({
       onClick={() => !busy && onClose()}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+        className="w-full max-w-md rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">

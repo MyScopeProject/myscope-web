@@ -85,7 +85,7 @@ function ProfileContent() {
       </div>
 
       {/* Avatar + identity */}
-      <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
         <span className="inline-flex h-14 w-14 shrink-0 overflow-hidden rounded-full bg-primary/10 text-lg font-semibold text-primary">
           {user.profileImage ? (
             <Image
@@ -129,7 +129,7 @@ function ProfileContent() {
       )}
 
       {/* Account details */}
-      <section className="rounded-2xl border border-border bg-card">
+      <section className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
         <div className="border-b border-border px-6 py-4">
           <h2 className="font-semibold text-foreground">Account details</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -205,7 +205,7 @@ function ProfileContent() {
 
       {/* Organizer access */}
       {(user.role === "organizer" || user.role === "superadmin") && (
-        <section className="rounded-2xl border border-border bg-card">
+        <section className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
           <div className="border-b border-border px-6 py-4">
             <h2 className="font-semibold text-foreground">Organizer access</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">

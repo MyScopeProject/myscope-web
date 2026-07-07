@@ -76,7 +76,7 @@ function LoginPageInner() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm dark:ring-1 dark:ring-white/10">
+        <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-8 shadow-sm dark:ring-1 dark:ring-white/10">
 
           {error && (
             <div className="mb-6 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
