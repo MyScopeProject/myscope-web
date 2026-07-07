@@ -46,6 +46,10 @@ interface OrganizerProfile {
   instagram_url: string | null
   verification_status: VerificationStatus
   rejection_reason: string | null
+  // Set when the organizer resigned or was revoked by an admin. Stays
+  // 'approved' forever on verification_status (a historical record), so this
+  // is the real signal that re-application should be offered again.
+  deactivated_at: string | null
   created_at: string
   updated_at?: string
 }
@@ -131,7 +135,7 @@ export default function BecomeOrganizerPage() {
         if (data?.success) {
           const p: OrganizerProfile | null = data.data?.profile ?? null
           setProfile(p)
-          if (p && p.verification_status === "rejected") {
+          if (p && (p.verification_status === "rejected" || p.deactivated_at)) {
             setForm({
               business_name: p.business_name,
               business_type: p.business_type ?? "company",
@@ -224,7 +228,7 @@ export default function BecomeOrganizerPage() {
     )
   }
 
-  const showForm = !profile || profile.verification_status === "rejected"
+  const showForm = !profile || profile.verification_status === "rejected" || !!profile.deactivated_at
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:py-16">
@@ -249,7 +253,7 @@ export default function BecomeOrganizerPage() {
       </div>
 
       {/* Status banners */}
-      {profile?.verification_status === "approved" && (
+      {profile?.verification_status === "approved" && !profile.deactivated_at && (
         <StatusBanner
           tone="success"
           icon={CheckCircle}
@@ -260,6 +264,15 @@ export default function BecomeOrganizerPage() {
             <Link href="/organizer">Go to organizer dashboard</Link>
           </Button>
         </StatusBanner>
+      )}
+
+      {profile?.deactivated_at && (
+        <StatusBanner
+          tone="destructive"
+          icon={XCircle}
+          title="You're no longer an active organizer"
+          body="You resigned (or your organizer status was revoked). Update your details and re-submit below to apply again."
+        />
       )}
 
       {profile?.verification_status === "pending" && (
