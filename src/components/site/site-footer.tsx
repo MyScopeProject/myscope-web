@@ -36,7 +36,7 @@ const SOCIAL: Array<{
 ]
 
 const CONTACT_PHONE = "+94 76 482 9645"
-const CONTACT_EMAIL = "hello.myscope@gmail.com"
+const CONTACT_EMAIL = "hello@myscope.lk"
 const CONTACT_LOCATION = "Colombo, Sri Lanka"
 
 // MyScope footer — fully theme-token driven. Both modes share the same
@@ -69,7 +69,7 @@ export function SiteFooter() {
               />
             </Link>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground sm:mt-5">
-              MyScope is Sri Lanka&rsquo;s home for live events — concerts, theatre, sports, and everything in between. Discover, book, and show up with QR-coded tickets, real-time seat maps, and instant gate check-in.
+              MyScope is Sri Lanka&rsquo;s Smartest Ticket Booking Platform — concerts, theatre, sports, and everything in between. Discover, book, and show up with QR coded tickets, real time seat maps, and instant gate check in.
             </p>
             <div className="mt-4 flex gap-3 sm:mt-7">
               {SOCIAL.map(({ icon: Icon, href, label, iconClass }) => (
