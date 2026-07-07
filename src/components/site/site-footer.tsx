@@ -136,7 +136,7 @@ export function SiteFooter() {
 
         {/* Bottom strip — single-line copyright. */}
         <div className="mt-8 border-t border-border pt-4 text-xs text-muted-foreground sm:mt-14 sm:pt-6">
-          &copy; Copyright {year} MyScope Private Limited &nbsp;|&nbsp; All Rights Reserved
+          &copy; Copyright {year}  &nbsp; MyScope (PVT) LTD &nbsp;|&nbsp; All Rights Reserved
         </div>
       </div>
     </footer>
