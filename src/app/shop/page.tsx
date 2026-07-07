@@ -66,7 +66,7 @@ function formatMoney(amount: number | string, currency = "LKR") {
 // build fails. Wrapping the inner component keeps the bail-out narrow.
 export default function ShopPage() {
   return (
-    <React.Suspense fallback={<div className="min-h-screen bg-background pt-24" aria-hidden />}>
+    <React.Suspense fallback={<div className="min-h-screen pt-24" aria-hidden />}>
       <ShopPageInner />
     </React.Suspense>
   )

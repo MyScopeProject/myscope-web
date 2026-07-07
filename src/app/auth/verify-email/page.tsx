@@ -104,7 +104,7 @@ export default function VerifyEmailPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-16" style={{ backgroundColor: '#07060A' }}>
+    <div className="min-h-screen flex items-center justify-center px-4 py-16">
       <div
         className="w-full max-w-md rounded-2xl border p-8"
         style={{ backgroundColor: 'rgba(21, 18, 29, 0.5)', borderColor: 'rgba(196, 181, 253, 0.15)' }}

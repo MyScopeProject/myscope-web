@@ -122,7 +122,7 @@ export default function StorefrontPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background">
+      <main className="flex min-h-screen items-center justify-center">
         <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
       </main>
     )
@@ -130,7 +130,7 @@ export default function StorefrontPage() {
 
   if (error || !organizer) {
     return (
-      <main className="min-h-screen bg-background pt-24 pb-20">
+      <main className="min-h-screen pt-24 pb-20">
         <div className="mx-auto max-w-2xl px-4">
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <Store className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -148,7 +148,7 @@ export default function StorefrontPage() {
   const instagramUrl = normalizeSocialUrl(organizer.instagram_url)
 
   return (
-    <main className="min-h-screen bg-background pt-20 pb-20">
+    <main className="min-h-screen pt-20 pb-20">
       {/* Hero strip — soft gradient with profile chip overlay. Uses theme tokens
           so it shifts with light/dark. */}
       <div className="relative h-40 w-full overflow-hidden bg-gradient-to-r from-primary/15 via-primary/8 to-transparent sm:h-56">

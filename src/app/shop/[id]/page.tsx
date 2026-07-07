@@ -109,7 +109,7 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background">
+      <main className="flex min-h-screen items-center justify-center">
         <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
       </main>
     )
@@ -117,7 +117,7 @@ export default function ProductDetailPage() {
 
   if (error || !product) {
     return (
-      <main className="min-h-screen bg-background pt-24 pb-20">
+      <main className="min-h-screen pt-24 pb-20">
         <div className="mx-auto max-w-2xl px-4">
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <AlertCircle className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -140,7 +140,7 @@ export default function ProductDetailPage() {
   const soldOut = product.status === "sold_out" || product.stock_quantity <= 0
 
   return (
-    <main className="min-h-screen bg-background pt-24 pb-20">
+    <main className="min-h-screen pt-24 pb-20">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         <Link
           href="/shop"

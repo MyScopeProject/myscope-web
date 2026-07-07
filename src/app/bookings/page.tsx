@@ -82,7 +82,7 @@ export default function MyBookingsPage() {
  }
 
  return (
-  <div className="pt-16 min-h-screen pb-24 bg-background">
+  <div className="pt-16 min-h-screen pb-24">
    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
     {/* Header */}
     <motion.div

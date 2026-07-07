@@ -256,7 +256,7 @@ export default function CheckoutPage() {
 
   if (authLoading || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background">
+      <main className="flex min-h-screen items-center justify-center">
         <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
       </main>
     )
@@ -265,7 +265,7 @@ export default function CheckoutPage() {
   if (cart.length === 0) return null
 
   return (
-    <main className="min-h-screen bg-background pt-24 pb-20">
+    <main className="min-h-screen pt-24 pb-20">
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
         <Link
           href="/shop/cart"
