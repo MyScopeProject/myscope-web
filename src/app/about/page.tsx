@@ -19,9 +19,9 @@ export const metadata: Metadata = {
     "MyScope is Sri Lanka's home for live events — built by Akila Jayakody to make discovering, booking, and attending concerts, theatre, and sports effortless across the island.",
   alternates: { canonical: "https://www.myscope.lk/about" },
   openGraph: {
-    title: "About MyScope — Sri Lanka's home for live events",
+    title: "About MyScope — Sri Lanka's Smartest Event Ticket booking Platform",
     description:
-      "How MyScope works, what we've built, and the story behind it — founded by Akila Jayakody, a Sri Lankan software engineer building for the local events industry.",
+      "How MyScope works, what we've built, and the story behind it.founded by Akila Jayakody, a Sri Lankan Data engineer building for the local events industry.",
     url: "https://www.myscope.lk/about",
     type: "website",
   },
@@ -34,7 +34,7 @@ const founderJsonLd = {
   "@context": "https://schema.org",
   "@type": "Person",
   name: "Akila Jayakody",
-  jobTitle: "Founder & Software Engineer",
+  jobTitle: "Founder & Data Engineer",
   worksFor: {
     "@type": "Organization",
     name: "MyScope",
@@ -46,7 +46,7 @@ const founderJsonLd = {
   },
   nationality: "Sri Lankan",
   description:
-    "Founder of MyScope, a Sri Lankan live-events platform. BSc in Computer Science from the University of Colombo. Solo founder and engineer building MyScope end-to-end.",
+    "Founder of MyScope, a Sri Lankan live events platform. BSc in Computer Science from the University of Colombo. Solo founder and engineer building MyScope end to end.",
   url: "https://www.myscope.lk/about",
   sameAs: [FOUNDER_LINKEDIN],
 }
@@ -62,13 +62,13 @@ const orgWithFounderJsonLd = {
   founder: {
     "@type": "Person",
     name: "Akila Jayakody",
-    jobTitle: "Founder & Software Engineer",
+    jobTitle: "Founder & Data Engineer",
     alumniOf: "University of Colombo",
     sameAs: [FOUNDER_LINKEDIN],
   },
   areaServed: "LK",
   description:
-    "Sri Lanka's home for live events — concerts, theatre, sports, and experiences. Discover events, book tickets, and walk in with a QR-coded e-ticket.",
+    "Sri Lanka's Smartest Event Ticket booking Platform — concerts, theatre, sports, and experiences. Discover events, book tickets, and walk in with a QR coded e ticket.",
 }
 
 const platformFeatures = [
@@ -128,12 +128,12 @@ export default function AboutPage() {
           About MyScope
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Sri Lanka&rsquo;s home for live events.
+          Sri Lanka&rsquo;s Smartest Event Ticket booking Platform.
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-          MyScope brings concerts, theatre, sports, and experiences together in one place —
+          MyScope brings concerts, theatre, sports, and experiences together in one place
           so fans across the island can discover what&rsquo;s on, book tickets in a few taps,
-          and walk in with a QR-coded e-ticket. We&rsquo;re building the modern ticketing
+          and walk in with a QR coded e ticket. We&rsquo;re building the modern ticketing
           layer Sri Lanka&rsquo;s events industry has been missing.
         </p>
       </section>
@@ -144,7 +144,7 @@ export default function AboutPage() {
           What we&rsquo;ve built
         </h2>
         <p className="mt-3 max-w-3xl text-base leading-relaxed text-muted-foreground">
-          MyScope is a complete, end-to-end events platform — not just a booking page.
+          MyScope is a complete, end to end events platform not just a booking page.
           Every part of the experience, from discovery to check-in to payouts, runs on
           software we built ourselves.
         </p>
@@ -176,7 +176,7 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold text-foreground">For event-goers</h2>
           <p className="mt-3 text-base leading-relaxed text-muted-foreground">
             Browse upcoming events, pick your seats or tickets, and pay securely. Your
-            tickets arrive instantly by email and SMS, ready to scan at the door — no
+            tickets arrive instantly by email and SMS, ready to scan at the door no
             printing, no queues.
           </p>
           <Link
@@ -189,7 +189,7 @@ export default function AboutPage() {
         <div>
           <h2 className="text-xl font-semibold text-foreground">For organizers</h2>
           <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-            Publish your event, sell multi-tier tickets, scan attendees at the gate, and
+            Publish your event, sell multi tier tickets, scan attendees at the gate, and
             get paid — all from one dashboard built for Sri Lankan organizers.
           </p>
           <Link
@@ -223,7 +223,7 @@ export default function AboutPage() {
               Akila Jayakody
             </h2>
             <p className="mt-1 text-sm font-medium text-primary">
-              Founder &amp; Software Engineer
+              Founder &amp; Data Engineer
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               BSc in Computer Science, University of Colombo
@@ -234,25 +234,25 @@ export default function AboutPage() {
                 Akila started MyScope with a simple frustration: in a country with a
                 vibrant culture of concerts, theatre, and live performance, finding what
                 was on and getting a ticket still felt stuck in another decade. He set out
-                to build the platform he wished existed — a single place where Sri Lankans
+                to build the platform he wished existed a single place where Sri Lankans
                 could discover events, organizers could sell tickets without friction, and
                 everyone could walk into a venue with nothing but a phone.
               </p>
               <p>
-                MyScope is engineered entirely by Akila — front to back. The consumer web
-                app, the organizer dashboard, the iOS and Android mobile apps, the
-                payments layer, the QR check-in scanner, the visual reserved-seating
+                MyScope is engineered by Akila Jayakody. The consumer web
+                app, the organizer dashboard, the mobile apps, the
+                payments layer, the QR check in scanner, the visual reserved seating
                 builder, the admin moderation tooling: every piece is something he
-                designed, wrote, and shipped himself. It&rsquo;s a one-person engineering
+                designed, wrote, and shipped himself. It&rsquo;s a one person engineering
                 effort with the surface area of a much larger company &mdash; deliberately,
                 because moving fast on local feedback matters more here than headcount.
               </p>
               <p>
                 The bigger ambition is to become the default events infrastructure for Sri
-                Lanka — the rails that local promoters, theatres, festivals, and venues
+                Lanka the rails that local promoters, theatres, festivals, and venues
                 run on. Open to organizers of any size, fair on fees, and built for how
                 the Sri Lankan market actually works. MyScope is the start; the goal is a
-                live-events ecosystem the country can build on for the next decade.
+                live events ecosystem the country can build on for the next decade.
               </p>
             </div>
 
@@ -270,7 +270,7 @@ export default function AboutPage() {
                 href="mailto:hello.myscope@gmail.com"
                 className="font-medium text-primary hover:underline"
               >
-                hello.myscope@gmail.com
+                nishanakila10@gmail.com
               </a>
               <span aria-hidden className="text-muted-foreground/40">
                 &bull;
