@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import {
   AlertCircle,
+  AlertTriangle,
   Archive,
   ArrowLeft,
   CheckCircle2,
@@ -14,8 +15,10 @@ import {
   EyeOff,
   ExternalLink,
   Loader,
+  Loader2,
   Package,
   Send,
+  Trash2,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -68,6 +71,8 @@ export default function EditProductPage() {
   const [submitting, setSubmitting] = React.useState(false)
   const [acting, setActing]       = React.useState(false)
   const [savedAt, setSavedAt]     = React.useState<number | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false)
+  const [deleting, setDeleting]   = React.useState(false)
 
   React.useEffect(() => {
     if (authLoading) return
@@ -184,6 +189,28 @@ export default function EditProductPage() {
       }
     } finally {
       setActing(false)
+    }
+  }
+
+  const handlePermanentDelete = async () => {
+    setDeleting(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/shop/${id}/permanent`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (data?.success) {
+        toast.success("Product permanently deleted.")
+        router.push("/organizer/shop")
+      } else {
+        toast.error(data?.message || "Couldn't delete.")
+        setShowDeleteModal(false)
+      }
+    } catch {
+      toast.error("Network error.")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -327,10 +354,23 @@ export default function EditProductPage() {
               </Button>
             )}
             {product.status === "archived" ? (
-              <Button size="sm" type="button" disabled={acting} onClick={() => runAction("restore")}>
-                <CheckCircle2 className="mr-1 h-4 w-4" />
-                Restore
-              </Button>
+              <>
+                <Button size="sm" type="button" disabled={acting} onClick={() => runAction("restore")}>
+                  <CheckCircle2 className="mr-1 h-4 w-4" />
+                  Restore
+                </Button>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                  disabled={acting}
+                  onClick={() => setShowDeleteModal(true)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  Delete permanently
+                </Button>
+              </>
             ) : (
               <Button size="sm" type="button" variant="ghost" disabled={acting} onClick={handleArchive}>
                 <Archive className="mr-1 h-4 w-4" />
@@ -340,6 +380,51 @@ export default function EditProductPage() {
           </>
         }
       />
+
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => { if (!deleting) setShowDeleteModal(false) }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-semibold text-foreground">Delete permanently?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">&ldquo;{product.title}&rdquo;</span> will be
+                  removed for good — this can&apos;t be undone. Products with past orders can&apos;t be deleted;
+                  archive them instead.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handlePermanentDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-4 py-2 text-sm text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

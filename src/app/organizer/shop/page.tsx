@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import {
   AlertCircle,
+  AlertTriangle,
   Archive,
   CheckCircle2,
   Clock,
@@ -13,12 +14,14 @@ import {
   EyeOff,
   ImageIcon,
   Loader,
+  Loader2,
   Package,
   Plus,
   Receipt,
   Send,
   ShoppingBag,
   Tag,
+  Trash2,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -88,6 +91,8 @@ export default function OrganizerShopPage() {
   const [search, setSearch]     = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState<"all" | ProductStatus>("all")
   const [actingId, setActingId] = React.useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<ProductRow | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
 
   React.useEffect(() => {
     if (authLoading) return
@@ -164,6 +169,29 @@ export default function OrganizerShopPage() {
       }
     } finally {
       setActingId(null)
+    }
+  }
+
+  const handlePermanentDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/shop/${deleteTarget.id}/permanent`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (data?.success) {
+        toast.success("Product permanently deleted.")
+        setDeleteTarget(null)
+        await fetchProducts()
+      } else {
+        toast.error(data?.message || "Couldn't delete.")
+      }
+    } catch {
+      toast.error("Network error.")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -410,15 +438,26 @@ export default function OrganizerShopPage() {
                           </Button>
                         )}
                         {p.status === "archived" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={acting}
-                            onClick={() => runAction(p.id, "restore")}
-                          >
-                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                            Restore
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={acting}
+                              onClick={() => runAction(p.id, "restore")}
+                            >
+                              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                              Restore
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={acting}
+                              onClick={() => setDeleteTarget(p)}
+                              title="Delete permanently"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </>
                         ) : (
                           <Button
                             size="sm"
@@ -436,6 +475,51 @@ export default function OrganizerShopPage() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => { if (!deleting) setDeleteTarget(null) }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-semibold text-foreground">Delete permanently?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">&ldquo;{deleteTarget.title}&rdquo;</span> will be
+                  removed for good — this can&apos;t be undone. Products with past orders can&apos;t be deleted;
+                  archive them instead.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handlePermanentDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-4 py-2 text-sm text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete permanently
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
