@@ -5,14 +5,17 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import {
+  AlertCircle,
   Archive,
   ArrowLeft,
   CheckCircle2,
+  Clock,
   Eye,
   EyeOff,
   ExternalLink,
   Loader,
   Package,
+  Send,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -21,7 +24,7 @@ import { ProductForm, type ProductFormValues } from "@/components/organizer/prod
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-type ProductStatus = "draft" | "published" | "sold_out" | "archived"
+type ProductStatus = "draft" | "pending_review" | "published" | "sold_out" | "rejected" | "archived"
 
 interface Product {
   id: string
@@ -38,16 +41,20 @@ interface Product {
   pickup_location_url: string | null
   images: string[]
   status: ProductStatus
+  approved_at: string | null
+  rejection_reason: string | null
 }
 
 const STATUS_META: Record<
   ProductStatus,
   { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }
 > = {
-  draft:     { label: "Draft",     variant: "outline" },
-  published: { label: "Live",      variant: "success" },
-  sold_out:  { label: "Sold out",  variant: "warning" },
-  archived:  { label: "Archived",  variant: "destructive" },
+  draft:          { label: "Draft",     variant: "outline" },
+  pending_review: { label: "In review", variant: "warning" },
+  published:      { label: "Live",      variant: "success" },
+  sold_out:       { label: "Sold out",  variant: "warning" },
+  rejected:       { label: "Rejected",  variant: "destructive" },
+  archived:       { label: "Archived",  variant: "destructive" },
 }
 
 export default function EditProductPage() {
@@ -139,7 +146,7 @@ export default function EditProductPage() {
     }
   }
 
-  const runAction = async (action: "publish" | "unpublish" | "mark-sold-out" | "restore") => {
+  const runAction = async (action: "submit" | "publish" | "unpublish" | "mark-sold-out" | "restore") => {
     setActing(true)
     try {
       const res = await fetch(`${API_URL}/api/organizer/shop/${id}/${action}`, {
@@ -149,6 +156,7 @@ export default function EditProductPage() {
       const data = await res.json()
       if (data?.success) {
         setProduct(data.data?.product)
+        if (data?.message) toast.success(data.message)
       } else {
         toast.error(data?.message || "Action failed.")
       }
@@ -248,6 +256,27 @@ export default function EditProductPage() {
         )}
       </header>
 
+      {/* Review-status banners */}
+      {product.status === "pending_review" && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            This product is awaiting admin review. It won&apos;t appear in the public shop until it&apos;s approved.
+            Editing it here keeps it in the review queue.
+          </span>
+        </div>
+      )}
+      {product.status === "rejected" && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">An admin rejected this product.</p>
+            {product.rejection_reason && <p className="mt-0.5">{product.rejection_reason}</p>}
+            <p className="mt-0.5 text-destructive/80">Make your changes and resubmit for review.</p>
+          </div>
+        </div>
+      )}
+
       <ProductForm
         key={product.id + product.status}
         initial={initial}
@@ -259,10 +288,24 @@ export default function EditProductPage() {
         savedAt={savedAt}
         actions={
           <>
+            {/* Draft: relist instantly if already approved, else submit to review. */}
             {product.status === "draft" && (
-              <Button size="sm" type="button" disabled={acting} onClick={() => runAction("publish")}>
-                <Eye className="mr-1 h-4 w-4" />
-                Publish
+              product.approved_at ? (
+                <Button size="sm" type="button" disabled={acting} onClick={() => runAction("publish")}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  Relist
+                </Button>
+              ) : (
+                <Button size="sm" type="button" disabled={acting} onClick={() => runAction("submit")}>
+                  <Send className="mr-1 h-4 w-4" />
+                  Submit for review
+                </Button>
+              )
+            )}
+            {product.status === "rejected" && (
+              <Button size="sm" type="button" disabled={acting} onClick={() => runAction("submit")}>
+                <Send className="mr-1 h-4 w-4" />
+                Resubmit for review
               </Button>
             )}
             {product.status === "published" && (

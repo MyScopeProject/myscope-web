@@ -86,7 +86,7 @@ export default function NewProductPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">New product</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Save it as a draft first — you can publish once you've added images and stock.
+          Save it as a draft first. Once you&apos;ve added images and stock, submit it for admin review — it goes live after approval.
         </p>
       </div>
 

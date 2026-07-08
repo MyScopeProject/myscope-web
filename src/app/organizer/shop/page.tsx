@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Archive,
   CheckCircle2,
+  Clock,
   Eye,
   EyeOff,
   ImageIcon,
@@ -15,6 +16,7 @@ import {
   Package,
   Plus,
   Receipt,
+  Send,
   ShoppingBag,
   Tag,
 } from "lucide-react"
@@ -26,7 +28,7 @@ import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-type ProductStatus = "draft" | "published" | "sold_out" | "archived"
+type ProductStatus = "draft" | "pending_review" | "published" | "sold_out" | "rejected" | "archived"
 type ProductType   = "event_product" | "shop_product"
 
 interface ProductRow {
@@ -43,6 +45,8 @@ interface ProductRow {
   images: string[]
   category: string | null
   status: ProductStatus
+  approved_at: string | null
+  rejection_reason: string | null
   created_at: string
   updated_at: string
 }
@@ -51,18 +55,22 @@ const STATUS_META: Record<
   ProductStatus,
   { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }
 > = {
-  draft:     { label: "Draft",     variant: "outline" },
-  published: { label: "Live",      variant: "success" },
-  sold_out:  { label: "Sold out",  variant: "warning" },
-  archived:  { label: "Archived",  variant: "destructive" },
+  draft:          { label: "Draft",     variant: "outline" },
+  pending_review: { label: "In review", variant: "warning" },
+  published:      { label: "Live",      variant: "success" },
+  sold_out:       { label: "Sold out",  variant: "warning" },
+  rejected:       { label: "Rejected",  variant: "destructive" },
+  archived:       { label: "Archived",  variant: "destructive" },
 }
 
 const STATUS_FILTERS: Array<{ value: "all" | ProductStatus; label: string }> = [
-  { value: "all",       label: "All" },
-  { value: "draft",     label: "Drafts" },
-  { value: "published", label: "Live" },
-  { value: "sold_out",  label: "Sold out" },
-  { value: "archived",  label: "Archived" },
+  { value: "all",            label: "All" },
+  { value: "draft",          label: "Drafts" },
+  { value: "pending_review", label: "In review" },
+  { value: "published",      label: "Live" },
+  { value: "sold_out",       label: "Sold out" },
+  { value: "rejected",       label: "Rejected" },
+  { value: "archived",       label: "Archived" },
 ]
 
 function formatMoney(amount: number | string, currency = "LKR") {
@@ -116,7 +124,10 @@ export default function OrganizerShopPage() {
     }
   }, [user, fetchProducts])
 
-  const runAction = async (id: string, action: "publish" | "unpublish" | "mark-sold-out" | "restore") => {
+  const runAction = async (
+    id: string,
+    action: "submit" | "publish" | "unpublish" | "mark-sold-out" | "restore",
+  ) => {
     setActingId(id)
     try {
       const res = await fetch(`${API_URL}/api/organizer/shop/${id}/${action}`, {
@@ -125,6 +136,7 @@ export default function OrganizerShopPage() {
       })
       const data = await res.json()
       if (data?.success) {
+        if (data?.message) toast.success(data.message)
         await fetchProducts()
       } else {
         toast.error(data?.message || "Action failed.")
@@ -176,7 +188,7 @@ export default function OrganizerShopPage() {
         acc[p.status] += 1
         return acc
       },
-      { all: 0, draft: 0, published: 0, sold_out: 0, archived: 0 } as Record<"all" | ProductStatus, number>,
+      { all: 0, draft: 0, pending_review: 0, published: 0, sold_out: 0, rejected: 0, archived: 0 } as Record<"all" | ProductStatus, number>,
     )
   }, [products])
 
@@ -197,7 +209,7 @@ export default function OrganizerShopPage() {
             Shop
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sell event merch and organizer-wide products. Published items appear in the public shop.
+            Sell event merch and organizer-wide products. New listings are reviewed by an admin before they go live.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -315,18 +327,53 @@ export default function OrganizerShopPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={meta.variant}>{meta.label}</Badge>
+                      {p.status === "rejected" && p.rejection_reason && (
+                        <p className="mt-1 max-w-[220px] text-xs text-destructive" title={p.rejection_reason}>
+                          {p.rejection_reason}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        {/* Draft: an already-approved product relists instantly;
+                            a never-approved one must go through admin review. */}
                         {p.status === "draft" && (
+                          p.approved_at ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={acting}
+                              onClick={() => runAction(p.id, "publish")}
+                            >
+                              <Eye className="mr-1 h-3.5 w-3.5" />
+                              Relist
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              disabled={acting}
+                              onClick={() => runAction(p.id, "submit")}
+                            >
+                              <Send className="mr-1 h-3.5 w-3.5" />
+                              Submit for review
+                            </Button>
+                          )
+                        )}
+                        {p.status === "pending_review" && (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3.5 w-3.5" />
+                            Awaiting admin review
+                          </span>
+                        )}
+                        {p.status === "rejected" && (
                           <Button
                             size="sm"
                             variant="outline"
                             disabled={acting}
-                            onClick={() => runAction(p.id, "publish")}
+                            onClick={() => runAction(p.id, "submit")}
                           >
-                            <Eye className="mr-1 h-3.5 w-3.5" />
-                            Publish
+                            <Send className="mr-1 h-3.5 w-3.5" />
+                            Resubmit
                           </Button>
                         )}
                         {p.status === "published" && (
