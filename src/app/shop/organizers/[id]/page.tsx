@@ -277,7 +277,6 @@ export default function StorefrontPage() {
 function StorefrontCard({ product: p }: { product: Product }) {
   const cover = Array.isArray(p.images) && p.images[0]
   const soldOut = p.status === "sold_out" || p.stock_quantity <= 0
-  const isEventMerch = p.product_type === "event_product" && !!p.event
 
   return (
     <article className="group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25">
@@ -302,10 +301,9 @@ function StorefrontCard({ product: p }: { product: Product }) {
           </div>
         )}
 
-        {(isEventMerch || soldOut) && (
+        {soldOut && (
           <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
-            {isEventMerch && <Badge variant="default">Event merch</Badge>}
-            {soldOut && <Badge variant="destructive">Sold out</Badge>}
+            <Badge variant="destructive">Sold out</Badge>
           </div>
         )}
       </Link>

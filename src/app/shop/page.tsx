@@ -136,43 +136,44 @@ function ShopPageInner() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
         {/* Title block — placement + typography mirror /events: title +
             subtitle sit at the top of the container with no extra navbar
-            padding. The cart button floats to the right on wider screens
-            and drops to a new line on phones via flex-wrap. */}
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Shop
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-              Merch and gear from MyScope Events. Event specific items and storefronts in one feed.
-            </p>
-          </div>
-          <Button asChild variant="outline" className="relative">
-            <Link href="/shop/cart" className="inline-flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4" />
-              Cart
-              {cartCount > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
-                  {cartCount > 99 ? "99+" : cartCount}
-                </span>
-              )}
-            </Link>
-          </Button>
+            padding. Cart moved down next to search (see filter row below) so
+            it stays on the same row as search on mobile too. */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Shop
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+            Merch and gear from MyScope Events. Event specific items and storefronts in one feed.
+          </p>
         </div>
 
         {/* Filter row — translucent card tone + backdrop-blur on the
             search and the chips so the ambient light beams flow through
             instead of being chopped off by solid dark surfaces. Matches
-            the events page treatment. */}
+            the events page treatment. Search + cart always share a row
+            (including on mobile); the rest of the filters wrap below on
+            narrow screens via flex-col -> sm:flex-row. */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products, organizers, events..."
-              className="bg-card/30 pl-9 backdrop-blur-md focus:bg-card/50"
-            />
+          <div className="flex flex-1 items-center gap-2 sm:max-w-sm">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search products, organizers, events..."
+                className="bg-card/30 pl-9 backdrop-blur-md focus:bg-card/50"
+              />
+            </div>
+            <Button asChild variant="outline" size="icon" className="relative shrink-0">
+              <Link href="/shop/cart" aria-label="Cart">
+                <ShoppingCart className="h-4 w-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                )}
+              </Link>
+            </Button>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Filter className="h-3.5 w-3.5" />
@@ -244,7 +245,6 @@ function ShopPageInner() {
 function ProductCard({ product: p }: { product: Product }) {
   const cover = Array.isArray(p.images) && p.images[0]
   const soldOut = p.status === "sold_out" || p.stock_quantity <= 0
-  const isEventMerch = p.product_type === "event_product" && !!p.event
 
   return (
     <article className="group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25">
@@ -269,11 +269,10 @@ function ProductCard({ product: p }: { product: Product }) {
           </div>
         )}
 
-        {/* Floating badges — top-right */}
-        {(isEventMerch || soldOut) && (
+        {/* Floating badge — top-right */}
+        {soldOut && (
           <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
-            {isEventMerch && <Badge variant="default">Event merch</Badge>}
-            {soldOut && <Badge variant="destructive">Sold out</Badge>}
+            <Badge variant="destructive">Sold out</Badge>
           </div>
         )}
       </Link>
