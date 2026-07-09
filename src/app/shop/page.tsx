@@ -248,11 +248,11 @@ function ProductCard({ product: p }: { product: Product }) {
 
   return (
     <article className="group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:shadow-md hover:ring-primary/25">
-      {/* Cover — portrait 3:4. Image is contained (no crop) and sits on
-          the card surface itself so there's no dark frame around it. */}
+      {/* Cover — portrait 3:4, same treatment as the event card: `object-cover`
+          fills the card area with no padding/letterboxing. */}
       <Link
         href={`/shop/${p.id}`}
-        className="relative block aspect-3/4 overflow-hidden bg-card"
+        className="relative block aspect-3/4 overflow-hidden bg-muted"
         aria-label={p.title}
       >
         {cover ? (
@@ -260,7 +260,7 @@ function ProductCard({ product: p }: { product: Product }) {
           <img
             src={cover}
             alt={p.title}
-            className="h-full w-full object-contain p-3 transition-transform duration-500 ease-out group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
         ) : (
