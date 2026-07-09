@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowLeft,
   Banknote,
   Calendar,
@@ -15,13 +16,16 @@ import {
   Download,
   ImageIcon,
   Loader,
+  Loader2,
   MapPin,
   Pencil,
   Save,
   ShoppingBag,
+  Trash2,
   Wallet,
   XCircle,
 } from "lucide-react"
+import toast from "react-hot-toast"
 import { useAuth } from "@/context/AuthContext"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -60,7 +64,7 @@ interface PerEventBalance {
   comms?: CommsBreakdown
 }
 
-interface ShopBalance {
+interface ProductBalance {
   gross: number
   fee: number
   net: number
@@ -75,6 +79,7 @@ interface Payout {
   status: "requested" | "approved" | "paid" | "rejected"
   notes: string | null
   event_id: string | null
+  product_id: string | null
   requested_at: string
   processed_at: string | null
   slip_url?: string | null
@@ -87,8 +92,16 @@ interface EventPayoutEntry {
   timing: "live" | "past_recent" | "past_archived"
 }
 
-interface ShopBlock {
-  balance: ShopBalance
+interface ProductLite {
+  id: string
+  title: string
+  image: string | null
+  status: "draft" | "pending_review" | "published" | "sold_out" | "rejected" | "archived"
+}
+
+interface ProductPayoutEntry {
+  product: ProductLite
+  balance: ProductBalance
   payouts: Payout[]
 }
 
@@ -128,10 +141,15 @@ export default function OrganizerPayoutsPage() {
   const { user, loading: authLoading } = useAuth()
 
   const [entries, setEntries] = React.useState<EventPayoutEntry[]>([])
-  const [shop, setShop] = React.useState<ShopBlock | null>(null)
+  const [products, setProducts] = React.useState<ProductPayoutEntry[]>([])
   const [platformFeePct, setPlatformFeePct] = React.useState(0.04)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
+
+  // Delete-payout confirmation — page-level so both the event and product
+  // cards share one modal instead of each needing their own.
+  const [deleteTarget, setDeleteTarget] = React.useState<Payout | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
 
   // Bank details — loaded from /api/organizers/me, edited inline.
   const [bank, setBank] = React.useState<BankDetails | null>(null)
@@ -169,7 +187,7 @@ export default function OrganizerPayoutsPage() {
         return
       }
       setEntries(byEventRes.data.events ?? [])
-      setShop(byEventRes.data.shop ?? null)
+      setProducts(byEventRes.data.products ?? [])
       setPlatformFeePct(byEventRes.data.platform_fee_pct ?? 0.04)
 
       const p = meRes?.data?.profile
@@ -260,6 +278,32 @@ export default function OrganizerPayoutsPage() {
     }
   }
 
+  // Only rows that haven't touched real money yet can be removed — still
+  // awaiting review, or already declined. Approved/paid stay as a permanent
+  // record (money moved / admin signed off).
+  const executeDeletePayout = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/payouts/${deleteTarget.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (!data?.success) {
+        toast.error(data?.message || "Couldn't remove that row.")
+        return
+      }
+      toast.success("Removed from payout history.")
+      setDeleteTarget(null)
+      await refetch()
+    } catch {
+      toast.error("Network error.")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const hasBank = !!bank?.bank_account_number
   const maskedAccount = (n: string | null) => {
     if (!n) return "—"
@@ -289,17 +333,8 @@ export default function OrganizerPayoutsPage() {
     )
   }
 
-  const totalEventPending = entries.reduce((sum, e) => sum + e.balance.pending, 0)
-  const shopPending = shop?.balance.pending ?? 0
-  // Hide the entire shop card when the organizer has no shop activity at all
-  // (zero gross, zero refunds, zero historical payouts) — same logic as the
-  // dashboard's shop-orders section.
-  const showShopCard = !!shop && (
-    shop.balance.gross > 0 ||
-    shop.balance.refunded > 0 ||
-    shop.balance.paid_out > 0 ||
-    shop.payouts.length > 0
-  )
+  const totalEventPending   = entries.reduce((sum, e) => sum + e.balance.pending, 0)
+  const totalProductPending = products.reduce((sum, p) => sum + p.balance.pending, 0)
 
   return (
     <div className="space-y-6">
@@ -333,13 +368,13 @@ export default function OrganizerPayoutsPage() {
           }
           highlight={totalEventPending > 0}
         />
-        {showShopCard && (
+        {products.length > 0 && (
           <SummaryTile
             icon={ShoppingBag}
-            label="Pending from shop"
-            value={formatLkr(shopPending)}
-            hint={shop ? `Net ${formatLkr(shop.balance.net)} · Paid out ${formatLkr(shop.balance.paid_out)}` : ""}
-            highlight={shopPending > 0}
+            label="Pending from products"
+            value={formatLkr(totalProductPending)}
+            hint={`${products.length} ${products.length === 1 ? "product" : "products"} eligible`}
+            highlight={totalProductPending > 0}
           />
         )}
       </section>
@@ -438,20 +473,81 @@ export default function OrganizerPayoutsPage() {
               entry={entry}
               hasBank={hasBank}
               onChange={refetch}
+              onDeleteRequest={setDeleteTarget}
             />
           ))
         )}
       </section>
 
-      {/* Shop payout card — separate from events so the organizer can request
-          shop revenue independently. Hidden entirely when there's no shop
-          activity at all. Sits below events because it's a secondary revenue
-          stream for most organizers. */}
-      {showShopCard && shop && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Shop payout</h2>
-          <ShopPayoutCard shop={shop} hasBank={hasBank} onChange={refetch} />
-        </section>
+      {/* Product payout cards — one per shop product with any $ activity.
+          Listed separately from events, same as the events section above,
+          so each row can be requested/removed independently. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Product payouts</h2>
+
+        {products.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-card/40 p-10 text-center">
+            <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground" />
+            <h3 className="mt-3 text-base font-semibold text-foreground">No product activity yet</h3>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              Products appear here once they&rsquo;ve sold, been refunded, or have payout history.
+            </p>
+          </div>
+        ) : (
+          products.map((entry) => (
+            <ProductPayoutCard
+              key={entry.product.id}
+              entry={entry}
+              hasBank={hasBank}
+              onChange={refetch}
+              onDeleteRequest={setDeleteTarget}
+            />
+          ))
+        )}
+      </section>
+
+      {/* Delete-payout confirm modal — shared by both event + product cards. */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => { if (!deleting) setDeleteTarget(null) }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-semibold text-foreground">Remove this row?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This permanently removes it from your payout history — this can&apos;t be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeDeletePayout}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-4 py-2 text-sm text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -466,10 +562,12 @@ function EventPayoutCard({
   entry,
   hasBank,
   onChange,
+  onDeleteRequest,
 }: {
   entry: EventPayoutEntry
   hasBank: boolean
   onChange: () => void
+  onDeleteRequest: (payout: Payout) => void
 }) {
   const [requestOpen, setRequestOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
@@ -760,8 +858,18 @@ function EventPayoutCard({
                     </button>
                   )}
                 </div>
-                <div className="shrink-0 text-right">
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <div className="text-sm font-semibold text-foreground">{formatLkr(p.amount)}</div>
+                  {(p.status === "requested" || p.status === "rejected") && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteRequest(p)}
+                      title="Remove from history"
+                      className="text-muted-foreground transition hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </li>
             )
@@ -773,13 +881,18 @@ function EventPayoutCard({
 }
 
 // ---------------------------------------------------------------------------
-// ShopPayoutCard — same shape as EventPayoutCard but scoped to the organizer's
-// shop revenue (no event_id on the payout). Sends `event_id: null` on the
-// request so the backend stores it as a shop payout.
+// ProductPayoutCard — same shape as EventPayoutCard but scoped to one shop
+// product's revenue. Sends the product's id so the backend validates and
+// stores the payout against that product specifically (not the whole shop).
 // ---------------------------------------------------------------------------
-function ShopPayoutCard({
-  shop, hasBank, onChange,
-}: { shop: ShopBlock; hasBank: boolean; onChange: () => void }) {
+function ProductPayoutCard({
+  entry, hasBank, onChange, onDeleteRequest,
+}: {
+  entry: ProductPayoutEntry
+  hasBank: boolean
+  onChange: () => void
+  onDeleteRequest: (payout: Payout) => void
+}) {
   const [requestOpen, setRequestOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [amount, setAmount] = React.useState("")
@@ -787,7 +900,7 @@ function ShopPayoutCard({
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState("")
 
-  const { balance, payouts } = shop
+  const { product, balance, payouts } = entry
   const hasOpenRequest = payouts.some((p) => p.status === "requested")
   const canRequest = balance.pending > 0 && hasBank && !hasOpenRequest
 
@@ -808,8 +921,7 @@ function ShopPayoutCard({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        // event_id omitted → backend treats as a shop payout (event_id IS NULL).
-        body: JSON.stringify({ amount: amt, notes: notes.trim() || undefined }),
+        body: JSON.stringify({ amount: amt, product_id: product.id, notes: notes.trim() || undefined }),
       })
       const data = await res.json()
       if (!data?.success) {
@@ -850,17 +962,24 @@ function ShopPayoutCard({
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
       {/* Header */}
       <div className="flex flex-wrap items-start gap-4 p-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-primary/10 text-primary">
-          <ShoppingBag className="h-7 w-7" />
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+          {product.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={product.image} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-primary">
+              <ShoppingBag className="h-7 w-7" />
+            </div>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-foreground">Shop revenue</h3>
-            <Badge variant="default">Storefront-wide</Badge>
+            <h3 className="truncate text-base font-semibold text-foreground">{product.title}</h3>
+            <Badge variant="default">Product</Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            All confirmed shop orders across your storefront. Request a payout against the net.
+            Confirmed orders for this product. Request a payout against its net.
           </p>
         </div>
 
@@ -932,11 +1051,11 @@ function ShopPayoutCard({
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="req-amount-shop" className="mb-1.5 block text-sm font-medium text-foreground">
+              <label htmlFor={`req-amount-${product.id}`} className="mb-1.5 block text-sm font-medium text-foreground">
                 Amount (LKR)
               </label>
               <input
-                id="req-amount-shop"
+                id={`req-amount-${product.id}`}
                 type="number"
                 min={1}
                 max={balance.pending}
@@ -949,11 +1068,11 @@ function ShopPayoutCard({
               </p>
             </div>
             <div>
-              <label htmlFor="req-notes-shop" className="mb-1.5 block text-sm font-medium text-foreground">
+              <label htmlFor={`req-notes-${product.id}`} className="mb-1.5 block text-sm font-medium text-foreground">
                 Note (optional)
               </label>
               <input
-                id="req-notes-shop"
+                id={`req-notes-${product.id}`}
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -1011,8 +1130,18 @@ function ShopPayoutCard({
                     </button>
                   )}
                 </div>
-                <div className="shrink-0 text-right">
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <div className="text-sm font-semibold text-foreground">{formatLkr(p.amount)}</div>
+                  {(p.status === "requested" || p.status === "rejected") && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteRequest(p)}
+                      title="Remove from history"
+                      className="text-muted-foreground transition hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </li>
             )
