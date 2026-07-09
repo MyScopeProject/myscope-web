@@ -15,7 +15,6 @@ import {
   Minus,
   Package,
   Plus,
-  ShieldCheck,
   ShoppingCart,
   Store,
   Truck,
@@ -382,7 +381,12 @@ export default function ProductDetailPage() {
                         {product.organizer.business_name || "Organizer"}
                       </div>
                       {product.organizer.verified && (
-                        <ShieldCheck className="h-3 w-3 shrink-0 text-primary" />
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src="/Images/verified badge.png"
+                          alt="Verified"
+                          className="h-3.5 w-3.5 shrink-0"
+                        />
                       )}
                     </div>
                     <Link
