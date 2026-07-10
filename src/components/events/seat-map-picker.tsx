@@ -894,7 +894,7 @@ export function SeatMapPicker({
           <span>Sold</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-full ring-2 ring-foreground" aria-hidden="true" />
+          <span className="inline-block h-3 w-3 rounded-sm ring-2 ring-foreground" aria-hidden="true" />
           <span>Selected</span>
         </span>
         <span className="ml-auto inline-flex items-center gap-1">
@@ -1263,9 +1263,12 @@ function VisualSeat({
 // inline because tier colors come from the runtime palette (TIER_PALETTE),
 // not a Tailwind class.
 function TierDot({ color }: { color: string }) {
+  // Square swatch (rounded-sm) so the legend matches the square seats on the
+  // canvas — the seats use rounded-md; at this 12px size rounded-sm reads as
+  // the same "rounded square" proportionally.
   return (
     <span
-      className="inline-block h-3 w-3 rounded-full ring-1 ring-black/10 dark:ring-white/10"
+      className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
       style={{ backgroundColor: color }}
       aria-hidden="true"
     />
