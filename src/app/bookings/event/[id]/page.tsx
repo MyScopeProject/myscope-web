@@ -63,10 +63,20 @@ interface BookingSeat {
  status: string;
 }
 
+interface BookingLineItem {
+ ticket_type_id: string;
+ name: string;
+ price: number;
+ quantity: number;
+}
+
 interface BookingResponse {
  booking: Booking;
  event: EventSummary | null;
  ticket_type: TicketTypeSummary | null;
+ // Per-category breakdown for multi-tier orders (mixed non-reserved carts +
+ // reserved GA tiers). Null for single-tier orders — use `ticket_type` then.
+ line_items?: BookingLineItem[] | null;
  // seating_mode is now also surfaced inside event.seating_mode (set by the
  // backend) — kept here for backwards compatibility with older response shapes.
  seating_mode?: string | null;
@@ -561,7 +571,7 @@ export default function EventBookingDetailPage() {
   );
  }
 
- const { booking, event, ticket_type, seats } = data;
+ const { booking, event, ticket_type, seats, line_items } = data;
  const isPending = booking.status === 'Pending';
  const isCancelled = booking.status === 'Cancelled';
  const isConfirmed = booking.status === 'Confirmed';
@@ -678,12 +688,28 @@ export default function EventBookingDetailPage() {
      )}
 
      <div className="pt-4 border-t border-border space-y-2">
-      <Row label="Ticket type" value={ticket_type?.name ?? '—'} />
-      <Row
-       label={isReserved ? 'Seats' : 'Quantity'}
-       value={String(booking.number_of_tickets)}
-      />
-      <Row label="Unit price" value={`LKR ${Number(booking.ticket_price).toLocaleString()}`} />
+      {line_items && line_items.length > 0 ? (
+       // Multi-category order: one row per tier ("Gold × 2 — LKR 5,000").
+       <>
+        {line_items.map((li) => (
+         <Row
+          key={li.ticket_type_id}
+          label={`${li.name} × ${li.quantity}`}
+          value={`LKR ${(Number(li.price) * li.quantity).toLocaleString()}`}
+         />
+        ))}
+        <Row label="Total tickets" value={String(booking.number_of_tickets)} />
+       </>
+      ) : (
+       <>
+        <Row label="Ticket type" value={ticket_type?.name ?? '—'} />
+        <Row
+         label={isReserved ? 'Seats' : 'Quantity'}
+         value={String(booking.number_of_tickets)}
+        />
+        <Row label="Unit price" value={`LKR ${Number(booking.ticket_price).toLocaleString()}`} />
+       </>
+      )}
       <div className="flex items-baseline justify-between pt-2 border-t border-border">
        <span className="text-muted-foreground font-plex-sans">Total</span>
        <span className="text-2xl font-outfit font-bold text-foreground">

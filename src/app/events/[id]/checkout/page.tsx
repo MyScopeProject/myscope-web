@@ -7,7 +7,6 @@ import {
  AlertCircle,
  ArrowLeft,
  CalendarClock,
- Check,
  Loader,
  Lock,
  Maximize2,
@@ -109,8 +108,13 @@ function CheckoutPageInner() {
   setStep(1)
  }, [])
 
- const [selectedTtId, setSelectedTtId] = React.useState<string | null>(ttFromUrl)
- const [quantity, setQuantity] = React.useState(qtyFromUrl && qtyFromUrl > 0 ? qtyFromUrl : 1)
+ // Non-reserved cart: per-tier quantities keyed by ticket_type_id. A tier with
+ // qty > 0 is "in the cart" — buyers can now mix multiple categories in a single
+ // order (e.g. 2× VIP + 3× Regular). Seeded from the ?tt=&qty= deep link when
+ // present; otherwise starts empty and the buyer increments per category.
+ const [quantities, setQuantities] = React.useState<Record<string, number>>(
+  ttFromUrl && qtyFromUrl && qtyFromUrl > 0 ? { [ttFromUrl]: qtyFromUrl } : {},
+ )
  const [attendee, setAttendee] = React.useState({ name: "", email: "", phone: "" })
 
  // Reserved-mode state — seat picker manages its own list, parent just holds the result.
@@ -161,9 +165,26 @@ function CheckoutPageInner() {
  // when reserved. Drives the gift-recipient input count and the buttons'
  // disabled state.
  const freeSeatingCount = freeSeating.reduce((s, f) => s + f.quantity, 0)
+
+ // Max buyable for a non-reserved tier = min(per-order limit, remaining stock).
+ const maxForTier = React.useCallback(
+  (tt: TicketType) => Math.max(0, Math.min(tt.per_order_limit, tt.quantity_total - tt.quantity_sold)),
+  [],
+ )
+ // Resolved non-reserved cart: event tiers the buyer has given a qty > 0,
+ // paired with their tier row. Drives pricing, the summary, and the payload.
+ const nonReservedCart = React.useMemo(() => {
+  if (isReserved || !event?.ticket_types) return [] as { tt: TicketType; qty: number }[]
+  return event.ticket_types
+   .map((tt) => ({ tt, qty: quantities[tt.id] || 0 }))
+   .filter((l) => l.qty > 0)
+ }, [isReserved, event?.ticket_types, quantities])
+ const nonReservedCount = nonReservedCart.reduce((s, l) => s + l.qty, 0)
+ const nonReservedSubtotal = nonReservedCart.reduce((s, l) => s + Number(l.tt.price) * l.qty, 0)
+
  const ticketCount = isReserved
    ? selectedSeats.length + freeSeatingCount
-   : quantity
+   : nonReservedCount
 
  // Promo code state. The discount is server-validated against the current
  // subtotal — if the user changes quantity or tier after applying, we re-clear
@@ -225,21 +246,19 @@ function CheckoutPageInner() {
     }
     const e = data.data.event as EventDetail
     setEvent(e)
-    // If the URL pre-selected a tier and it's still available, keep it.
-    // Otherwise auto-pick the first available tier.
+    // If the URL deep-linked a tier and it's still available, seed the cart
+    // with it (clamped to its per-order + stock limits). Otherwise leave the
+    // cart empty — the buyer adds quantities per category below.
     const preselected = ttFromUrl
      ? e.ticket_types?.find((t) => t.id === ttFromUrl && t.quantity_total - t.quantity_sold > 0)
      : null
     if (preselected) {
-     // Already set from URL — just clamp qty to limits
      const available = preselected.quantity_total - preselected.quantity_sold
      const max = Math.max(1, Math.min(preselected.per_order_limit, available))
-     setQuantity((q) => Math.max(1, Math.min(q, max)))
-    } else {
-     const firstAvail = e.ticket_types?.find(
-      (t) => t.quantity_total - t.quantity_sold > 0,
-     )
-     if (firstAvail) setSelectedTtId(firstAvail.id)
+     setQuantities((prev) => ({
+      ...prev,
+      [preselected.id]: Math.max(1, Math.min(prev[preselected.id] || 1, max)),
+     }))
     }
    } catch {
     if (!cancelled) setLoadError("Network error loading event.")
@@ -252,14 +271,7 @@ function CheckoutPageInner() {
   }
  }, [eventId, ttFromUrl])
 
- const selectedTt = event?.ticket_types?.find((t) => t.id === selectedTtId) ?? null
- const available = selectedTt ? selectedTt.quantity_total - selectedTt.quantity_sold : 0
- const maxQty = selectedTt ? Math.min(selectedTt.per_order_limit, available) : 1
- const subtotal = isReserved
-  ? seatTotal
-  : selectedTt
-   ? selectedTt.price * quantity
-   : 0
+ const subtotal = isReserved ? seatTotal : nonReservedSubtotal
 
  // Build cart lines for the offer evaluator. Reserved: one line per seat
  // at the seat's tier price. Free-seating + non-reserved: one line per
@@ -280,15 +292,12 @@ function CheckoutPageInner() {
        })),
      ]
    }
-   if (selectedTt && quantity > 0) {
-     return [{
-       ticket_type_id: selectedTt.id,
-       unit_price: Number(selectedTt.price) || 0,
-       quantity,
-     }]
-   }
-   return []
- }, [isReserved, selectedSeats, freeSeating, selectedTt, quantity])
+   return nonReservedCart.map((l) => ({
+     ticket_type_id: l.tt.id,
+     unit_price: Number(l.tt.price) || 0,
+     quantity: l.qty,
+   }))
+ }, [isReserved, selectedSeats, freeSeating, nonReservedCart])
 
  const appliedOffer = React.useMemo(
    () => pickBestOffer(event?.offers ?? null, offerCartLines),
@@ -320,11 +329,6 @@ function CheckoutPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [subtotal])
 
- // Clamp quantity when switching ticket type
- React.useEffect(() => {
-  if (selectedTt && quantity > maxQty) setQuantity(Math.max(1, maxQty))
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [selectedTtId])
 
  const applyPromo = async () => {
   setPromoError("")
@@ -410,18 +414,15 @@ function CheckoutPageInner() {
     ...(promoApplied ? { promo_code: promoApplied.code } : {}),
    }
   } else {
-   if (!selectedTt) {
-    setSubmitError("Pick a ticket type first.")
+   if (nonReservedCart.length === 0) {
+    setSubmitError("Add at least one ticket.")
     return
    }
-   if (quantity < 1 || quantity > maxQty) {
-    setSubmitError(`Quantity must be between 1 and ${maxQty}.`)
-    return
-   }
+   // Multi-category cart: one line per tier with qty > 0. Backend also accepts
+   // the legacy { ticket_type_id, quantity } shape, but we always send items[].
    body = {
     event_id: event!.id,
-    ticket_type_id: selectedTt.id,
-    quantity,
+    items: nonReservedCart.map((l) => ({ ticket_type_id: l.tt.id, quantity: l.qty })),
     attendee_info: {
      name: attendee.name.trim() || undefined,
      email: attendee.email.trim() || undefined,
@@ -620,54 +621,19 @@ function CheckoutPageInner() {
          <TicketTypeOption
           key={tt.id}
           ticket={tt}
-          selected={selectedTtId === tt.id}
-          onSelect={() => setSelectedTtId(tt.id)}
+          qty={quantities[tt.id] || 0}
+          max={maxForTier(tt)}
+          onChange={(next) =>
+           setQuantities((prev) => {
+            const copy = { ...prev }
+            if (next <= 0) delete copy[tt.id]
+            else copy[tt.id] = next
+            return copy
+           })
+          }
          />
         ))}
        </ul>
-      )}
-
-      {/* Quantity + subtotal footer */}
-      {selectedTt && (
-       <div className="border-t border-border bg-muted/30 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-foreground">Qty</span>
-          <div className="flex items-center rounded-lg rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
-           <button
-            type="button"
-            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            disabled={quantity <= 1}
-            aria-label="Decrease quantity"
-            className="flex h-9 w-9 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
-           >
-            <Minus className="h-4 w-4" />
-           </button>
-           <span className="min-w-10 text-center text-base font-semibold tabular-nums text-foreground">
-            {quantity}
-           </span>
-           <button
-            type="button"
-            onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
-            disabled={quantity >= maxQty}
-            aria-label="Increase quantity"
-            className="flex h-9 w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
-           >
-            <Plus className="h-4 w-4" />
-           </button>
-          </div>
-          <span className="text-xs text-muted-foreground">
-           max {maxQty}/order
-          </span>
-         </div>
-         <div className="text-right">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-           Subtotal
-          </div>
-          <div className="text-lg font-bold text-foreground">{formatLkr(total)}</div>
-         </div>
-        </div>
-       </div>
       )}
      </section>
       )
@@ -861,7 +827,7 @@ function CheckoutPageInner() {
         size="lg"
         className="w-full"
         onClick={advanceToPay}
-        disabled={isReserved ? ticketCount === 0 : !selectedTt}
+        disabled={isReserved ? ticketCount === 0 : nonReservedCount === 0}
        >
         Continue to payment
        </Button>
@@ -871,7 +837,7 @@ function CheckoutPageInner() {
          type="submit"
          size="lg"
          className="w-full"
-         disabled={submitting || (isReserved ? ticketCount === 0 : !selectedTt)}
+         disabled={submitting || (isReserved ? ticketCount === 0 : nonReservedCount === 0)}
         >
          <Lock />
          {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
@@ -895,13 +861,18 @@ function CheckoutPageInner() {
      <div className="sticky top-20 space-y-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs dark:bg-card/40">
       <h2 className="text-base font-semibold text-foreground">Order summary</h2>
 
-      {selectedTt || isReserved ? (
+      {nonReservedCount > 0 || isReserved ? (
        <>
-        {selectedTt && !isReserved && (
-         <SummaryRow
-          label={`${selectedTt.name} × ${quantity}`}
-          value={formatLkr(selectedTt.price * quantity)}
-         />
+        {!isReserved && nonReservedCart.length > 0 && (
+         <div className="space-y-1.5">
+          {nonReservedCart.map((l) => (
+           <SummaryRow
+            key={l.tt.id}
+            label={`${l.tt.name} × ${l.qty}`}
+            value={formatLkr(Number(l.tt.price) * l.qty)}
+           />
+          ))}
+         </div>
         )}
         {isReserved && selectedSeats.length > 0 && (
          <div className="space-y-1.5">
@@ -1040,7 +1011,7 @@ function CheckoutPageInner() {
         size="lg"
         className="hidden w-full lg:inline-flex"
         onClick={advanceToPay}
-        disabled={isReserved ? ticketCount === 0 : !selectedTt}
+        disabled={isReserved ? ticketCount === 0 : nonReservedCount === 0}
        >
         Continue to payment
        </Button>
@@ -1050,7 +1021,7 @@ function CheckoutPageInner() {
          type="submit"
          size="lg"
          className="hidden w-full lg:inline-flex"
-         disabled={submitting || (isReserved ? ticketCount === 0 : !selectedTt)}
+         disabled={submitting || (isReserved ? ticketCount === 0 : nonReservedCount === 0)}
         >
          <Lock />
          {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
@@ -1079,73 +1050,72 @@ function CheckoutPageInner() {
 
 function TicketTypeOption({
  ticket,
- selected,
- onSelect,
+ qty,
+ max,
+ onChange,
 }: {
  ticket: TicketType
- selected: boolean
- onSelect: () => void
+ qty: number
+ max: number
+ onChange: (next: number) => void
 }) {
  const remaining = Math.max(0, ticket.quantity_total - ticket.quantity_sold)
- const soldOut = remaining <= 0
+ const soldOut = remaining <= 0 || max <= 0
  const price = Number(ticket.price)
+ const active = qty > 0
 
  return (
-  <li>
-   <button
-    type="button"
-    onClick={onSelect}
-    disabled={soldOut}
-    aria-pressed={selected ? "true" : "false"}
-    className={cn(
-     "group w-full px-5 py-4 text-left transition-colors",
-     soldOut ? "cursor-not-allowed opacity-55" : "cursor-pointer",
-     selected ? "bg-primary/5" : "hover:bg-muted/40",
-    )}
-   >
-    <div className="flex items-center gap-4">
-     <span
-      className={cn(
-       "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-       selected
-        ? "border-primary bg-primary"
-        : "border-border bg-transparent group-hover:border-muted-foreground/40",
-      )}
-     >
-      {selected && <Check className="h-3 w-3 text-primary-foreground" />}
-     </span>
-
-     <div className="min-w-0 flex-1">
-      <div className="flex flex-wrap items-center gap-2">
-       <span className="font-semibold text-foreground">{ticket.name}</span>
-       {soldOut && (
-        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
-         Sold out
-        </span>
-       )}
-      </div>
-      {ticket.description && (
-       <p className="mt-1 text-sm text-muted-foreground">{ticket.description}</p>
-      )}
-      {!soldOut && (
-       <p className="mt-1 text-xs text-muted-foreground">
-        Max {ticket.per_order_limit} per order
-       </p>
+  <li className={cn("px-5 py-4 transition-colors", active && "bg-primary/5", soldOut && "opacity-55")}>
+   <div className="flex items-center gap-4">
+    <div className="min-w-0 flex-1">
+     <div className="flex flex-wrap items-center gap-2">
+      <span className="font-semibold text-foreground">{ticket.name}</span>
+      {soldOut && (
+       <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+        Sold out
+       </span>
       )}
      </div>
-
-     <div className="shrink-0 text-right">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-       LKR
-      </div>
-      <div className="text-xl font-bold leading-tight text-foreground">
-       {price === 0
-        ? "Free"
-        : price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-      </div>
-     </div>
+     {ticket.description && (
+      <p className="mt-1 text-sm text-muted-foreground">{ticket.description}</p>
+     )}
+     <p className="mt-1 text-sm font-medium text-foreground">
+      {price === 0
+       ? "Free"
+       : `LKR ${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+     </p>
     </div>
-   </button>
+
+    {/* Per-tier stepper — always visible as −/[qty]/+ (starts at 0). Minus is
+        disabled at 0; plus is clamped to the tier's max (limit ∧ stock). */}
+    <div className="shrink-0">
+     {soldOut ? null : (
+      <div className="flex items-center rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
+       <button
+        type="button"
+        onClick={() => onChange(Math.max(0, qty - 1))}
+        disabled={qty <= 0}
+        aria-label={`Decrease ${ticket.name} quantity`}
+        className="flex h-9 w-9 items-center justify-center rounded-l-2xl text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+       >
+        <Minus className="h-4 w-4" />
+       </button>
+       <span className="min-w-10 text-center text-base font-semibold tabular-nums text-foreground">
+        {qty}
+       </span>
+       <button
+        type="button"
+        onClick={() => onChange(Math.min(max, qty + 1))}
+        disabled={qty >= max}
+        aria-label={`Increase ${ticket.name} quantity`}
+        className="flex h-9 w-9 items-center justify-center rounded-r-2xl text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+       >
+        <Plus className="h-4 w-4" />
+       </button>
+      </div>
+     )}
+    </div>
+   </div>
   </li>
  )
 }
