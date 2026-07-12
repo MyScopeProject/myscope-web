@@ -490,22 +490,29 @@ export default function EventDetailsPage() {
         </div>
        )}
        {venue && (
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
           <MapPin className="h-5 w-5 text-white" />
          </span>
-         <span className="text-base font-bold text-white sm:text-lg">{venue}</span>
-         {event.venue_location_url && (
-          <a
-           href={event.venue_location_url}
-           target="_blank"
-           rel="noopener noreferrer"
-           className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/90 hover:bg-white/20 transition-colors"
-          >
-           <ExternalLink className="h-3 w-3" />
-           Get directions
-          </a>
-         )}
+         <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+           <span className="text-base font-bold text-white sm:text-lg">{venue}</span>
+           {event.venue_location_url && (
+            <a
+             href={event.venue_location_url}
+             target="_blank"
+             rel="noopener noreferrer"
+             className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/90 hover:bg-white/20 transition-colors"
+            >
+             <ExternalLink className="h-3 w-3" />
+             Get directions
+            </a>
+           )}
+          </div>
+          {event.venue_address && event.venue_address !== venue && (
+           <p className="mt-0.5 text-sm font-medium text-white/75">{event.venue_address}</p>
+          )}
+         </div>
         </div>
        )}
       </div>
