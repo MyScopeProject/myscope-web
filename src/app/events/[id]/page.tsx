@@ -175,8 +175,8 @@ export default function EventDetailsPage() {
  // on the main (index 0) banner — only the poster cycles.
  const [bannerIdx, setBannerIdx] = React.useState(0)
 
- // Auto-advance the poster carousel every 3s. Keyed on bannerIdx so a manual
- // arrow/dot tap resets the timer (next auto-advance is 3s after the last
+ // Auto-advance the poster carousel every 5s. Keyed on bannerIdx so a manual
+ // arrow/dot tap resets the timer (next auto-advance is 5s after the last
  // change, not mid-cycle). No-op for events with 0–1 banners.
  React.useEffect(() => {
   if (!event) return
@@ -184,7 +184,7 @@ export default function EventDetailsPage() {
    ? event.banner_images
    : (event.banner_url ? [event.banner_url] : [])
   if (imgs.length <= 1) return
-  const t = setTimeout(() => setBannerIdx((i) => (i + 1) % imgs.length), 3000)
+  const t = setTimeout(() => setBannerIdx((i) => (i + 1) % imgs.length), 5000)
   return () => clearTimeout(t)
  }, [event, bannerIdx])
 
