@@ -112,7 +112,7 @@ export default function MyBookingsPage() {
 
     {/* Events list */}
     {eventBookings.length === 0 ? (
-     <div className="border border-border bg-card p-12 text-center">
+     <div className="border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-12 text-center">
       <div className="text-6xl mb-4">🎟️</div>
       <p className="text-xl font-outfit mb-2 text-foreground">No event bookings yet</p>
       <p className="font-inter mb-6 text-muted-foreground">Discover events happening near you.</p>
@@ -145,7 +145,7 @@ export default function MyBookingsPage() {
         <Link
          key={eb.id}
          href={`/bookings/event/${eb.id}`}
-         className="block border border-border bg-card p-4 sm:p-6 transition-colors hover:border-primary/40"
+         className="block border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 sm:p-6 transition-colors hover:border-primary/40"
         >
          {/* On mobile: event info stacks above a 3-col mini-grid of meta.
            On md+: everything is a single 12-col row. The `md:contents`

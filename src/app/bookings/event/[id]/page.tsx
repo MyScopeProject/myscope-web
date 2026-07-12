@@ -943,7 +943,7 @@ export default function EventBookingDetailPage() {
         <Loader className="w-4 h-4 animate-spin" /> Loading tickets…
        </div>
       ) : seatTickets.length === 0 ? (
-       <div className="p-3 text-sm text-muted-foreground rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm dark:bg-card/40">
+       <div className="p-3 text-sm text-muted-foreground rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
         Tickets are being generated. Refresh in a moment.
        </div>
       ) : (
@@ -955,7 +955,7 @@ export default function EventBookingDetailPage() {
          return (
           <li
            key={t.id}
-           className="flex flex-col gap-3 p-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm dark:bg-card/40 sm:flex-row sm:items-center sm:justify-between"
+           className="flex flex-col gap-3 p-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
           >
            <div className="min-w-0">
             <div className="font-outfit font-semibold text-foreground">Seat {seatLabel}</div>
@@ -979,7 +979,7 @@ export default function EventBookingDetailPage() {
              onClick={() => handleTransferSeatTicket(t)}
              disabled={transferringId === t.id || checkedIn}
              title={checkedIn ? 'Already used — cannot transfer' : 'Send to a different email'}
-             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-semibold disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm dark:bg-card/40 hover:bg-muted text-foreground"
+             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-semibold disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm hover:bg-muted text-foreground"
             >
              {transferringId === t.id ? (
               <Loader className="w-3.5 h-3.5 animate-spin" />
@@ -1008,7 +1008,7 @@ export default function EventBookingDetailPage() {
        </ul>
       )}
       {event?.start_time && (
-       <div className="mt-4 p-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm dark:bg-card/40">
+       <div className="mt-4 p-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
         <AddToCalendar
          title={event.title}
          startIso={event.start_time}
@@ -1046,7 +1046,7 @@ export default function EventBookingDetailPage() {
        {downloadingTicket ? 'Preparing…' : 'Download ticket (QR)'}
       </button>
       {event?.start_time && (
-       <div className="w-full p-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm dark:bg-card/40">
+       <div className="w-full p-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
         <AddToCalendar
          title={event.title}
          startIso={event.start_time}
@@ -1153,7 +1153,7 @@ function AddToCalendar({
  };
 
  const btn =
-  'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-medium rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm dark:bg-card/40 hover:bg-muted text-foreground';
+  'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-inter font-medium rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm hover:bg-muted text-foreground';
 
  return (
   <div className="w-full">

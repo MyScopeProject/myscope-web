@@ -68,7 +68,7 @@ export function EventCard({ event, className }: EventCardProps) {
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden bg-card text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200",
+        "group relative flex flex-col overflow-hidden bg-card dark:bg-card/60 dark:backdrop-blur-sm text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200",
         "hover:shadow-md hover:ring-primary/25",
         className,
       )}

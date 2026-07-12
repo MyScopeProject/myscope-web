@@ -12,7 +12,7 @@ export function EventCardSkeleton({ className }: { className?: string }) {
     <article
       aria-hidden
       className={cn(
-        "relative flex flex-col overflow-hidden bg-card shadow-sm ring-1 ring-border/60",
+        "relative flex flex-col overflow-hidden bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-sm ring-1 ring-border/60",
         className,
       )}
     >
