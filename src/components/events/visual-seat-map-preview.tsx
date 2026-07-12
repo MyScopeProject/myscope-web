@@ -13,7 +13,7 @@ import * as React from "react"
 
 export interface VisualPreviewDecor {
   id?: string
-  kind: "rect" | "text" | "line"
+  kind: "rect" | "text" | "line" | "circle"
   x?: number | null
   y?: number | null
   width?: number | null
@@ -195,13 +195,35 @@ function DecorShape({ d }: { d: VisualPreviewDecor }) {
     )
   }
   if (d.kind === "line") {
+    const x2 = x + Number(d.width ?? 0)
+    const y2 = y + Number(d.height ?? 0)
+    const rot = d.rotation
+      ? `rotate(${d.rotation} ${(x + x2) / 2} ${(y + y2) / 2})`
+      : undefined
     return (
-      <line
-        x1={x} y1={y}
-        x2={x + Number(d.width ?? 0)} y2={y + Number(d.height ?? 0)}
-        stroke={d.color || "#374151"}
-        strokeWidth={2}
-      />
+      <g transform={rot}>
+        <line x1={x} y1={y} x2={x2} y2={y2} stroke={d.color || "#374151"} strokeWidth={2} />
+      </g>
+    )
+  }
+  if (d.kind === "circle") {
+    const r = Number(d.width ?? 20)
+    return (
+      <>
+        <circle cx={x} cy={y} r={r} fill={d.fill || "#111827"} />
+        {d.label ? (
+          <text
+            x={x} y={y}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={Math.min(16, Math.max(10, r / 2))}
+            fontWeight="bold"
+            fill={d.color || "#FFFFFF"}
+          >
+            {d.label}
+          </text>
+        ) : null}
+      </>
     )
   }
   return null
