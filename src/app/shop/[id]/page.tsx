@@ -198,9 +198,6 @@ export default function ProductDetailPage() {
                   {formatMoney(product.price, product.currency)}
                 </span>
                 {soldOut && <Badge variant="warning">Sold out</Badge>}
-                {!soldOut && product.stock_quantity > 0 && product.stock_quantity <= 10 && (
-                  <Badge variant="outline">Only {product.stock_quantity} left</Badge>
-                )}
               </div>
             </div>
 
