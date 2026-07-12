@@ -8,8 +8,10 @@ import {
  AlertCircle,
  ArrowLeft,
  Bell,
+ Calendar,
  CalendarPlus,
  CheckCircle2,
+ Clock,
  ExternalLink,
  Facebook,
  ImageIcon,
@@ -18,7 +20,6 @@ import {
  Loader,
  MapPin,
  ShieldCheck,
- Tag,
  Ticket,
  User,
  Youtube,
@@ -152,11 +153,8 @@ const ticketStatus = (t: TicketType): "soldout" | "not_started" | "ended" | "ava
 const formatLongDate = (d: Date) =>
  d.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
 
-const formatTimeRange = (start: Date, end: Date | null) => {
- const fmt = (d: Date) =>
-  d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).replace(":", ".")
- return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start)
-}
+const formatStartTime = (d: Date) =>
+ d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).replace(":", ".")
 
 export default function EventDetailsPage() {
  const router = useRouter()
@@ -277,7 +275,6 @@ export default function EventDetailsPage() {
  // Postponed without a new date → no concrete date to show (TBA).
  const whenIso = isPostponed && !postponedTo ? null : (event.start_time || event.date)
  const dateObj = whenIso ? new Date(whenIso) : null
- const endObj = event.end_time ? new Date(event.end_time) : null
  const venue = event.venue_name || event.location
  const hasTicketTypes = !!event.ticket_types && event.ticket_types.length > 0
  const minTierPrice = hasTicketTypes
@@ -429,16 +426,10 @@ export default function EventDetailsPage() {
     <div className="relative grid gap-6 p-5 sm:gap-6 sm:p-7 lg:grid-cols-[1fr_280px] lg:gap-8 lg:p-9 lg:min-h-[320px]">
      {/* Info */}
      <div className="order-2 flex flex-col justify-center text-white lg:order-1">
-      {event.category && (
-       <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/40 bg-transparent px-4 py-1.5 text-sm font-medium capitalize text-white">
-        <Tag className="h-3 w-3" />
-        {event.category}
-       </span>
-      )}
-      <h1 className="mt-5 text-4xl font-bold leading-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
+      <h1 className="text-4xl font-bold leading-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
        {event.title}
       </h1>
-      <div className="mt-7 space-y-3">
+      <div className="mt-7 space-y-4">
        {isPostponed && (
         <p className="inline-flex w-fit items-center gap-2 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-white shadow-lg">
          <CalendarPlus className="h-4 w-4" />
@@ -448,17 +439,31 @@ export default function EventDetailsPage() {
         </p>
        )}
        {dateObj && (
-        <p className="flex items-center gap-2.5 text-base font-medium text-white/90 sm:text-lg">
-         <CalendarPlus className="h-5 w-5 shrink-0 text-white/70" />
-         {dateObj.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-         <span className="text-white/50">·</span>
-         {formatTimeRange(dateObj, endObj)}
-        </p>
+        <div className="flex items-center gap-3">
+         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+          <Calendar className="h-5 w-5 text-white" />
+         </span>
+         <span className="text-base font-bold text-white sm:text-lg">
+          {dateObj.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+         </span>
+        </div>
+       )}
+       {dateObj && (
+        <div className="flex items-center gap-3">
+         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+          <Clock className="h-5 w-5 text-white" />
+         </span>
+         <span className="text-base font-bold text-white sm:text-lg">
+          {formatStartTime(dateObj)}
+         </span>
+        </div>
        )}
        {venue && (
-        <div className="flex items-center gap-2.5 text-base text-white/80 sm:text-lg">
-         <MapPin className="h-5 w-5 shrink-0 text-white/70" />
-         <span>{venue}</span>
+        <div className="flex items-center gap-3">
+         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+          <MapPin className="h-5 w-5 text-white" />
+         </span>
+         <span className="text-base font-bold text-white sm:text-lg">{venue}</span>
          {event.venue_location_url && (
           <a
            href={event.venue_location_url}
