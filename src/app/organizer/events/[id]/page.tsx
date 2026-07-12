@@ -88,6 +88,8 @@ interface BookingRow {
   guest_email?: string | null
   guest_name?: string | null
   checked_in_at?: string | null
+  // How many of this booking's tickets are actually scanned in (per-ticket).
+  checked_in_tickets?: number
   created_at: string
   ticket_type_id?: string | null
   // True when this row was issued via the Invite tab as a comp ticket (the
@@ -887,16 +889,25 @@ function AttendeesTab({ eventId }: { eventId: string }) {
         {filtered.map(b => {
           const name = b.attendee_info?.name || b.guest_name || "—"
           const email = b.attendee_info?.email || b.guest_email || "—"
-          const isCheckedIn = !!b.checked_in_at
+          const checkedTickets = b.checked_in_tickets ?? 0
+          const fullyIn = checkedTickets > 0 && checkedTickets >= b.number_of_tickets
+          const partiallyIn = checkedTickets > 0 && checkedTickets < b.number_of_tickets
+          // Refund stays blocked once ANY ticket in the booking is used.
+          const anyCheckedIn = checkedTickets > 0 || !!b.checked_in_at
           const msg = actionMsg?.id === b.id ? actionMsg : null
           return (
             <li key={b.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-foreground">{name}</span>
-                  {isCheckedIn && (
+                  {fullyIn && (
                     <Badge variant="success">
                       <CheckCircle2 className="h-3 w-3" /> Checked in
+                    </Badge>
+                  )}
+                  {partiallyIn && (
+                    <Badge variant="warning">
+                      <CheckCircle2 className="h-3 w-3" /> {checkedTickets}/{b.number_of_tickets} in
                     </Badge>
                   )}
                   {/* Comp tickets issued via the Invite tab — gives the
@@ -928,7 +939,7 @@ function AttendeesTab({ eventId }: { eventId: string }) {
                   {busyId === b.id ? <Loader className="animate-spin" /> : <Send />}
                   Resend
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => refund(b)} disabled={busyId === b.id || isCheckedIn} className="hover:bg-destructive/10 hover:text-destructive">
+                <Button variant="outline" size="sm" onClick={() => refund(b)} disabled={busyId === b.id || anyCheckedIn} className="hover:bg-destructive/10 hover:text-destructive">
                   <RefreshCw />
                   Refund
                 </Button>
@@ -2060,7 +2071,7 @@ function InviteTab({ eventId, tickets }: { eventId: string; tickets: TicketType[
           <div>
             <h2 className="text-base font-semibold text-foreground">Invite someone — they get a free ticket</h2>
             <p className="text-xs text-muted-foreground">
-              Pick the tier, choose how many tickets, and we'll email a
+              Pick the tier, choose how many tickets, and we&apos;ll email a
               QR-coded comp ticket to your invitee. Comps come out of the
               same stock as paid tickets, so they count toward capacity.
             </p>

@@ -234,8 +234,9 @@ export default function EventBookingDetailPage() {
   }
  };
 
- // Reserved + confirmed bookings get one ticket row per seat. Fetch them once
- // we know both conditions are true.
+ // Every confirmed booking gets one ticket row per ticket (a seat for reserved
+ // events, a plain GA ticket otherwise). Fetch them so multi-ticket buyers see
+ // and manage each ticket individually.
  const fetchSeatTickets = async () => {
   if (!bookingId) return;
   setSeatTicketsError('');
@@ -255,12 +256,11 @@ export default function EventBookingDetailPage() {
  };
 
  useEffect(() => {
-  const isReservedConfirmed =
-   seatingMode === 'reserved' && data?.booking?.status === 'Confirmed';
-  if (isReservedConfirmed && !seatTickets && !seatTicketsError) {
+  const isConfirmed = data?.booking?.status === 'Confirmed';
+  if (isConfirmed && !seatTickets && !seatTicketsError) {
    fetchSeatTickets();
   }
- }, [seatingMode, data?.booking?.status, seatTickets, seatTicketsError]); // eslint-disable-line react-hooks/exhaustive-deps
+ }, [data?.booking?.status, seatTickets, seatTicketsError]); // eslint-disable-line react-hooks/exhaustive-deps
 
  // Phone verification (OTP). The booking already exists at this point, so we
  // verify the number on the booking via the checkout verify-phone endpoints.
@@ -929,10 +929,10 @@ export default function EventBookingDetailPage() {
      </div>
     )}
 
-    {isConfirmed && seatingMode === 'reserved' && (
+    {isConfirmed && (
      <div className="mt-6">
       <h3 className="text-sm font-inter font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-       Your seat tickets ({seatTickets?.length ?? booking.number_of_tickets})
+       Your tickets ({seatTickets?.length ?? booking.number_of_tickets})
       </h3>
       {seatTicketsError ? (
        <div className="p-3 text-sm border border-destructive/30 bg-destructive/10 text-destructive">
@@ -943,22 +943,35 @@ export default function EventBookingDetailPage() {
         <Loader className="w-4 h-4 animate-spin" /> Loading tickets…
        </div>
       ) : seatTickets.length === 0 ? (
-       <div className="p-3 text-sm text-muted-foreground rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
-        Tickets are being generated. Refresh in a moment.
+       // Legacy fallback: a confirmed booking that predates per-ticket rows.
+       // Offer the single booking-level QR so the buyer still has a ticket.
+       <div className="flex flex-col items-center gap-2 p-4 text-sm text-muted-foreground rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
+        <button
+         type="button"
+         onClick={handleDownloadTicket}
+         disabled={downloadingTicket}
+         className="inline-flex items-center gap-2 px-6 py-3 text-sm font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+         {downloadingTicket ? <Loader className="w-4 h-4 animate-spin" /> : <Ticket className="w-4 h-4" />}
+         {downloadingTicket ? 'Preparing…' : 'Download ticket (QR)'}
+        </button>
+        <span className="text-xs">Individual tickets are being generated — refresh in a moment.</span>
        </div>
       ) : (
        <ul className="space-y-2">
-        {seatTickets.map((t) => {
+        {seatTickets.map((t, i) => {
          const seatLabel = t.seat?.seat_label || '—';
          const sectionLabel = t.seat?.section || '';
          const checkedIn = t.check_in_status === 'checked-in';
+         // Reserved tickets are labelled by seat; GA tickets by index.
+         const title = t.seat ? `Seat ${seatLabel}` : `Ticket ${i + 1}`;
          return (
           <li
            key={t.id}
            className="flex flex-col gap-3 p-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
           >
            <div className="min-w-0">
-            <div className="font-outfit font-semibold text-foreground">Seat {seatLabel}</div>
+            <div className="font-outfit font-semibold text-foreground">{title}</div>
             {sectionLabel && (
              <div className="text-xs text-muted-foreground mt-0.5">{sectionLabel}</div>
             )}
@@ -1034,41 +1047,6 @@ export default function EventBookingDetailPage() {
      </div>
     )}
 
-    {isConfirmed && seatingMode !== 'reserved' && (
-     <div className="mt-6 flex flex-col items-center gap-4">
-      <button
-       type="button"
-       onClick={handleDownloadTicket}
-       disabled={downloadingTicket}
-       className="inline-flex items-center gap-2 px-6 py-3 text-sm font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90"
-      >
-       {downloadingTicket ? <Loader className="w-4 h-4 animate-spin" /> : <Ticket className="w-4 h-4" />}
-       {downloadingTicket ? 'Preparing…' : 'Download ticket (QR)'}
-      </button>
-      {event?.start_time && (
-       <div className="w-full p-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
-        <AddToCalendar
-         title={event.title}
-         startIso={event.start_time}
-         location={event.venue_name}
-         description={`Booking reference: ${booking.booking_reference}`}
-        />
-       </div>
-      )}
-      <button
-       type="button"
-       onClick={handleRefund}
-       disabled={refundRequesting || refundRequested}
-       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-60"
-      >
-       {refundRequesting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-       {refundRequested ? 'Refund requested' : refundRequesting ? 'Requesting…' : 'Request refund'}
-      </button>
-      <Link href="/events" className="text-primary underline text-sm">
-       Browse more events →
-      </Link>
-     </div>
-    )}
 
     {isCancelled && (
      <div className="mt-6 text-center">
