@@ -56,7 +56,7 @@ function LoginPageInner() {
   })
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16">
+    <div className="flex min-h-[calc(100vh-5rem)] items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
 
         {/* Brand */}
@@ -69,7 +69,7 @@ function LoginPageInner() {
             className="h-12 w-auto"
             priority
           />
-          <h1 className="text-3xl font-bold tracking-tight text-violet-900 dark:text-violet-200">
+          <h1 className="text-3xl font-bold tracking-tight text-violet-900 dark:text-white">
             MyScope
           </h1>
           <p className="text-sm text-muted-foreground">Sign in or create your account</p>
@@ -90,7 +90,7 @@ function LoginPageInner() {
             type="button"
             onClick={() => signIn()}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground shadow-xs transition-colors hover:bg-muted disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm px-4 py-2.5 text-sm font-medium text-foreground shadow-xs transition-colors hover:bg-muted disabled:opacity-60"
           >
             {loading ? (
               <Loader className="h-4 w-4 animate-spin" />

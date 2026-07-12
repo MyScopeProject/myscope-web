@@ -314,7 +314,7 @@ export default function OrganizerEventsPage() {
           placeholder="Search your events…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+          className="h-10 w-full rounded-lg border border-border bg-card/30 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
         />
       </div>
 

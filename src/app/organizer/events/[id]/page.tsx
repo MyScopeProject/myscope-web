@@ -1211,7 +1211,7 @@ function ScannersTab({ eventId }: { eventId: string }) {
             aria-label="Expires in"
             value={form.expires_in_hours}
             onChange={(e) => setForm({ ...form, expires_in_hours: e.target.value })}
-            className="h-9 rounded-md border border-input bg-card px-3 text-sm"
+            className="h-9 rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
           >
             <option value="4">Expires in 4 hours</option>
             <option value="8">Expires in 8 hours</option>
@@ -1387,7 +1387,7 @@ function PromoTab({ eventId, tickets }: { eventId: string; tickets: TicketType[]
             aria-label="Discount type"
             value={form.discount_type}
             onChange={(e) => setForm({ ...form, discount_type: e.target.value as "percentage" | "fixed" })}
-            className="h-9 rounded-md border border-input bg-card px-3 text-sm"
+            className="h-9 rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
           >
             <option value="percentage">Percent off (%)</option>
             <option value="fixed">Fixed amount off (LKR)</option>
@@ -1624,7 +1624,7 @@ function OffersCard({ eventId, tickets }: { eventId: string; tickets: TicketType
             aria-label="Discount type"
             value={form.discount_type}
             onChange={(e) => setForm({ ...form, discount_type: e.target.value as OfferDiscountType, discount_value: "" })}
-            className="h-9 rounded-md border border-input bg-card px-3 text-sm"
+            className="h-9 rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
           >
             <option value="free_tickets">Free tickets (buy N get M free)</option>
             <option value="percent">Percent off (%)</option>
@@ -1653,7 +1653,7 @@ function OffersCard({ eventId, tickets }: { eventId: string; tickets: TicketType
               aria-label="Applies to tier"
               value={form.ticket_type_id}
               onChange={(e) => setForm({ ...form, ticket_type_id: e.target.value })}
-              className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+              className="h-9 w-full rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
             >
               <option value="">
                 {form.discount_type === "free_tickets"
@@ -2102,7 +2102,7 @@ function InviteTab({ eventId, tickets }: { eventId: string; tickets: TicketType[
               value={ticketTypeId}
               onChange={(e) => setTicketTypeId(e.target.value)}
               disabled={noTiersAvailable}
-              className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm disabled:opacity-60"
+              className="h-9 w-full rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none disabled:opacity-60"
             >
               {tierOptions.map((t) => (
                 <option key={t.id} value={t.id}>

@@ -467,7 +467,7 @@ export default function ShopPromoCodesPage() {
                 id="promo-product"
                 value={form.product_id}
                 onChange={(e) => setForm((f) => ({ ...f, product_id: e.target.value }))}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                className="w-full rounded-lg border border-border bg-card/30 px-3 py-2 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
               >
                 <option value="">All products (storefront-wide)</option>
                 {products.map((p) => (

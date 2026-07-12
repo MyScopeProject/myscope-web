@@ -374,21 +374,21 @@ export default function OrganizerProfilePage() {
         // status pip, and (for approved) the soft glow blob.
         const palette = isApproved
           ? {
-              ring: "ring-1 ring-sky-200/60 dark:ring-sky-400/20",
-              bg: "bg-card",
-              accent: "text-sky-700 dark:text-sky-300",
-              accentDot: "bg-sky-500",
+              ring: "ring-1 ring-primary/25 dark:ring-primary/25",
+              bg: "bg-card dark:bg-card/60 dark:backdrop-blur-sm",
+              accent: "text-primary",
+              accentDot: "bg-primary",
             }
           : isPending
           ? {
               ring: "ring-1 ring-amber-200/70 dark:ring-amber-400/20",
-              bg: "bg-card",
+              bg: "bg-card dark:bg-card/60 dark:backdrop-blur-sm",
               accent: "text-amber-700 dark:text-amber-300",
               accentDot: "bg-amber-500",
             }
           : {
               ring: "ring-1 ring-destructive/20",
-              bg: "bg-card",
+              bg: "bg-card dark:bg-card/60 dark:backdrop-blur-sm",
               accent: "text-destructive",
               accentDot: "bg-destructive",
             }
@@ -399,81 +399,60 @@ export default function OrganizerProfilePage() {
         return (
           <section
             className={cn(
-              "relative overflow-hidden rounded-2xl border border-border p-6 shadow-sm",
+              "rounded-xl border border-border p-4",
               palette.bg,
               palette.ring,
             )}
           >
-            {/* Soft glow behind the badge for the approved state — gives the
-                "trusted brand" feel without overdoing it. */}
-            {isApproved && (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -top-10 -left-10 h-40 w-40 rounded-full bg-sky-400/20 blur-3xl"
-              />
-            )}
-
-            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-              {/* Badge / icon */}
+            <div className="flex items-center gap-3">
+              {/* Badge / icon — small and to the point, no glow. */}
               {isApproved ? (
-                <div className="relative inline-flex h-20 w-20 shrink-0 items-center justify-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/Images/verified%20badge.png"
-                    alt="Verified organizer"
-                    width={72}
-                    height={72}
-                    className="h-[72px] w-[72px] drop-shadow-md"
-                  />
-                </div>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/Images/verified%20badge.png"
+                  alt="Verified organizer"
+                  width={36}
+                  height={36}
+                  className="h-9 w-9 shrink-0"
+                />
               ) : VerificationIcon ? (
                 <div
                   className={cn(
-                    "inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full",
+                    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
                     isPending && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
                     isRejected && "bg-destructive/15 text-destructive",
                   )}
                 >
-                  <VerificationIcon className="h-7 w-7" />
+                  <VerificationIcon className="h-4 w-4" />
                 </div>
               ) : null}
 
-              {/* Status hierarchy */}
+              {/* Status — one line, no redundant label pip above the headline. */}
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", palette.accentDot)} />
-                  <span className={cn("text-[11px] font-semibold uppercase tracking-[0.18em]", palette.accent)}>
-                    {meta.label}
-                  </span>
-                </div>
-                <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                  {headline}
-                </h2>
-                <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-                  {meta.description}
-                </p>
-
-                {/* Deactivated chip — separate from status because being
-                    deactivated is orthogonal to approval state. */}
-                {profile.deactivated_at && (
-                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/70 px-2.5 py-1 text-[11px] font-medium text-zinc-600 backdrop-blur dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">
-                    <ShieldAlert className="h-3 w-3" />
-                    Account deactivated
-                  </div>
-                )}
-
-                {/* Rejection reason — quoted block, not a destructive banner,
-                    because we already conveyed the rejection above. */}
-                {isRejected && profile.rejection_reason && (
-                  <blockquote className="mt-4 rounded-lg border-l-4 border-destructive/40 bg-white/60 px-4 py-3 text-sm text-foreground/80 backdrop-blur dark:bg-zinc-800/40">
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-destructive">
-                      Reviewer note
-                    </div>
-                    {profile.rejection_reason}
-                  </blockquote>
-                )}
+                <h2 className="text-sm font-semibold text-foreground">{headline}</h2>
+                <p className="truncate text-xs text-muted-foreground">{meta.description}</p>
               </div>
             </div>
+
+            {/* Deactivated chip — separate from status because being
+                deactivated is orthogonal to approval state. */}
+            {profile.deactivated_at && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/70 px-2.5 py-1 text-[11px] font-medium text-zinc-600 backdrop-blur dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">
+                <ShieldAlert className="h-3 w-3" />
+                Account deactivated
+              </div>
+            )}
+
+            {/* Rejection reason — quoted block, not a destructive banner,
+                because we already conveyed the rejection above. */}
+            {isRejected && profile.rejection_reason && (
+              <blockquote className="mt-3 rounded-lg border-l-4 border-destructive/40 bg-white/60 px-3 py-2 text-xs text-foreground/80 backdrop-blur dark:bg-zinc-800/40">
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                  Reviewer note
+                </div>
+                {profile.rejection_reason}
+              </blockquote>
+            )}
           </section>
         )
       })()}
@@ -559,7 +538,7 @@ export default function OrganizerProfilePage() {
                 aria-label="Business type"
                 value={form.business_type}
                 onChange={(e) => setForm({ ...form, business_type: e.target.value as "" | NonNullable<BusinessType> })}
-                className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+                className="h-9 w-full rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
               >
                 <option value="">Not specified</option>
                 <option value="individual">Individual</option>

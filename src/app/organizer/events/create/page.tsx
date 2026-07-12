@@ -720,7 +720,7 @@ function DetailsStep({
             aria-label="Event category"
             value={value.category}
             onChange={(e) => upd({ category: e.target.value })}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            className="h-9 w-full rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
           >
             <option value="">Pick one…</option>
             <option value="Concerts">Concerts</option>
@@ -1350,7 +1350,7 @@ function SimpleLayoutBuilder({
             aria-label="Stage position"
             value={stagePosition}
             onChange={(e) => setStagePosition(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            className="h-9 rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
           >
             <option value="front">Front</option>
             <option value="back">Back</option>

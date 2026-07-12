@@ -287,7 +287,7 @@ export default function OrganizerShopPage() {
                 "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 statusFilter === f.value
                   ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+                  : "border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {f.label}
@@ -302,7 +302,7 @@ export default function OrganizerShopPage() {
       {filtered.length === 0 ? (
         <EmptyState hasAny={products.length > 0} />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-hidden rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -484,7 +484,7 @@ export default function OrganizerShopPage() {
           onClick={() => { if (!deleting) setDeleteTarget(null) }}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3">
