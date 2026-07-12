@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Script from "next/script";
 import { IBM_Plex_Sans, Inter, Outfit } from "next/font/google";
 import "../styles/globals.css";
 import { AuthProvider } from "@/context/AuthContext";
@@ -108,9 +109,13 @@ export default function RootLayout({
         className={`${plexSans.variable} ${outfit.variable} ${inter.variable} antialiased min-h-screen bg-background text-foreground font-sans`}
       >
         {/* Structured data: Organization (brand panel) + WebSite with a
-            SearchAction (enables the Google sitelinks search box). Update
-            `sameAs` with your real social profile URLs. */}
-        <script
+            SearchAction (enables the Google sitelinks search box). Rendered via
+            next/script so React doesn't warn about a <script> in the component
+            tree during client navigation — JSON-LD is data, not executable, and
+            Google reads the injected tag fine. Update `sameAs` with your real
+            social profile URLs. */}
+        <Script
+          id="jsonld-organization"
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
@@ -127,7 +132,8 @@ export default function RootLayout({
             }),
           }}
         />
-        <script
+        <Script
+          id="jsonld-website"
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({

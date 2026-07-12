@@ -9,14 +9,10 @@ import { DropdownMenu } from "radix-ui"
 import {
   Calendar,
   ChevronDown,
-  Drama,
   LogOut,
   Menu,
-  Music2,
   Search,
-  ShoppingBag,
   Ticket,
-  Trophy,
   User,
   X,
 } from "lucide-react"
@@ -24,16 +20,11 @@ import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { cn } from "@/lib/utils"
-
-// Categories map to /events?category=<X>. The Shop entry is a top-level link
-// to /shop (not an event category) so we mark it specially in the active check.
-const NAV_ITEMS = [
-  { href: "/events?category=Events", label: "Events", icon: Ticket, category: "Events" },
-  { href: "/events?category=Concerts", label: "Concerts", icon: Music2, category: "Concerts" },
-  { href: "/events?category=Theatre", label: "Theatre", icon: Drama, category: "Theatre" },
-  { href: "/events?category=Sports", label: "Sports", icon: Trophy, category: "Sports" },
-  { href: "/shop", label: "Shop", icon: ShoppingBag, category: "__shop" },
-]
+// NAV_ITEMS lives in a plain module (no "use client") so the server-rendered
+// homepage can import the real array. Importing it out of this client module
+// would hand the server a client reference, not the array — that's what broke
+// the homepage with `NAV_ITEMS.map is not a function`.
+import { NAV_ITEMS } from "@/components/site/nav-items"
 
 export function SiteHeader() {
   const { user, logout } = useAuth()
@@ -270,7 +261,7 @@ export function SiteHeader() {
             the DOM always so the slide-out animation has somewhere to play. */}
         <aside
           className={cn(
-            "absolute inset-y-0 right-0 flex w-[85%] max-w-sm flex-col border-l border-border bg-card shadow-2xl transition-transform duration-300 ease-out",
+            "absolute inset-y-0 right-0 flex w-[85%] max-w-sm flex-col border-l border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-2xl transition-transform duration-300 ease-out",
             mobileOpen ? "translate-x-0" : "translate-x-full",
           )}
         >

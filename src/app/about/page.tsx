@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
+import Script from "next/script"
 import {
   CalendarCheck,
   CreditCard,
@@ -113,11 +114,13 @@ const platformFeatures = [
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
-      <script
+      <Script
+        id="jsonld-founder"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(founderJsonLd) }}
       />
-      <script
+      <Script
+        id="jsonld-org-founder"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgWithFounderJsonLd) }}
       />

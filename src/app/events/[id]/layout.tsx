@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Script from "next/script"
 
 const SITE = "https://www.myscope.lk"
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -174,8 +175,8 @@ export default async function EventLayout({
   return (
     <>
       {ld && (
-        // eslint-disable-next-line react/no-danger -- intentional JSON-LD
-        <script
+        <Script
+          id="jsonld-event"
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
         />
