@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { SeatGridPreview, type LayoutData } from "@/components/events/seat-grid-preview"
 import { EditSeatMap } from "@/components/events/edit-seat-map"
+import { BannerGalleryField } from "@/components/organizer/banner-gallery-field"
 import {
   VisualSeatMapPreview,
   type VisualPreviewLayout,
@@ -47,6 +48,7 @@ interface EventRow {
   end_time: string | null
   capacity: number | null
   banner_url: string | null
+  banner_images?: string[] | null
   layout_image_url: string | null
   trailer_url: string | null
   sms_reminders: boolean | null
@@ -143,7 +145,7 @@ export default function EditEventPage() {
     start_time: "",
     end_time: "",
     capacity: "",
-    banner_url: "",
+    banner_images: [] as string[],
     layout_image_url: "",
     trailer_url: "",
     sms_reminders: true,
@@ -193,7 +195,11 @@ export default function EditEventPage() {
           start_time: isoToLocal(e.start_time),
           end_time: isoToLocal(e.end_time),
           capacity: e.capacity != null ? String(e.capacity) : "",
-          banner_url: e.banner_url ?? "",
+          // Prefer the new array; fall back to the legacy single banner for
+          // events created before multi-banner support.
+          banner_images: (e.banner_images && e.banner_images.length > 0)
+            ? e.banner_images
+            : (e.banner_url ? [e.banner_url] : []),
           layout_image_url: e.layout_image_url ?? "",
           trailer_url: e.trailer_url ?? "",
           sms_reminders: e.sms_reminders ?? true,
@@ -270,7 +276,7 @@ export default function EditEventPage() {
           start_time: localToIso(form.start_time),
           end_time: localToIso(form.end_time),
           capacity: form.capacity ? parseInt(form.capacity, 10) : null,
-          banner_url: form.banner_url.trim() || null,
+          banner_images: form.banner_images,
           layout_image_url: form.layout_image_url.trim() || null,
           trailer_url: form.trailer_url.trim() || null,
           sms_reminders: form.sms_reminders,
@@ -547,11 +553,18 @@ export default function EditEventPage() {
             />
           </FieldGroup>
 
-          <BannerUploadField
-            value={form.banner_url}
-            onChange={(url) => setForm({ ...form, banner_url: url })}
-            disabled={!canEdit || busy !== null}
-          />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground">Banner images</label>
+            <p className="text-xs text-muted-foreground">
+              The first (main) banner sets your event page background. Attendees
+              can swipe through the rest. Use &ldquo;Set as main&rdquo; to reorder.
+            </p>
+            <BannerGalleryField
+              value={form.banner_images}
+              onChange={(urls) => setForm({ ...form, banner_images: urls })}
+              disabled={!canEdit || busy !== null}
+            />
+          </div>
 
           <BannerUploadField
             label="Seating / zone layout (optional)"

@@ -26,6 +26,7 @@ import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
+import { BannerGalleryField } from "@/components/organizer/banner-gallery-field"
 import { cn } from "@/lib/utils"
 import { SeatGridPreview, type LayoutData } from "@/components/events/seat-grid-preview"
 
@@ -97,7 +98,8 @@ interface TicketTypeForm {
 }
 
 interface MediaForm {
-  banner_url: string
+  // Ordered list of banner URLs; index 0 is the main banner.
+  banner_images: string[]
   layout_image_url: string
   // Optional YouTube link — rendered as an embedded, playable iframe on the
   // public event detail page when present.
@@ -157,7 +159,7 @@ const emptyTicket = (): TicketTypeForm => ({
   is_free_seating: false,
 })
 
-const emptyMedia: MediaForm = { banner_url: "", layout_image_url: "", trailer_url: "" }
+const emptyMedia: MediaForm = { banner_images: [], layout_image_url: "", trailer_url: "" }
 
 const localToIso = (v: string): string | null => {
   if (!v) return null
@@ -181,7 +183,7 @@ const buildPayload = (
   capacity: details.capacity ? parseInt(details.capacity, 10) : null,
   seating_mode: details.seating_mode,
   sms_reminders: details.sms_reminders,
-  banner_url: media.banner_url.trim() || null,
+  banner_images: media.banner_images,
   layout_image_url: media.layout_image_url.trim() || null,
   trailer_url: media.trailer_url.trim() || null,
   ticket_types: tickets.map((t) => ({
@@ -1500,11 +1502,14 @@ function MediaStep({
       />
 
       <div className="space-y-2.5">
-        <FieldLabel>Banner image</FieldLabel>
-        <ImageDropzone
-          value={value.banner_url}
-          onChange={(url) => onChange({ ...value, banner_url: url })}
-          previewAlt="Banner preview"
+        <FieldLabel>Banner images</FieldLabel>
+        <p className="-mt-1 text-xs text-muted-foreground">
+          Upload one or more banners. The first (main) one sets your event
+          page background; attendees can swipe through the rest.
+        </p>
+        <BannerGalleryField
+          value={value.banner_images}
+          onChange={(urls) => onChange({ ...value, banner_images: urls })}
         />
       </div>
 
@@ -1751,20 +1756,22 @@ function ReviewStep({
       )}
 
       <ReviewBlock title="Media">
-        {media.banner_url || media.layout_image_url ? (
+        {media.banner_images.length > 0 || media.layout_image_url ? (
           <div className="flex flex-wrap gap-3">
-            {media.banner_url && (
-              <div className="space-y-1">
+            {media.banner_images.map((url, idx) => (
+              <div key={url} className="space-y-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={media.banner_url}
-                  alt="Banner preview"
+                  src={url}
+                  alt={idx === 0 ? "Main banner preview" : `Banner ${idx + 1} preview`}
                   className="h-28 w-auto rounded-lg border border-border object-contain bg-muted"
                   onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
                 />
-                <div className="text-[11px] text-muted-foreground">Banner</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {idx === 0 ? "Banner (main)" : `Banner ${idx + 1}`}
+                </div>
               </div>
-            )}
+            ))}
             {media.layout_image_url && (
               <div className="space-y-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

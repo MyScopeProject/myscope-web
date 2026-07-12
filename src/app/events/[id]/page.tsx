@@ -11,6 +11,8 @@ import {
  Calendar,
  CalendarPlus,
  CheckCircle2,
+ ChevronLeft,
+ ChevronRight,
  Clock,
  ExternalLink,
  Facebook,
@@ -61,6 +63,9 @@ interface Event {
  venue_address?: string | null
  venue_location_url?: string | null
  banner_url?: string | null
+ // Ordered list of banner URLs; index 0 is the main banner. Falls back to the
+ // single banner_url for events created before multi-banner support.
+ banner_images?: string[] | null
  // Optional YouTube trailer (watch / youtu.be / embed / shorts). Rendered as
  // an embedded iframe in a dedicated section below the About block.
  trailer_url?: string | null
@@ -166,6 +171,22 @@ export default function EventDetailsPage() {
  const [loading, setLoading] = React.useState(true)
  const [error, setError] = React.useState<string | null>(null)
  const [busy, setBusy] = React.useState(false)
+ // Which banner the hero poster is showing. The blurred backdrop always stays
+ // on the main (index 0) banner — only the poster cycles.
+ const [bannerIdx, setBannerIdx] = React.useState(0)
+
+ // Auto-advance the poster carousel every 3s. Keyed on bannerIdx so a manual
+ // arrow/dot tap resets the timer (next auto-advance is 3s after the last
+ // change, not mid-cycle). No-op for events with 0–1 banners.
+ React.useEffect(() => {
+  if (!event) return
+  const imgs = (event.banner_images && event.banner_images.length > 0)
+   ? event.banner_images
+   : (event.banner_url ? [event.banner_url] : [])
+  if (imgs.length <= 1) return
+  const t = setTimeout(() => setBannerIdx((i) => (i + 1) % imgs.length), 3000)
+  return () => clearTimeout(t)
+ }, [event, bannerIdx])
 
  const fetchEvent = React.useCallback(async () => {
   if (!eventId) return
@@ -276,6 +297,15 @@ export default function EventDetailsPage() {
  const whenIso = isPostponed && !postponedTo ? null : (event.start_time || event.date)
  const dateObj = whenIso ? new Date(whenIso) : null
  const venue = event.venue_name || event.location
+ // Banner list: prefer the multi-banner array, fall back to the single
+ // banner_url for older events. Index 0 is the main banner — it fixes the
+ // blurred backdrop; the poster carousel cycles through the whole list.
+ const banners = (event.banner_images && event.banner_images.length > 0)
+  ? event.banner_images
+  : (event.banner_url ? [event.banner_url] : [])
+ const mainBanner = banners[0] ?? null
+ const safeBannerIdx = banners.length > 0 ? Math.min(bannerIdx, banners.length - 1) : 0
+ const activeBanner = banners[safeBannerIdx] ?? null
  const hasTicketTypes = !!event.ticket_types && event.ticket_types.length > 0
  const minTierPrice = hasTicketTypes
   ? Math.min(...event.ticket_types!.map((t) => Number(t.price)))
@@ -397,12 +427,13 @@ export default function EventDetailsPage() {
 
    {/* Hero — cinematic poster + info */}
    <section className="relative mb-10 overflow-hidden border border-border bg-muted">
-    {/* Blurred backdrop */}
-    {event.banner_url ? (
+    {/* Blurred backdrop — always the MAIN banner, never changes as the
+        poster carousel cycles, so the page tone stays stable. */}
+    {mainBanner ? (
      <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-       src={event.banner_url}
+       src={mainBanner}
        alt=""
        aria-hidden="true"
        className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl brightness-110 saturate-150"
@@ -480,13 +511,15 @@ export default function EventDetailsPage() {
       </div>
      </div>
 
-     {/* Poster */}
+     {/* Poster — carousel over all banners. The blurred backdrop above stays
+         pinned to the main banner; only this poster cycles. */}
      <div className="order-1 relative aspect-3/4 w-full max-w-[300px] mx-auto overflow-hidden bg-black/30 shadow-2xl ring-1 ring-white/10 lg:order-2 lg:mx-0 lg:max-w-none">
-      {event.banner_url ? (
+      {activeBanner ? (
        // eslint-disable-next-line @next/next/no-img-element
        <img
-        src={event.banner_url}
-        alt={event.title}
+        key={activeBanner}
+        src={activeBanner}
+        alt={banners.length > 1 ? `${event.title} — banner ${safeBannerIdx + 1} of ${banners.length}` : event.title}
         className="h-full w-full object-cover"
         onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
        />
@@ -494,6 +527,42 @@ export default function EventDetailsPage() {
        <div className="flex h-full w-full items-center justify-center text-white/40">
         <ImageIcon className="h-20 w-20" />
        </div>
+      )}
+
+      {banners.length > 1 && (
+       <>
+        <button
+         type="button"
+         aria-label="Previous banner"
+         onClick={() => setBannerIdx((safeBannerIdx - 1 + banners.length) % banners.length)}
+         className="absolute left-1 top-1/2 z-10 -translate-y-1/2 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-opacity hover:opacity-70"
+        >
+         <ChevronLeft className="h-7 w-7" />
+        </button>
+        <button
+         type="button"
+         aria-label="Next banner"
+         onClick={() => setBannerIdx((safeBannerIdx + 1) % banners.length)}
+         className="absolute right-1 top-1/2 z-10 -translate-y-1/2 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-opacity hover:opacity-70"
+        >
+         <ChevronRight className="h-7 w-7" />
+        </button>
+        <div className="absolute inset-x-0 bottom-3 z-10 flex items-center justify-center gap-1.5">
+         {banners.map((b, i) => (
+          <button
+           key={b}
+           type="button"
+           aria-label={`Go to banner ${i + 1}`}
+           aria-current={i === safeBannerIdx}
+           onClick={() => setBannerIdx(i)}
+           className={cn(
+            "h-1.5 rounded-full transition-all",
+            i === safeBannerIdx ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80",
+           )}
+          />
+         ))}
+        </div>
+       </>
       )}
      </div>
     </div>
