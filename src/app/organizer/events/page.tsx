@@ -226,7 +226,7 @@ export default function OrganizerEventsPage() {
       {/* Upcoming / Past toggle — drives the API call. "Past" hides events
           that have already happened from public listings but keeps them here
           so organizers can pull analytics, reuse templates, or re-list. */}
-      <div className="inline-flex rounded-lg border border-border bg-card p-1 shadow-xs">
+      <div className="inline-flex rounded-lg border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-1 shadow-xs">
         <button
           type="button"
           onClick={() => {
@@ -275,7 +275,7 @@ export default function OrganizerEventsPage() {
           everything is by definition "Live" (otherwise it wouldn't have run),
           so the filter row would just be noise. */}
       {viewMode === "upcoming" && (
-      <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-card p-1.5 shadow-xs">
+      <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-1.5 shadow-xs">
         {STATUS_FILTERS.map((f) => {
           const active = statusFilter === f.value
           const n = counts[f.value] ?? 0
@@ -367,7 +367,7 @@ function OrganizerEventRow({
   const canSubmit = event.approval_status === "draft" || event.approval_status === "rejected"
 
   return (
-    <li className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+    <li className="overflow-hidden rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
       <div className="flex flex-col gap-0 sm:flex-row">
         {/* Banner thumbnail */}
         <div className="relative aspect-21/9 w-full shrink-0 overflow-hidden bg-muted sm:aspect-auto sm:h-auto sm:w-40">

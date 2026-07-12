@@ -94,7 +94,7 @@ export function EventCommunicationsCard({
   }, [endpoint])
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+    <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 shadow-xs">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>

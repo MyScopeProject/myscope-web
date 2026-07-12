@@ -481,7 +481,7 @@ export default function OrganizerProfilePage() {
       {/* Form */}
       <form onSubmit={save} className="space-y-6">
         {/* Brand image */}
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
           <header className="mb-4">
             <h2 className="text-base font-semibold text-foreground">Brand image</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -537,7 +537,7 @@ export default function OrganizerProfilePage() {
         </section>
 
         {/* Business details */}
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
           <header className="mb-4">
             <h2 className="text-base font-semibold text-foreground">Business details</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -612,7 +612,7 @@ export default function OrganizerProfilePage() {
 
         {/* Witness information — collected at registration (step 2); editable
             here. `phone` is the witness's single mobile/WhatsApp number. */}
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
           <header className="mb-4">
             <h2 className="text-base font-semibold text-foreground">Witness information</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -693,7 +693,7 @@ export default function OrganizerProfilePage() {
       {/* Banking details — separate form because the backend endpoint is
           separate, and a payment-detail change deserves its own commit so
           partial typing in one section doesn't block saves on the other. */}
-      <form onSubmit={saveBank} className="space-y-4 rounded-xl border border-border bg-card p-5">
+      <form onSubmit={saveBank} className="space-y-4 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
         <header className="flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Landmark className="h-4 w-4" />

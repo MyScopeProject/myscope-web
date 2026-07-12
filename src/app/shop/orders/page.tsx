@@ -161,7 +161,7 @@ export default function MyOrdersPage() {
             <Link
               key={o.id}
               href={`/shop/orders/${o.id}`}
-              className="group flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50"
+              className="group flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 transition-colors hover:border-primary/50"
             >
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                 {o.fulfillment_type === "shipping" ? <Truck className="h-5 w-5" /> : <Package className="h-5 w-5" />}

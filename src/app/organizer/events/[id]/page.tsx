@@ -503,7 +503,7 @@ export default function OrganizerEventControlPage() {
       )}
 
       {/* Tab bar */}
-      <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1 shadow-xs">
+      <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-1 shadow-xs">
         {TABS.map((t) => {
           const Icon = t.icon
           const active = tab === t.value
@@ -653,7 +653,7 @@ function OverviewTab({ eventId }: { eventId: string }) {
 
       {/* Invitations — small standalone tile so it doesn't crowd the headline
           row when the organizer hasn't used the Invite tab yet. */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+      <div className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 shadow-xs">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Invitations</div>
@@ -676,7 +676,7 @@ function OverviewTab({ eventId }: { eventId: string }) {
 
       {/* Per-tier sold + revenue breakdown — pulled from /analytics response. */}
       {data.ticket_types && data.ticket_types.length > 0 && (
-        <section className="rounded-xl border border-border bg-card shadow-xs">
+        <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
           <div className="border-b border-border p-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <BarChart2 className="h-4 w-4 text-primary" /> Ticket-type breakdown
@@ -742,7 +742,7 @@ function BigStat({
     warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   }[tone]
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+    <div className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 shadow-xs">
       <div className="flex items-start justify-between">
         <div>
           <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
@@ -774,7 +774,7 @@ function TicketsTab({ tickets }: { tickets: TicketType[] | null }) {
         const total = t.quantity_total ?? 0
         const pct = total > 0 ? Math.round((sold / total) * 100) : 0
         return (
-          <li key={t.id} className="rounded-xl border border-border bg-card p-4">
+          <li key={t.id} className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div className="min-w-0">
                 <div className="font-semibold text-foreground">{t.name}</div>
@@ -890,7 +890,7 @@ function AttendeesTab({ eventId }: { eventId: string }) {
           const isCheckedIn = !!b.checked_in_at
           const msg = actionMsg?.id === b.id ? actionMsg : null
           return (
-            <li key={b.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-start sm:justify-between">
+            <li key={b.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-foreground">{name}</span>
@@ -1004,7 +1004,7 @@ function CheckinTab({ eventId }: { eventId: string }) {
             {gates.map(g => {
               const share = totalScanned > 0 ? Math.round((g.scanned / totalScanned) * 100) : 0
               return (
-                <li key={g.label} className="rounded-lg border border-border bg-card p-3">
+                <li key={g.label} className="rounded-lg border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">{g.label}</span>
                     <span className="text-sm font-semibold text-foreground">
@@ -1195,7 +1195,7 @@ function ScannersTab({ eventId }: { eventId: string }) {
       )}
 
       {/* Issue form */}
-      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4">
         <h3 className="text-sm font-semibold text-foreground">Issue scanner invite</h3>
         <p className="text-xs text-muted-foreground">
           Generate a one-time code your door staff can redeem in the MyScope Organizer app to scan tickets — no MyScope account required.
@@ -1242,7 +1242,7 @@ function ScannersTab({ eventId }: { eventId: string }) {
                                                     "outline"
             const canRevoke = inv.computed_status === "active" || inv.computed_status === "unredeemed"
             return (
-              <li key={inv.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+              <li key={inv.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-2">
                     <span className="text-base font-semibold text-foreground">
@@ -1373,7 +1373,7 @@ function PromoTab({ eventId, tickets }: { eventId: string; tickets: TicketType[]
         </div>
 
       {/* Create form */}
-      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4">
         <h3 className="text-sm font-semibold text-foreground">New promo code</h3>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
@@ -1435,7 +1435,7 @@ function PromoTab({ eventId, tickets }: { eventId: string; tickets: TicketType[]
               ? `${Number(c.discount_value)}% off`
               : `${formatLkr(c.discount_value)} off`
             return (
-              <li key={c.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+              <li key={c.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-2">
                     <span className="font-mono text-base font-bold tracking-wider text-foreground">{c.code}</span>
@@ -1594,7 +1594,7 @@ function OffersCard({ eventId, tickets }: { eventId: string; tickets: TicketType
       </div>
 
       {/* Create form */}
-      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">New offer</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -1686,7 +1686,7 @@ function OffersCard({ eventId, tickets }: { eventId: string; tickets: TicketType
       ) : (
         <ul className="space-y-2">
           {offers.map(o => (
-            <li key={o.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+            <li key={o.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="font-semibold text-foreground">{o.name}</span>
@@ -1745,7 +1745,7 @@ function WaitlistTab({ eventId }: { eventId: string }) {
       </p>
       <ul className="space-y-2">
         {entries.map(w => (
-          <li key={w.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+          <li key={w.id} className="flex items-center justify-between rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4">
             <div className="min-w-0">
               <div className="font-semibold text-foreground">{w.name || "—"}</div>
               <div className="text-xs text-muted-foreground">{w.email} · wants {w.requested_quantity} ticket(s)</div>
@@ -1814,7 +1814,7 @@ function CommsTab({ eventId }: { eventId: string }) {
   const currentHint = channelOptions.find(c => c.value === channel)?.hint
 
   return (
-    <form onSubmit={send} className="space-y-4 rounded-xl border border-border bg-card p-4">
+    <form onSubmit={send} className="space-y-4 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4">
       <div>
         <h3 className="text-sm font-semibold text-foreground">Send announcement to attendees</h3>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -2283,7 +2283,7 @@ function InviteTab({ eventId, tickets }: { eventId: string; tickets: TicketType[
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <div className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-3">
       <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 text-xl font-bold text-foreground">{value}</div>
       {note && (

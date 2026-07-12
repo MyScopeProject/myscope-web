@@ -163,7 +163,7 @@ function DashboardContent() {
 
         {myLoading ? (
           <div className="space-y-3">
-            {[1, 2].map(i => <div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-card" />)}
+            {[1, 2].map(i => <div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm" />)}
           </div>
         ) : myError ? (
           <ErrorState message={myError} onRetry={fetchMyEvents} />
@@ -177,7 +177,7 @@ function DashboardContent() {
               const dateObj = when ? new Date(when) : null
               const venue = event.venue_name || event.location
               return (
-                <li key={id} className="flex overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+                <li key={id} className="flex overflow-hidden rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
                   {/* Thumbnail */}
                   <div className="relative hidden w-28 shrink-0 overflow-hidden bg-muted sm:block">
                     {event.banner_url ? (

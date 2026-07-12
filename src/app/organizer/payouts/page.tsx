@@ -380,7 +380,7 @@ export default function OrganizerPayoutsPage() {
       </section>
 
       {/* Bank details */}
-      <section className="rounded-xl border border-border bg-card shadow-xs">
+      <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Bank details</h2>
@@ -513,7 +513,7 @@ export default function OrganizerPayoutsPage() {
           onClick={() => { if (!deleting) setDeleteTarget(null) }}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3">
@@ -641,7 +641,7 @@ function EventPayoutCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+    <div className="overflow-hidden rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
       {/* Event header */}
       <div className="flex flex-wrap items-start gap-4 p-4">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
@@ -959,7 +959,7 @@ function ProductPayoutCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+    <div className="overflow-hidden rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
       {/* Header */}
       <div className="flex flex-wrap items-start gap-4 p-4">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">

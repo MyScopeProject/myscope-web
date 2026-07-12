@@ -39,13 +39,13 @@ export function OrganizerShell({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 md:block">
         <div className="sticky top-20 space-y-3">
-          <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
+          <div className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm px-4 py-3 shadow-xs">
             <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Organizer
             </div>
             <div className="text-sm font-semibold text-foreground">Workspace</div>
           </div>
-          <nav className="space-y-1 rounded-xl border border-border bg-card p-2 shadow-xs">
+          <nav className="space-y-1 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-2 shadow-xs">
             {MENU.map((item) => {
               const Icon = item.icon
               const active = isActive(item.href)
