@@ -12,12 +12,19 @@ interface SitemapEvent {
   start_time?: string | null
 }
 
+interface SitemapProduct {
+  id: string
+  updated_at?: string | null
+  created_at?: string | null
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: `${SITE}/events`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${SITE}/shop`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE}/become-organizer`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE}/about`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
     { url: `${SITE}/contact`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
@@ -52,5 +59,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // events optional — keep the static sitemap valid
   }
 
-  return [...staticRoutes, ...eventRoutes]
+  // Published shop products — same treatment as events so product pages get
+  // indexed and can surface as sitelinks/rich results under the shop section.
+  let productRoutes: MetadataRoute.Sitemap = []
+  try {
+    const res = await fetch(`${API}/api/shop?limit=100`, { next: { revalidate: 3600 } })
+    const data = await res.json()
+    const products: SitemapProduct[] = data?.data?.products ?? []
+    productRoutes = products
+      .filter((p) => p?.id)
+      .map((p) => ({
+        url: `${SITE}/shop/${p.id}`,
+        lastModified: p.updated_at ? new Date(p.updated_at) : p.created_at ? new Date(p.created_at) : now,
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      }))
+  } catch {
+    // products optional — keep the static sitemap valid
+  }
+
+  return [...staticRoutes, ...eventRoutes, ...productRoutes]
 }
