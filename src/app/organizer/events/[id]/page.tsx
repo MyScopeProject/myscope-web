@@ -1058,14 +1058,14 @@ type ScannerInvite = {
   created_at: string
   scan_count: number
   computed_status: "unredeemed" | "active" | "revoked" | "expired"
+  // Plaintext code for re-viewing code/QR until expiry. Null for revoked/expired
+  // invites, or invites issued before the code-persistence migration.
+  code: string | null
 }
 
-type IssuedInvite = {
-  id: string
-  code: string
-  gate_label: string | null
-  expires_at: string
-}
+// The reveal card is shared between a just-issued code and re-viewing an
+// existing one — both just need the code + context.
+type CodeReveal = { code: string; gate_label: string | null; expires_at: string; isNew: boolean }
 
 function ScannersTab({ eventId }: { eventId: string }) {
   const [invites, setInvites] = React.useState<ScannerInvite[] | null>(null)
@@ -1073,7 +1073,7 @@ function ScannersTab({ eventId }: { eventId: string }) {
   const [form, setForm] = React.useState({ gate_label: "", expires_in_hours: "12" })
   const [creating, setCreating] = React.useState(false)
   const [formErr, setFormErr] = React.useState("")
-  const [justIssued, setJustIssued] = React.useState<IssuedInvite | null>(null)
+  const [reveal, setReveal] = React.useState<CodeReveal | null>(null)
   const [copied, setCopied] = React.useState(false)
 
   const fetchInvites = React.useCallback(async () => {
@@ -1115,7 +1115,7 @@ function ScannersTab({ eventId }: { eventId: string }) {
         setFormErr(body?.message || "Couldn't issue invite.")
         return
       }
-      setJustIssued(body.data as IssuedInvite)
+      setReveal({ code: body.data.code, gate_label: body.data.gate_label, expires_at: body.data.expires_at, isNew: true })
       setCopied(false)
       setForm({ gate_label: "", expires_in_hours: form.expires_in_hours })
       await fetchInvites()
@@ -1140,9 +1140,9 @@ function ScannersTab({ eventId }: { eventId: string }) {
   }
 
   const copyCode = async () => {
-    if (!justIssued) return
+    if (!reveal) return
     try {
-      await navigator.clipboard.writeText(justIssued.code)
+      await navigator.clipboard.writeText(reveal.code)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -1154,28 +1154,28 @@ function ScannersTab({ eventId }: { eventId: string }) {
 
   return (
     <div className="space-y-5">
-      {/* Just-issued code — surfaced loudly because we can never show it again */}
-      {justIssued && (
+      {/* Code + QR reveal — shown right after issuing AND any time you tap
+          "View code" on a still-valid invite below. Re-viewable until expiry. */}
+      {reveal && (
         <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">New invite issued</h3>
+              <h3 className="text-sm font-semibold text-foreground">{reveal.isNew ? "New invite issued" : "Scanner invite code"}</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Share this code with the door staff <strong>now</strong>. It will not be shown again.
-                Expires {formatWhen(justIssued.expires_at)}.
+                Share this code with the door staff. Expires {formatWhen(reveal.expires_at)}.
               </p>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setJustIssued(null)} aria-label="Dismiss">
+            <Button variant="ghost" size="sm" onClick={() => setReveal(null)} aria-label="Dismiss">
               <XCircle />
             </Button>
           </div>
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="rounded-lg bg-white p-3 shrink-0 self-center sm:self-auto" aria-label="Scan this QR with the MyScope Organizer app to redeem">
-              <QRCodeSVG value={justIssued.code} size={132} level="M" />
+              <QRCodeSVG value={reveal.code} size={132} level="M" />
             </div>
             <div className="flex-1 space-y-2">
               <div className="rounded-lg border border-border bg-card px-4 py-3 text-center font-mono text-3xl font-bold tracking-[0.4em] text-foreground">
-                {justIssued.code}
+                {reveal.code}
               </div>
               <div className="flex items-center gap-2">
                 <Button onClick={copyCode} size="sm" variant="outline" className="flex-1">
@@ -1188,8 +1188,8 @@ function ScannersTab({ eventId }: { eventId: string }) {
               </p>
             </div>
           </div>
-          {justIssued.gate_label && (
-            <p className="mt-3 text-xs text-muted-foreground">Gate: <strong>{justIssued.gate_label}</strong></p>
+          {reveal.gate_label && (
+            <p className="mt-3 text-xs text-muted-foreground">Gate: <strong>{reveal.gate_label}</strong></p>
           )}
         </div>
       )}
@@ -1227,14 +1227,14 @@ function ScannersTab({ eventId }: { eventId: string }) {
         </Button>
       </form>
 
-      {/* List */}
-      {!invites ? (
-        <CardSkeleton />
-      ) : invites.length === 0 ? (
-        <EmptyHint icon={QrCode} text="No scanner invites yet. Issue one above to delegate door-scanning to staff." />
-      ) : (
+      {/* List — expired invites are hidden automatically. */}
+      {(() => {
+        const visible = (invites ?? []).filter(inv => inv.computed_status !== "expired")
+        if (!invites) return <CardSkeleton />
+        if (visible.length === 0) return <EmptyHint icon={QrCode} text="No active scanner invites. Issue one above to delegate door-scanning to staff." />
+        return (
         <ul className="space-y-2">
-          {invites.map(inv => {
+          {visible.map(inv => {
             const variant: "default" | "warning" | "success" | "destructive" | "outline" =
               inv.computed_status === "active"     ? "success" :
               inv.computed_status === "unredeemed" ? "warning" :
@@ -1261,16 +1261,24 @@ function ScannersTab({ eventId }: { eventId: string }) {
                     {inv.last_used_at && <> · last activity {formatRelative(inv.last_used_at)}</>}
                   </div>
                 </div>
-                {canRevoke && (
-                  <Button variant="outline" size="sm" onClick={() => revoke(inv.id)} className="hover:bg-destructive/10 hover:text-destructive">
-                    <XCircle /> Revoke
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {inv.code && (
+                    <Button variant="outline" size="sm" onClick={() => { setReveal({ code: inv.code!, gate_label: inv.gate_label, expires_at: inv.expires_at, isNew: false }); setCopied(false); if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" }) }}>
+                      <QrCode /> View code
+                    </Button>
+                  )}
+                  {canRevoke && (
+                    <Button variant="outline" size="sm" onClick={() => revoke(inv.id)} className="hover:bg-destructive/10 hover:text-destructive">
+                      <XCircle /> Revoke
+                    </Button>
+                  )}
+                </div>
               </li>
             )
           })}
         </ul>
-      )}
+        )
+      })()}
     </div>
   )
 }
