@@ -13,7 +13,7 @@ import * as React from "react"
 
 export interface VisualPreviewDecor {
   id?: string
-  kind: "rect" | "text" | "line" | "circle"
+  kind: "rect" | "text" | "line" | "circle" | "freetext" | "generalbox"
   x?: number | null
   y?: number | null
   width?: number | null
@@ -162,7 +162,7 @@ export function VisualSeatMapPreview({
 function DecorShape({ d }: { d: VisualPreviewDecor }) {
   const x = Number(d.x ?? 0)
   const y = Number(d.y ?? 0)
-  if (d.kind === "rect") {
+  if (d.kind === "rect" || d.kind === "generalbox") {
     const w = Number(d.width  ?? 200)
     const h = Number(d.height ?? 60)
     const rot = d.rotation
@@ -187,7 +187,7 @@ function DecorShape({ d }: { d: VisualPreviewDecor }) {
       </g>
     )
   }
-  if (d.kind === "text") {
+  if (d.kind === "text" || d.kind === "freetext") {
     return (
       <text x={x} y={y} fontSize={16} fontWeight="bold" fill={d.color || "#374151"}>
         {d.label || "LABEL"}
@@ -253,7 +253,8 @@ function PreviewSeat({ seat, tierColor }: { seat: VisualPreviewSeat; tierColor: 
     if (isAccessible)            { fill = "#3B82F6"; stroke = "#3B82F6" }
     if (seat.seat_type === "restricted_view") { fill = "#9CA3AF"; stroke = "#9CA3AF" }
     if (isHeld)                  { fill = "#F59E0B"; stroke = "#F59E0B" }
-    if (isUnavailable)           { fill = "#4B5563"; stroke = "#4B5563" } // gray-600 — sold/disabled
+    if (isUnavailable)           { fill = "#4B5563"; stroke = "#4B5563" } // gray-600 — disabled
+    if (isBooked)                { fill = "#DC2626"; stroke = "#DC2626" } // red-600 — sold
   } else {
     // Legacy status-only palette (no tier info provided).
     fill = "#D1FAE5"; stroke = "#10B981"; textFill = "#065F46"

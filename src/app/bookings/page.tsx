@@ -28,6 +28,7 @@ interface EventBookingRow {
   title: string;
   date: string | null;
   location: string | null;
+  banner_url?: string | null;
  } | null;
 }
 
@@ -145,8 +146,22 @@ export default function MyBookingsPage() {
         <Link
          key={eb.id}
          href={`/bookings/event/${eb.id}`}
-         className="block border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 sm:p-6 transition-colors hover:border-primary/40"
+         className="block overflow-hidden border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm transition-colors hover:border-primary/40"
         >
+         {/* Event banner: full-width strip on mobile, left thumbnail on desktop.
+             Same visual language as the web event cards. */}
+         <div className="flex flex-col sm:flex-row">
+          {eb.event?.banner_url && (
+           /* eslint-disable-next-line @next/next/no-img-element */
+           <img
+            src={eb.event.banner_url}
+            alt=""
+            aria-hidden="true"
+            className="h-28 w-full shrink-0 object-cover sm:h-auto sm:w-44 sm:self-stretch"
+            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+           />
+          )}
+          <div className="min-w-0 flex-1 p-4 sm:p-6">
          {/* On mobile: event info stacks above a 3-col mini-grid of meta.
            On md+: everything is a single 12-col row. The `md:contents`
            trick lets the mobile wrapper "vanish" at desktop so its
@@ -205,6 +220,8 @@ export default function MyBookingsPage() {
             </span>
            </div>
           </div>
+          </div>
+         </div>
          </div>
         </Link>
        );

@@ -23,6 +23,24 @@ const fmtMMSS = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60
 const TIER_PALETTE = ["#7F77DD", "#1D9E75", "#BA7517", "#D85A30", "#185FA5", "#993556", "#6B7280"]
 const tierColorByIndex = (i: number) => TIER_PALETTE[i % TIER_PALETTE.length] || TIER_PALETTE[0]
 
+// Hidden meta entry the admin builder embeds in `decor` (kind "text", offscreen
+// x/y) to round-trip grid structure + per-tier color overrides. Extract the
+// overrides here so buyer-facing seat colors match what the admin picked.
+const META_PREFIX = "__macroLayoutMeta__"
+function extractTierColors(decor: LayoutDecor[] | undefined): Record<string, string> {
+  for (const d of decor ?? []) {
+    if (d.kind === "text" && typeof d.label === "string" && d.label.startsWith(META_PREFIX)) {
+      try {
+        const parsed = JSON.parse(d.label.slice(META_PREFIX.length)) as { tierColors?: Record<string, string> | null }
+        return parsed.tierColors ?? {}
+      } catch {
+        // ignore corrupted meta
+      }
+    }
+  }
+  return {}
+}
+
 
 export type SeatStatus = "available" | "held" | "booked" | "disabled"
 export type SeatType = "standard" | "accessible" | "restricted_view" | "aisle"
@@ -72,7 +90,7 @@ export interface SeatMapSeat {
 
 export interface LayoutDecor {
   id?: string
-  kind: "rect" | "text" | "line" | "circle"
+  kind: "rect" | "text" | "line" | "circle" | "freetext" | "generalbox"
   x?: number
   y?: number
   width?: number
@@ -632,6 +650,10 @@ export function SeatMapPicker({
   })()
   const tierIndex = new Map<string, number>()
   tierList.forEach((t, i) => tierIndex.set(t.id, i))
+  // Admin-chosen per-tier color override (from the builder), keyed by
+  // ticket_type_id. Falls back to the palette-by-index color when absent.
+  const tierColorOverrides = extractTierColors(layout?.decor)
+  const resolveTierColor = (id: string, idx: number) => tierColorOverrides[id] || tierColorByIndex(idx)
 
   // Selected total — drives the "N seats selected · LKR X" footer.
   // Per-seat picks contribute their ticket_type.price; free-seating tiers
@@ -720,7 +742,7 @@ export function SeatMapPicker({
               onSeatHover={setHoveredSeat}
               tierColorFor={(id) =>
                 id !== undefined && tierIndex.has(id)
-                  ? tierColorByIndex(tierIndex.get(id) as number)
+                  ? resolveTierColor(id, tierIndex.get(id) as number)
                   : "#9CA3AF"
               }
             />
@@ -732,7 +754,11 @@ export function SeatMapPicker({
                 seat={hoveredSeat}
                 leftPct={(Number(hoveredSeat.x) / Number(layout.viewbox_width)) * 100}
                 topPct={(Number(hoveredSeat.y) / Number(layout.viewbox_height)) * 100}
-                tierIndex={hoveredSeat.ticket_type ? tierIndex.get(hoveredSeat.ticket_type.id) ?? 0 : 0}
+                tierColor={
+                  hoveredSeat.ticket_type
+                    ? resolveTierColor(hoveredSeat.ticket_type.id, tierIndex.get(hoveredSeat.ticket_type.id) ?? 0)
+                    : tierColorByIndex(0)
+                }
                 isSelected={selectedIds.has(hoveredSeat.id)}
               />
             )}
@@ -865,7 +891,7 @@ export function SeatMapPicker({
                 available={available}
                 qty={qty}
                 maxPerOrder={maxPerOrder}
-                color={tierColorByIndex(tierColorIdx)}
+                color={resolveTierColor(tier.id, tierColorIdx)}
                 focused={freeTierFocus === tier.id}
                 onIncrement={() => setQty(qty + 1)}
                 onDecrement={() => setQty(qty - 1)}
@@ -881,7 +907,7 @@ export function SeatMapPicker({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
         {tierList.map((t, i) => (
           <span key={t.id} className="inline-flex items-center gap-1.5">
-            <TierDot color={tierColorByIndex(i)} />
+            <TierDot color={resolveTierColor(t.id, i)} />
             <span className="font-medium text-foreground">{t.name}</span>
             <span>· LKR {t.price.toLocaleString()}</span>
           </span>
@@ -890,7 +916,7 @@ export function SeatMapPicker({
           <span className="h-3 w-px bg-border" aria-hidden="true" />
         )}
         <span className="inline-flex items-center gap-1.5">
-          <TierDot color="#4B5563" />
+          <TierDot color="#DC2626" />
           <span>Sold</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
@@ -1095,7 +1121,7 @@ function VisualSeatMap({
 function DecorShape({ d }: { d: LayoutDecor }) {
   const x = d.x ?? 0
   const y = d.y ?? 0
-  if (d.kind === "rect") {
+  if (d.kind === "rect" || d.kind === "generalbox") {
     const w = d.width ?? 200
     const h = d.height ?? 60
     const rot = d.rotation
@@ -1124,7 +1150,7 @@ function DecorShape({ d }: { d: LayoutDecor }) {
       </g>
     )
   }
-  if (d.kind === "text") {
+  if (d.kind === "text" || d.kind === "freetext") {
     return (
       <text
         x={x} y={y}
@@ -1207,7 +1233,10 @@ function VisualSeat({
   let stroke = "transparent"
   let strokeWidth = 0
   if (isUnavailable) {
-    fill = "#4B5563"               // gray-600 — sold / not available (dark grey)
+    // Sold (booked) seats read in red so buyers instantly see what's gone;
+    // held-by-others / disabled stay a neutral grey ("not pickable", but not
+    // sold).
+    fill = isBooked ? "#DC2626" : "#4B5563" // red-600 sold · gray-600 held/disabled
   }
   if (isSelected) {
     // Black ring in both themes — the seatmap canvas is light in dark mode
@@ -1303,13 +1332,13 @@ function SeatHoverCard({
   seat,
   leftPct,
   topPct,
-  tierIndex,
+  tierColor,
   isSelected,
 }: {
   seat: SeatMapSeat
   leftPct: number
   topPct: number
-  tierIndex: number
+  tierColor: string
   isSelected: boolean
 }) {
   const statusLabel = (() => {
@@ -1328,7 +1357,7 @@ function SeatHoverCard({
     >
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {seat.ticket_type && (
-          <TierDot color={tierColorByIndex(tierIndex)} />
+          <TierDot color={tierColor} />
         )}
         <span>{seat.ticket_type?.name ?? "Reserved"}</span>
       </div>

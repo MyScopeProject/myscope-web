@@ -735,6 +735,23 @@ function FieldGroup({
 // preview reads identically to the buyer-facing seatmap.
 const ORGANIZER_TIER_PALETTE = ["#7F77DD", "#1D9E75", "#BA7517", "#D85A30", "#185FA5", "#993556", "#6B7280"]
 
+// Hidden meta entry the admin builder embeds in `decor` (kind "text",
+// offscreen x/y) to round-trip grid structure + per-tier color overrides.
+const SEATMAP_META_PREFIX = "__macroLayoutMeta__"
+function extractTierColors(decor: VisualPreviewLayout["decor"] | undefined): Record<string, string> {
+  for (const d of decor ?? []) {
+    if (d.kind === "text" && typeof d.label === "string" && d.label.startsWith(SEATMAP_META_PREFIX)) {
+      try {
+        const parsed = JSON.parse(d.label.slice(SEATMAP_META_PREFIX.length)) as { tierColors?: Record<string, string> | null }
+        return parsed.tierColors ?? {}
+      } catch {
+        // ignore corrupted meta
+      }
+    }
+  }
+  return {}
+}
+
 function CustomLayoutPanel({
   event,
   seats,
@@ -777,17 +794,25 @@ function CustomLayoutPanel({
   const hasGridSeats = !!seats && seats.sections.length > 0
   const hasAnySeats = hasVisual || hasGridSeats
 
+  // Admin-chosen per-tier color override (from the builder), keyed by
+  // ticket_type_id. Falls back to the palette-by-index color when absent.
+  const tierColorOverrides = React.useMemo(
+    () => extractTierColors(visual?.layout?.decor),
+    [visual],
+  )
+
   // Map ticket_type_id → swatch color. Tiers are indexed in first-seen order
   // matching what the consumer picker does, so seat colors stay consistent
   // between organizer preview and buyer view.
   const tierColorFor = React.useCallback(
     (ticketTypeId: string | null | undefined) => {
       if (!ticketTypeId) return null
+      if (tierColorOverrides[ticketTypeId]) return tierColorOverrides[ticketTypeId]
       const idx = ticketTypes.findIndex(t => t.id === ticketTypeId)
       if (idx < 0) return null
       return ORGANIZER_TIER_PALETTE[idx % ORGANIZER_TIER_PALETTE.length]
     },
-    [ticketTypes],
+    [ticketTypes, tierColorOverrides],
   )
 
   return (
@@ -824,7 +849,7 @@ function CustomLayoutPanel({
                   <span
                     aria-hidden
                     className="inline-block h-3 w-3 rounded-sm"
-                    style={{ backgroundColor: ORGANIZER_TIER_PALETTE[i % ORGANIZER_TIER_PALETTE.length] }}
+                    style={{ backgroundColor: tierColorOverrides[t.id] || ORGANIZER_TIER_PALETTE[i % ORGANIZER_TIER_PALETTE.length] }}
                   />
                   <span className="font-medium text-foreground">{t.name}</span>
                   <span>· LKR {Number(t.price).toLocaleString()}</span>
