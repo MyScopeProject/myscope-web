@@ -46,9 +46,9 @@
      carries a stronger violet mix; card/popover sit a step lighter for layering. */
   --background: oklch(0.105 0.055 287);
   --foreground: oklch(0.96 0.008 285);
-  --card: oklch(0.155 0.05 287);
+  --card: oklch(0.24 0.05 287);
   --card-foreground: oklch(0.96 0.008 285);
-  --popover: oklch(0.155 0.05 287);
+  --popover: oklch(0.24 0.05 287);
   --popover-foreground: oklch(0.96 0.008 285);
   --primary: oklch(0.606 0.25 292.717);
   --primary-foreground: oklch(0.969 0.016 293.756);
