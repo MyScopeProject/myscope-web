@@ -35,7 +35,7 @@ const SOCIAL: Array<{
   { icon: Mail, href: "mailto:hello.myscope@gmail.com", label: "Email", iconClass: "text-primary" },
 ]
 
-const CONTACT_PHONE = "+94 76 482 9645"
+const CONTACT_PHONE = "+94 76 467 0645"
 const CONTACT_EMAIL = "hello@myscope.lk"
 const CONTACT_LOCATION = "Colombo, Sri Lanka"
 

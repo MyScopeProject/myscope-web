@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://www.myscope.lk/contact" },
 }
 
-const WHATSAPP = "94764829645"
+const WHATSAPP = "94764670645"
 
 export default function ContactPage() {
   return (
@@ -44,7 +44,7 @@ export default function ContactPage() {
           </span>
           <span className="min-w-0">
             <span className="block font-semibold text-foreground">WhatsApp</span>
-            <span className="block text-sm text-muted-foreground">+94 76 482 9645</span>
+            <span className="block text-sm text-muted-foreground">+94 76 467 0645</span>
           </span>
         </a>
       </div>

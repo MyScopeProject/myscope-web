@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils"
 
-// MyScope team WhatsApp Business line. Local number 076 482 9645 → +94 76…
+// MyScope team WhatsApp Business line. Local number 076 467 0645 → +94 76…
 // for the wa.me deep link (strip the leading 0, prepend the country code).
-const MYSCOPE_WHATSAPP = "94764829645"
+const MYSCOPE_WHATSAPP = "94764670645"
 
 // Brand WhatsApp glyph (lucide has no WhatsApp icon).
 function WhatsAppIcon({ className }: { className?: string }) {
