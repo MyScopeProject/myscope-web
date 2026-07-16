@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Clock, ImageIcon, Ticket } from "lucide-react"
+import { Clock, ImageIcon, Star, Ticket } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -19,6 +19,9 @@ export interface EventCardData {
   tickets_available?: number | null
   tickets_sold?: number | null
   featured?: boolean
+  // Admin-pinned to the top of listings — distinct from `featured` (hero
+  // carousel). See myscope-api migrations/2026-07-15-event-pinned.sql.
+  pinned?: boolean
   has_multiple_tiers?: boolean
   // True when the organizer has paused sales (every tier inactive). The list
   // card renders an "On hold" state instead of falling back to a misleading
@@ -124,8 +127,17 @@ export function EventCard({ event, className }: EventCardProps) {
         ) : null}
 
         {/* Top-right floating badges */}
-        {(event.featured || isSoldOut || event.sales_paused || isPostponed) && (
+        {(event.pinned || event.featured || isSoldOut || event.sales_paused || isPostponed) && (
           <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
+            {event.pinned && (
+              <Badge
+                variant="warning"
+                className="border-transparent bg-yellow-400 text-black dark:bg-yellow-400 dark:text-black"
+              >
+                <Star className="fill-current" />
+                Featured
+              </Badge>
+            )}
             {event.featured && <Badge variant="warning">Featured</Badge>}
             {isPostponed && <Badge variant="destructive">Postponed</Badge>}
             {event.sales_paused && !isPostponed && <Badge variant="destructive">On hold</Badge>}
