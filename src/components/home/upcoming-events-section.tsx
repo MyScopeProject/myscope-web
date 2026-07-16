@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { ArrowRight, Calendar } from "lucide-react"
+import { Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { EventCard, type EventCardData } from "@/components/events/event-card"
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton"
@@ -63,19 +63,11 @@ export function UpcomingEventsSection({ initialEvents }: Props) {
 
   return (
     <>
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">Upcoming events</h2>
-          <p className="text-sm text-muted-foreground">
-            Handpicked happenings across Sri Lanka this month.
-          </p>
-        </div>
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/events">
-            View all
-            <ArrowRight />
-          </Link>
-        </Button>
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Upcoming events</h2>
+        <p className="text-sm text-muted-foreground">
+          Handpicked happenings across Sri Lanka this month.
+        </p>
       </div>
 
       {/* Category pills — horizontally scrollable on mobile, same pattern as

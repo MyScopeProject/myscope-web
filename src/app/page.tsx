@@ -15,7 +15,6 @@ import { PastEventsMarquee, type PastEventItem } from "@/components/home/past-ev
 import { PartnersMarquee, type PartnerItem } from "@/components/home/partners-marquee"
 import { RevealOnScroll } from "@/components/site/reveal-on-scroll"
 import { HeroSearchForm } from "@/components/home/hero-search-form"
-import { NAV_ITEMS } from "@/components/site/nav-items"
 
 // ISR — pre-render the homepage and refresh at most once per 60s. After the
 // window, the next visitor serves the cached HTML while Vercel triggers a
@@ -67,28 +66,6 @@ export default async function HomePage() {
     <div>
       {/* Hero — carousel when admins have published slides, otherwise the default hero */}
       {showCarousel ? <HeroCarousel slides={heroSlides} /> : <DefaultHero />}
-
-      {/* Mobile quick-nav — on desktop these links live in the navbar itself;
-          on mobile the navbar collapses to just a hamburger icon, so this
-          strip surfaces the same categories right where people land after
-          the hero, without making them open the drawer. The drawer/sidebar
-          menu is untouched and still has the full nav + account section. */}
-      <nav
-        aria-label="Browse categories"
-        className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:hidden"
-      >
-        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex shrink-0 items-center rounded-full bg-card dark:bg-card/60 dark:backdrop-blur-sm px-3.5 py-2 text-sm font-medium text-foreground shadow-xs transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      </nav>
 
       {/* Featured events — category pills filter this section in place,
           client-side (see UpcomingEventsSection), instead of navigating

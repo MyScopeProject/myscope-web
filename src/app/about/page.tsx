@@ -210,13 +210,13 @@ export default function AboutPage() {
           Meet the founder
         </p>
         <div className="mt-6 grid grid-cols-1 gap-8 sm:grid-cols-[260px_1fr] sm:items-start sm:gap-10">
-          <div className="relative mx-auto aspect-4/5 w-full max-w-[260px] overflow-hidden rounded-2xl border border-border/60 bg-muted/40 shadow-lg sm:mx-0">
+          <div className="relative mx-auto aspect-4/5 w-44 overflow-hidden rounded-2xl border border-border/60 bg-muted/40 shadow-lg sm:mx-0 sm:w-full sm:max-w-[260px]">
             <Image
               src="/Images/akila-jayakody.jpg"
               alt="Akila Jayakody, founder of MyScope"
               fill
               priority
-              sizes="(max-width: 640px) 260px, 260px"
+              sizes="(max-width: 640px) 176px, 260px"
               className="object-cover"
             />
           </div>
@@ -226,7 +226,7 @@ export default function AboutPage() {
               Akila Jayakody
             </h2>
             <p className="mt-1 text-sm font-medium text-primary">
-              Founder &amp; Data Engineer
+              Founder/Director of MyScope PVT (LTD) &amp; Data Engineer
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               BSc in Computer Science, University of Colombo
@@ -234,28 +234,14 @@ export default function AboutPage() {
 
             <div className="mt-5 space-y-4 text-base leading-relaxed text-muted-foreground">
               <p>
-                Akila started MyScope with a simple frustration: in a country with a
-                vibrant culture of concerts, theatre, and live performance, finding what
-                was on and getting a ticket still felt stuck in another decade. He set out
-                to build the platform he wished existed a single place where Sri Lankans
-                could discover events, organizers could sell tickets without friction, and
-                everyone could walk into a venue with nothing but a phone.
+               MyScope was born from a simple belief: discovering and attending events in Sri Lanka should be effortless. Seeing the challenges faced by both event organizers and attendees, Akila Jayakody set out to create more than a ticketing platform.he envisioned a modern ecosystem where people can discover unforgettable experiences, organizers can manage and sell tickets with ease, and every event begins with just a few taps.
               </p>
               <p>
-                MyScope is engineered by Akila Jayakody. The consumer web
-                app, the organizer dashboard, the mobile apps, the
-                payments layer, the QR check in scanner, the visual reserved seating
-                builder, the admin moderation tooling: every piece is something he
-                designed, wrote, and shipped himself. It&rsquo;s a one person engineering
-                effort with the surface area of a much larger company &mdash; deliberately,
-                because moving fast on local feedback matters more here than headcount.
+                From the platform&rsquo;s infrastructure and user experience to its security, ticketing engine, and organizer tools, every feature has been thoughtfully crafted with one goal in Akila&rsquo;s mind,building the smartest event technology for Sri Lanka. Powered by a single vision and driven by continuous innovation, MyScope proves that passion, precision, and purpose can create products that rival the scale and quality of much larger teams.
+                
               </p>
               <p>
-                The bigger ambition is to become the default events infrastructure for Sri
-                Lanka the rails that local promoters, theatres, festivals, and venues
-                run on. Open to organizers of any size, fair on fees, and built for how
-                the Sri Lankan market actually works. MyScope is the start; the goal is a
-                live events ecosystem the country can build on for the next decade.
+                We believe every great event deserves a great platform. MyScope is building the technology that will become the backbone of Sri Lanka&rsquo;s live events ecosystem, empowering organizers and elevating experiences nationwide.
               </p>
             </div>
 
@@ -302,7 +288,7 @@ export default function AboutPage() {
             href="mailto:hello.myscope@gmail.com"
             className="font-medium text-primary hover:underline"
           >
-            hello.myscope@gmail.com
+            hello@myscope.lk
           </a>
           .
         </p>

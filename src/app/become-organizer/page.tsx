@@ -608,16 +608,20 @@ function StatusBanner({
   body: string
   children?: React.ReactNode
 }) {
+  // Success intentionally matches the site's normal card treatment (no green
+  // fill/border) — only the icon keeps a small color accent so the "approved"
+  // signal is still immediately readable at a glance.
   const styles = {
-    success: "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400",
+    success: "border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm text-foreground",
     warning: "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400",
     destructive: "border-destructive/30 bg-destructive/5 text-destructive",
   }[tone]
+  const iconStyles = tone === "success" ? "text-emerald-600 dark:text-emerald-400" : ""
 
   return (
     <div className={cn("mb-6 rounded-xl border p-5", styles)}>
       <div className="flex items-start gap-3">
-        <Icon className="mt-0.5 h-5 w-5 shrink-0" />
+        <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", iconStyles)} />
         <div>
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           <p className="mt-1 text-sm leading-relaxed opacity-80">{body}</p>

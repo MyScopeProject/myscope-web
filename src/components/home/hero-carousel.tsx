@@ -132,17 +132,17 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
               type="button"
               onClick={() => go(index - 1)}
               aria-label="Previous slide"
-              className="absolute left-1 top-1/2 z-40 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/80 text-foreground shadow-sm backdrop-blur-sm transition hover:bg-muted sm:left-6 sm:h-11 sm:w-11"
+              className="absolute left-1 top-1/2 z-40 flex -translate-y-1/2 items-center justify-center text-white/80 transition hover:text-white sm:left-6"
             >
-              <ChevronLeft className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={2.5} />
+              <ChevronLeft className="h-7 w-7 drop-shadow-md sm:h-9 sm:w-9" strokeWidth={2.5} />
             </button>
             <button
               type="button"
               onClick={() => go(index + 1)}
               aria-label="Next slide"
-              className="absolute right-1 top-1/2 z-40 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/80 text-foreground shadow-sm backdrop-blur-sm transition hover:bg-muted sm:right-6 sm:h-11 sm:w-11"
+              className="absolute right-1 top-1/2 z-40 flex -translate-y-1/2 items-center justify-center text-white/80 transition hover:text-white sm:right-6"
             >
-              <ChevronRight className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={2.5} />
+              <ChevronRight className="h-7 w-7 drop-shadow-md sm:h-9 sm:w-9" strokeWidth={2.5} />
             </button>
           </>
         )}
@@ -227,21 +227,6 @@ function Slide({
       }}
     >
       <PosterImage slide={slide} />
-      {/* Title / subtitle overlay, shown only when copy is present. */}
-      {(slide.title || slide.subtitle) && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-4 pt-12 text-left sm:p-6 sm:pt-16">
-          {slide.title && (
-            <div className="line-clamp-2 text-base font-bold leading-tight text-white sm:text-2xl">
-              {slide.title}
-            </div>
-          )}
-          {slide.subtitle && (
-            <div className="mt-1 line-clamp-2 text-xs text-white/80 sm:text-sm">
-              {slide.subtitle}
-            </div>
-          )}
-        </div>
-      )}
     </button>
   )
 }
