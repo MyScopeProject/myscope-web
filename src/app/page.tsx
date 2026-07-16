@@ -2,15 +2,15 @@ import Link from "next/link"
 import {
   ArrowRight,
   BarChart3,
-  Calendar,
   QrCode,
   TicketCheck,
   Wallet,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { EventCard, type EventCardData } from "@/components/events/event-card"
+import { type EventCardData } from "@/components/events/event-card"
 import { HeroCarousel, type HeroSlide } from "@/components/home/hero-carousel"
+import { UpcomingEventsSection } from "@/components/home/upcoming-events-section"
 import { PastEventsMarquee, type PastEventItem } from "@/components/home/past-events-marquee"
 import { PartnersMarquee, type PartnerItem } from "@/components/home/partners-marquee"
 import { RevealOnScroll } from "@/components/site/reveal-on-scroll"
@@ -90,33 +90,12 @@ export default async function HomePage() {
         </div>
       </nav>
 
-      {/* Featured events */}
+      {/* Featured events — category pills filter this section in place,
+          client-side (see UpcomingEventsSection), instead of navigating
+          away to /events. */}
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
         <RevealOnScroll>
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Upcoming events</h2>
-            <p className="text-sm text-muted-foreground">
-              Handpicked happenings across Sri Lanka this month.
-            </p>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/events">
-              View all
-              <ArrowRight />
-            </Link>
-          </Button>
-        </div>
-
-        {events.length === 0 ? (
-          <EmptyEvents />
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-            {events.slice(0, 8).map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-        )}
+          <UpcomingEventsSection initialEvents={events} />
         </RevealOnScroll>
       </section>
 
@@ -242,19 +221,5 @@ function DefaultHero() {
         <HeroSearchForm />
       </div>
     </section>
-  )
-}
-
-function EmptyEvents() {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Calendar className="h-5 w-5" />
-      </span>
-      <h3 className="text-base font-semibold text-foreground">No upcoming events right now</h3>
-      <Button asChild variant="outline" size="sm">
-        <Link href="/events">Browse all events</Link>
-      </Button>
-    </div>
   )
 }

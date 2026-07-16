@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { EventCard, type EventCardData } from "@/components/events/event-card"
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton"
+import { NAV_ITEMS } from "@/components/site/nav-items"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -24,6 +25,18 @@ const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
   { value: "today", label: "Today" },
   { value: "week", label: "This week" },
   { value: "month", label: "This month" },
+]
+
+// Same category list the top nav uses (minus Shop, which isn't an event
+// category) — an "All" pill up front covers the unfiltered case the nav
+// itself has no entry point for. Lets a visitor switch categories without
+// leaving this page, instead of navbar → page load → navbar → page load.
+const CATEGORY_PILLS = [
+  { label: "All", category: "" },
+  ...NAV_ITEMS.filter((item) => item.category !== "__shop").map((item) => ({
+    label: item.label,
+    category: item.category,
+  })),
 ]
 
 interface EventRow extends EventCardData {
@@ -147,6 +160,31 @@ function EventsPageInner() {
         <p className="mt-1 text-sm text-muted-foreground sm:text-base">
           Concerts, theatre, sports, and more.
         </p>
+      </div>
+
+      {/* Category pills — horizontally scrollable on mobile so switching
+          categories is a single tap on this page, no navbar round-trip. The
+          -mx-4/px-4 pair lets the scroll area bleed to the screen edge on
+          phones while staying within the max-w-7xl container everywhere else. */}
+      <div className="mb-5 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+        {CATEGORY_PILLS.map((pill) => {
+          const active = category === pill.category
+          return (
+            <button
+              key={pill.label}
+              type="button"
+              onClick={() => setCategory(pill.category)}
+              className={cn(
+                "shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-colors",
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card/30 text-muted-foreground backdrop-blur-md hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {pill.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Filters — search + date dropdown. Surfaces use a translucent
