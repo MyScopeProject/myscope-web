@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { CheckoutSteps } from '@/components/checkout/checkout-steps';
+import { launchMpgsCheckout } from '@/lib/mpgsCheckout';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -159,7 +160,7 @@ export default function EventBookingDetailPage() {
   if (p) setPaymentResult(p);
  }, []);
 
- // When the user lands back from WebXPay with ?payment=success but the
+ // When the user lands back from MPGS with ?payment=success but the
  // booking is still Pending, the webhook either hasn't arrived yet or was
  // missed (e.g. Render free-tier cold start). Poll /reconcile a few times
  // so we self-heal instead of leaving the user staring at "Pending".
@@ -523,25 +524,22 @@ export default function EventBookingDetailPage() {
    const body = await res.json();
    if (!body?.success) {
     setError(body?.message || 'Failed to initialize payment.');
+    setPaying(false);
     return;
    }
 
-   // Build and auto-submit a hidden form to WebXPay's hosted checkout
-   const { checkoutUrl, paymentData } = body.data;
-   const form = document.createElement('form');
-   form.method = 'POST';
-   form.action = checkoutUrl;
-
-   Object.entries(paymentData as Record<string, string | boolean | number>).forEach(([key, value]) => {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = key;
-    input.value = String(value);
-    form.appendChild(input);
+   const { sessionId, checkoutJsUrl } = body.data;
+   await launchMpgsCheckout({
+    sessionId,
+    checkoutJsUrl,
+    onCancel: () => setPaying(false),
+    onError: () => {
+     setError('Payment failed. Please try again.');
+     setPaying(false);
+    },
    });
-
-   document.body.appendChild(form);
-   form.submit();
+   // Overlay is now showing; MPGS redirects the browser to the return URL
+   // on completion, so there's nothing further to do here.
   } catch {
    setError('Network error. Please try again.');
    setPaying(false);
@@ -589,7 +587,7 @@ export default function EventBookingDetailPage() {
       (paid + reconciled) since the strip is no longer informative. */}
     {!isConfirmed && <CheckoutSteps activeIndex={2} />}
 
-    {/* Payment result banners (shown after WebXPay redirect-back) */}
+    {/* Payment result banners (shown after MPGS redirect-back) */}
     {paymentResult === 'success' && !isConfirmed && (
      <div className="mb-4 flex items-center gap-2 p-3 text-sm font-inter border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
       {reconciling && <Loader className="w-4 h-4 animate-spin shrink-0" />}

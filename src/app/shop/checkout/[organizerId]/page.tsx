@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { useShopCart } from "@/lib/shopCart"
 import { useAuth } from "@/context/AuthContext"
 import { cn } from "@/lib/utils"
+import { launchMpgsCheckout } from "@/lib/mpgsCheckout"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -166,8 +167,8 @@ export default function CheckoutPage() {
   }
 
   // -------------------------------------------------------------------------
-  // Submit: create order on server, then POST the encrypted form fields to
-  // WebXPay's hosted checkout URL. Mirrors event-payment hand-off.
+  // Submit: create order on server, then launch MPGS's Hosted Checkout
+  // overlay. Mirrors event-payment hand-off.
   // -------------------------------------------------------------------------
   const submit = async () => {
     setError("")
@@ -214,7 +215,7 @@ export default function CheckoutPage() {
 
       const order = orderData.data.order
 
-      // 2) Initialize the WebXPay payment for this order.
+      // 2) Initialize the MPGS payment for this order.
       const payRes = await fetch(`${API_URL}/api/payments/initialize-shop`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -228,25 +229,21 @@ export default function CheckoutPage() {
         return
       }
 
-      // 3) Build + submit a hidden form to WebXPay's hosted checkout. The
-      //    user is taken to the gateway and returned to /api/payments/webxpay/return.
-      const form = document.createElement("form")
-      form.method = "POST"
-      form.action = payData.data.checkoutUrl
-      for (const [key, val] of Object.entries(payData.data.paymentData as Record<string, string>)) {
-        const input = document.createElement("input")
-        input.type = "hidden"
-        input.name = key
-        input.value = String(val)
-        form.appendChild(input)
-      }
-      document.body.appendChild(form)
-
+      // 3) Launch MPGS's Hosted Checkout overlay. The user completes payment
+      //    there and is returned to /api/payments/mpgs/return.
       // Clear local cart now so the user doesn't see stale items on return.
       // Server already holds the stock; even if the user aborts payment the
       // order's status will flip to Cancelled and stock releases.
       clear()
-      form.submit()
+      await launchMpgsCheckout({
+        sessionId: payData.data.sessionId,
+        checkoutJsUrl: payData.data.checkoutJsUrl,
+        onCancel: () => setSubmitting(false),
+        onError: () => {
+          setError("Payment failed. Please try again.")
+          setSubmitting(false)
+        },
+      })
     } catch (err) {
       console.error("Shop checkout submit error:", err)
       setError("Network error. Please try again.")
@@ -440,7 +437,7 @@ export default function CheckoutPage() {
 
               <p className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
                 <Lock className="h-2.5 w-2.5" />
-                Secure payment via WebXPay
+                Secure payment via Seylan MPGS
               </p>
             </div>
           </aside>

@@ -22,7 +22,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "3. Tickets & payments",
     p: [
-      "Ticket prices are set by the event organizer and shown at checkout. Payments are processed securely through our payment partner (WebXPay). A booking is only confirmed once payment is successfully completed. Your e-ticket and QR code are issued to the email and phone number provided at checkout.",
+      "Ticket prices are set by the event organizer and shown at checkout. Payments are processed securely through our payment partner (Seylan MPGS). A booking is only confirmed once payment is successfully completed. Your e-ticket and QR code are issued to the email and phone number provided at checkout.",
     ],
   },
   {

@@ -15,7 +15,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "What payment methods are accepted?",
-    a: "Payments are processed securely through WebXPay, which supports Visa, Mastercard, and other local options.",
+    a: "Payments are processed securely through Seylan Bank's MPGS payment gateway, which supports Visa, Mastercard, and other local options.",
   },
   {
     q: "Can I get a refund?",
