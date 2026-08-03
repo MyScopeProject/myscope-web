@@ -241,6 +241,7 @@ export default function CheckoutPage() {
         checkoutJsUrl: payData.data.checkoutJsUrl,
         returnUrl: payData.data.returnUrl,
         cancelUrl: payData.data.cancelUrl,
+        errorUrl: payData.data.errorUrl,
       })
     } catch (err) {
       console.error("Shop checkout submit error:", err)

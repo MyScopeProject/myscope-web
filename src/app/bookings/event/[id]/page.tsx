@@ -528,8 +528,8 @@ export default function EventBookingDetailPage() {
     return;
    }
 
-   const { sessionId, checkoutJsUrl, returnUrl, cancelUrl } = body.data;
-   await launchMpgsCheckout({ sessionId, checkoutJsUrl, returnUrl, cancelUrl });
+   const { sessionId, checkoutJsUrl, returnUrl, cancelUrl, errorUrl } = body.data;
+   await launchMpgsCheckout({ sessionId, checkoutJsUrl, returnUrl, cancelUrl, errorUrl });
    // showPaymentPage() redirects the whole browser to MPGS; on completion
    // the SDK redirects to returnUrl (success) or cancelUrl (cancel/error).
    // Nothing further runs here in the normal flow.
@@ -593,6 +593,11 @@ export default function EventBookingDetailPage() {
     {paymentResult === 'cancelled' && (
      <div className="mb-4 p-3 text-sm font-inter border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400">
       Payment was cancelled. Your tickets are still reserved — you can try again below.
+     </div>
+    )}
+    {paymentResult === 'error' && (
+     <div className="mb-4 p-3 text-sm font-inter border border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400">
+      Something went wrong on the payment page before it could load. Your tickets are still reserved — you can try again below.
      </div>
     )}
 
