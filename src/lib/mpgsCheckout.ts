@@ -74,7 +74,10 @@ export async function launchMpgsCheckout({
   window.Checkout.configure({
     session: { id: sessionId },
     order: { id: orderId, amount: Number(amount).toFixed(2), currency },
-    interaction: { operation: 'PURCHASE', returnUrl },
+    // interaction.merchant.name is required server-side (shown on the
+    // hosted payment page as who the buyer is paying) — MPGS 400s with
+    // "Missing parameters" / field "interaction.merchant" without it.
+    interaction: { operation: 'PURCHASE', returnUrl, merchant: { name: 'MyScope' } },
   });
   window.Checkout.showPaymentPage();
 }
