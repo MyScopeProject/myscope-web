@@ -15,8 +15,13 @@
 declare global {
   interface Window {
     Checkout?: {
-      configure: (options: Record<string, unknown>) => void;
-      showPaymentPage: () => void;
+      // Both return promises internally (the SDK does async setup — an
+      // xDomain/iframe handshake — before configuration actually takes
+      // effect). Calling showPaymentPage() before configure()'s promise
+      // settles races the "not configured" check and fails silently via
+      // the data-error redirect, with no console error to show for it.
+      configure: (options: Record<string, unknown>) => Promise<void>;
+      showPaymentPage: () => Promise<void>;
     };
   }
 }
@@ -78,7 +83,9 @@ export async function launchMpgsCheckout({
   }
 
   // Order/amount were attached to the session server-side (UPDATE_SESSION);
-  // this SDK version accepts ONLY the session object in configure().
-  window.Checkout.configure({ session: { id: sessionId } });
-  window.Checkout.showPaymentPage();
+  // this SDK version accepts ONLY the session object in configure(). Must
+  // await configure() before showPaymentPage() — see the race-condition
+  // note on the Window.Checkout type above.
+  await window.Checkout.configure({ session: { id: sessionId } });
+  await window.Checkout.showPaymentPage();
 }
