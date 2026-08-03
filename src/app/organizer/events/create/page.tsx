@@ -22,7 +22,7 @@ import {
   Ticket as TicketIcon,
   Trash2,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
@@ -202,7 +202,7 @@ const buildPayload = (
 
 export default function CreateEventPage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { loading: authLoading } = useOrganizerGuard("/organizer/events/create")
 
   const [step, setStep] = React.useState<Step>(0)
   const [details, setDetails] = React.useState<DetailsForm>(emptyDetails)
@@ -246,18 +246,6 @@ export default function CreateEventPage() {
   React.useEffect(() => {
     if (step > lastStep) setStep(lastStep)
   }, [lastStep, step])
-
-  // Auth + role guard
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push("/auth/login?redirect=/organizer/events/create")
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, router])
 
   const validateStep = (s: Step): string => {
     if (s === stepIdx.details) {

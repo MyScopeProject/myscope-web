@@ -18,7 +18,7 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -120,7 +120,7 @@ export default function EditEventPage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const id = params?.id
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard(`/organizer/events/${id}/edit`)
 
   const [event, setEvent] = React.useState<EventRow | null>(null)
   const [ticketTypes, setTicketTypes] = React.useState<TicketType[]>([])
@@ -151,17 +151,6 @@ export default function EditEventPage() {
     sms_reminders: true,
   })
 
-  // Auth + role guard
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push(`/auth/login?redirect=/organizer/events/${id}/edit`)
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, id, router])
 
   // Load event
   React.useEffect(() => {

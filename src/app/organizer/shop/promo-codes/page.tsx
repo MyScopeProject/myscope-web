@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import {
   AlertCircle,
@@ -14,7 +13,7 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -89,8 +88,7 @@ function localizeDateTimeInput(value: string | null): string {
 }
 
 export default function ShopPromoCodesPage() {
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard("/organizer/shop/promo-codes")
   const [codes, setCodes] = React.useState<PromoCode[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
@@ -102,17 +100,6 @@ export default function ShopPromoCodesPage() {
   // Products available to scope a promo to. Loaded once on first auth so the
   // picker is ready when the organizer opens the form.
   const [products, setProducts] = React.useState<ProductOption[]>([])
-
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push("/auth/login?redirect=/organizer/shop/promo-codes")
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, router])
 
   const fetchCodes = React.useCallback(async () => {
     try {

@@ -15,7 +15,7 @@ import {
   ShieldAlert,
   XCircle,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -90,7 +90,7 @@ const BUSINESS_TYPE_LABEL: Record<NonNullable<BusinessType>, string> = {
 
 export default function OrganizerProfilePage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard("/organizer/profile")
 
   const [profile, setProfile] = React.useState<OrganizerProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -141,18 +141,6 @@ export default function OrganizerProfilePage() {
     const t = setTimeout(() => setBankJustSaved(false), 2500)
     return () => clearTimeout(t)
   }, [bankJustSaved])
-
-  // Auth + role guard — same shape used elsewhere.
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.replace("/auth/login?redirect=/organizer/profile")
-      return
-    }
-    if (user.role !== "organizer" && user.role !== "superadmin") {
-      router.replace("/become-organizer")
-    }
-  }, [authLoading, user, router])
 
   const fetchProfile = React.useCallback(async () => {
     try {

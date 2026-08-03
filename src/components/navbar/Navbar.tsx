@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useCartBadgeCount } from '@/lib/shopCart';
-import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Music2, Drama, Trophy, ChevronDown, CalendarDays, Banknote, Briefcase, ClipboardList, ShoppingBag, ShoppingCart, Store } from 'lucide-react';
+import { Menu, X, Search, Bell, User, Settings, LogOut, Home, Ticket, Music2, Drama, Trophy, ChevronDown, Briefcase, ShoppingBag, ShoppingCart } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -207,18 +207,6 @@ export default function Navbar() {
                     <MenuLink href="/bookings" icon={<Ticket size={16} />} onClick={() => setUserMenuOpen(false)}>My Bookings</MenuLink>
                     <MenuLink href="/shop/orders" icon={<ShoppingBag size={16} />} onClick={() => setUserMenuOpen(false)}>Shop Orders</MenuLink>
 
-                    {/* Organizer section — only visible to organizer/superadmin */}
-                    {(user.role === 'organizer' || user.role === 'superadmin') && (
-                      <>
-                        <MenuDivider label="Organizer" />
-                        <MenuLink href="/organizer" icon={<Briefcase size={16} />} onClick={() => setUserMenuOpen(false)}>Dashboard</MenuLink>
-                        <MenuLink href="/organizer/events" icon={<CalendarDays size={16} />} onClick={() => setUserMenuOpen(false)}>My Events</MenuLink>
-                        <MenuLink href="/organizer/events/create" icon={<ClipboardList size={16} />} onClick={() => setUserMenuOpen(false)}>Create Event</MenuLink>
-                        <MenuLink href="/organizer/shop" icon={<Store size={16} />} onClick={() => setUserMenuOpen(false)}>Shop</MenuLink>
-                        <MenuLink href="/organizer/payouts" icon={<Banknote size={16} />} onClick={() => setUserMenuOpen(false)}>Payouts</MenuLink>
-                      </>
-                    )}
-
                     {/* Non-organizers get a "Become an organizer" CTA */}
                     {user.role === 'user' && (
                       <MenuLink href="/become-organizer" icon={<Briefcase size={16} />} onClick={() => setUserMenuOpen(false)}>
@@ -350,34 +338,6 @@ export default function Navbar() {
                   >
                     My Bookings
                   </Link>
-                  {(user.role === 'organizer' || user.role === 'superadmin') && (
-                    <>
-                      <Link
-                        href="/organizer/events"
-                        className="block font-inter font-medium text-sm"
-                        style={{ color: '#A78BFA' }}
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        My Events
-                      </Link>
-                      <Link
-                        href="/organizer/shop"
-                        className="block font-inter font-medium text-sm"
-                        style={{ color: '#A78BFA' }}
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Shop
-                      </Link>
-                      <Link
-                        href="/organizer/payouts"
-                        className="block font-inter font-medium text-sm"
-                        style={{ color: '#A78BFA' }}
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Payouts
-                      </Link>
-                    </>
-                  )}
                   {user.role === 'user' && (
                     <Link
                       href="/become-organizer"

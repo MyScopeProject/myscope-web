@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import {
   AlertCircle,
@@ -21,7 +20,7 @@ import {
   Ticket,
   XCircle,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
@@ -79,8 +78,7 @@ const STATUS_FILTERS: Array<{ value: "all" | ApprovalStatus; label: string }> = 
 type ViewMode = "upcoming" | "past"
 
 export default function OrganizerEventsPage() {
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard("/organizer/events")
   const [events, setEvents] = React.useState<EventRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [submittingId, setSubmittingId] = React.useState<string | null>(null)
@@ -93,18 +91,6 @@ export default function OrganizerEventsPage() {
   // Background count of past events so the "Past" tab has a number badge even
   // before the user clicks it. Fetched on mount alongside the upcoming list.
   const [pastCount, setPastCount] = React.useState<number | null>(null)
-
-  // Auth guard
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push("/auth/login?redirect=/organizer/events")
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, router])
 
   const fetchEvents = React.useCallback(async (when: ViewMode) => {
     try {

@@ -116,7 +116,7 @@ export default async function HomePage() {
                     </Link>
                   </Button>
                   <Button asChild size="lg" variant="ghost" className="w-full sm:w-auto">
-                    <Link href="/organizer">Organizer dashboard</Link>
+                    <a href="https://organizer.myscope.lk">Organizer dashboard</a>
                   </Button>
                 </div>
               </div>

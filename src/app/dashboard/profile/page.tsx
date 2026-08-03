@@ -225,9 +225,9 @@ function ProfileContent() {
               </div>
             </div>
             <Button asChild size="sm" variant="outline" className="shrink-0">
-              <Link href="/organizer">
+              <a href="https://organizer.myscope.lk">
                 Open <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              </a>
             </Button>
           </div>
         </section>

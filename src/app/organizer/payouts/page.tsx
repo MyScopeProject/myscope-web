@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
   AlertCircle,
   AlertTriangle,
@@ -26,7 +25,7 @@ import {
   XCircle,
 } from "lucide-react"
 import toast from "react-hot-toast"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -137,8 +136,7 @@ const formatEventDate = (iso: string | null) => {
 }
 
 export default function OrganizerPayoutsPage() {
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard("/organizer/payouts")
 
   const [entries, setEntries] = React.useState<EventPayoutEntry[]>([])
   const [products, setProducts] = React.useState<ProductPayoutEntry[]>([])
@@ -164,11 +162,6 @@ export default function OrganizerPayoutsPage() {
   const [bankEditing, setBankEditing] = React.useState(false)
   const [bankSaving, setBankSaving] = React.useState(false)
   const [bankError, setBankError] = React.useState("")
-
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) router.push("/auth/login?redirect=/organizer/payouts")
-  }, [authLoading, user, router])
 
   const refetch = React.useCallback(async () => {
     try {

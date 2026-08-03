@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import {
   AlertCircle,
@@ -23,7 +22,7 @@ import {
   Tag,
   Trash2,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -83,8 +82,7 @@ function formatMoney(amount: number | string, currency = "LKR") {
 }
 
 export default function OrganizerShopPage() {
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard("/organizer/shop")
   const [products, setProducts] = React.useState<ProductRow[]>([])
   const [loading, setLoading]   = React.useState(true)
   const [error, setError]       = React.useState("")
@@ -93,17 +91,6 @@ export default function OrganizerShopPage() {
   const [actingId, setActingId] = React.useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<ProductRow | null>(null)
   const [deleting, setDeleting] = React.useState(false)
-
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push("/auth/login?redirect=/organizer/shop")
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, router])
 
   const fetchProducts = React.useCallback(async () => {
     try {

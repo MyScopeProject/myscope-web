@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import toast from "react-hot-toast"
 import {
   AlertCircle,
@@ -19,7 +19,7 @@ import {
   Truck,
   User as UserIcon,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -107,27 +107,15 @@ function formatDate(iso: string | null | undefined) {
 }
 
 export default function OrganizerOrderDetailPage() {
-  const router = useRouter()
   const params = useParams()
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params!.id[0] : ""
 
-  const { user, loading: authLoading } = useAuth()
+  const { loading: authLoading } = useOrganizerGuard(`/organizer/shop/orders/${id}`)
   const [order, setOrder] = React.useState<Order | null>(null)
   const [items, setItems] = React.useState<OrderItem[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
   const [updating, setUpdating] = React.useState(false)
-
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push(`/auth/login?redirect=/organizer/shop/orders/${id}`)
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, router, id])
 
   const load = React.useCallback(async () => {
     if (!id) return

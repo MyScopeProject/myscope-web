@@ -12,7 +12,6 @@ import {
   LogOut,
   Menu,
   Search,
-  Ticket,
   User,
   X,
 } from "lucide-react"
@@ -90,8 +89,6 @@ export function SiteHeader() {
     logout()
     router.push("/")
   }
-
-  const isOrganizer = user?.role === "organizer" || user?.role === "superadmin"
 
   return (
     <>
@@ -198,7 +195,6 @@ export function SiteHeader() {
                   </div>
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   <MenuItem href="/dashboard" icon={Calendar}>My Events</MenuItem>
-                  {isOrganizer && <MenuItem href="/organizer" icon={Ticket}>Organizer</MenuItem>}
                   <MenuItem href="/dashboard/profile" icon={User}>Profile</MenuItem>
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   <DropdownMenu.Item
@@ -344,11 +340,6 @@ export function SiteHeader() {
                     <DrawerLink href="/dashboard" icon={Calendar} onNavigate={() => setMobileOpen(false)}>
                       My Events
                     </DrawerLink>
-                    {isOrganizer && (
-                      <DrawerLink href="/organizer" icon={Ticket} onNavigate={() => setMobileOpen(false)}>
-                        Organizer
-                      </DrawerLink>
-                    )}
                     <DrawerLink href="/dashboard/profile" icon={User} onNavigate={() => setMobileOpen(false)}>
                       Profile
                     </DrawerLink>

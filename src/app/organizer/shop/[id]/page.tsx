@@ -20,7 +20,7 @@ import {
   Send,
   Trash2,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ProductForm, type ProductFormValues } from "@/components/organizer/product-form"
@@ -64,7 +64,7 @@ export default function EditProductPage() {
   const router = useRouter()
   const params = useParams()
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params!.id[0] : ""
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard(`/organizer/shop/${id}`)
   const [product, setProduct]     = React.useState<Product | null>(null)
   const [loading, setLoading]     = React.useState(true)
   const [error, setError]         = React.useState("")
@@ -73,17 +73,6 @@ export default function EditProductPage() {
   const [savedAt, setSavedAt]     = React.useState<number | null>(null)
   const [showDeleteModal, setShowDeleteModal] = React.useState(false)
   const [deleting, setDeleting]   = React.useState(false)
-
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push(`/auth/login?redirect=/organizer/shop/${id}`)
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, router, id])
 
   const fetchProduct = React.useCallback(async () => {
     if (!id) return

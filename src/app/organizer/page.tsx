@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
   AlertCircle,
   ArrowRight,
@@ -16,7 +15,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
 
@@ -76,25 +75,12 @@ const formatLkr = (n: number | string) => {
 }
 
 export default function OrganizerDashboardPage() {
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard("/organizer")
 
   const [data, setData] = React.useState<DashboardData | null>(null)
   const [balance, setBalance] = React.useState<Balance | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
-
-  // Auth + role guard
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.replace("/auth/login?redirect=/organizer")
-      return
-    }
-    if (user.role !== "organizer" && user.role !== "superadmin") {
-      router.replace("/become-organizer")
-    }
-  }, [authLoading, user, router])
 
   React.useEffect(() => {
     if (!user || (user.role !== "organizer" && user.role !== "superadmin")) return

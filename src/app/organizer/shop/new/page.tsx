@@ -4,27 +4,16 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { ProductForm, type ProductFormValues } from "@/components/organizer/product-form"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 export default function NewProductPage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  useOrganizerGuard("/organizer/shop/new")
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState("")
-
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push("/auth/login?redirect=/organizer/shop/new")
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, router])
 
   const handleSubmit = async (values: ProductFormValues) => {
     setSubmitting(true)

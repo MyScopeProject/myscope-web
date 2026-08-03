@@ -35,7 +35,7 @@ import {
   XCircle,
 } from "lucide-react"
 import { EventCommunicationsCard } from "@/components/events/event-communications-card"
-import { useAuth } from "@/context/AuthContext"
+import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -205,7 +205,7 @@ export default function OrganizerEventControlPage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const eventId = params?.id
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useOrganizerGuard(`/organizer/events/${eventId}`)
 
   const [event, setEvent] = React.useState<EventDetail | null>(null)
   // Ticket types are loaded at the parent because the header needs them to
@@ -222,17 +222,6 @@ export default function OrganizerEventControlPage() {
   const [headerMsg, setHeaderMsg] = React.useState<{ text: string; tone: "ok" | "err" | "info" } | null>(null)
   const [postponeOpen, setPostponeOpen] = React.useState(false)
 
-  // Auth + role guard.
-  React.useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push(`/auth/login?redirect=/organizer/events/${eventId}`)
-      return
-    }
-    if (!["organizer", "superadmin"].includes(user.role || "")) {
-      router.push("/become-organizer")
-    }
-  }, [authLoading, user, eventId, router])
 
   const fetchEvent = React.useCallback(async () => {
     if (!eventId) return
