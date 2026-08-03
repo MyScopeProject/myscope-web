@@ -41,16 +41,11 @@ function loadCheckoutScript(checkoutJsUrl: string): Promise<void> {
 export async function launchMpgsCheckout({
   sessionId,
   checkoutJsUrl,
-  orderId,
   onCancel,
   onError,
 }: {
   sessionId: string;
   checkoutJsUrl: string;
-  // The SDK's pay-page call needs an order.id client-side (amount/currency/
-  // returnUrl/merchant were all set server-side at session-create and are
-  // explicitly forbidden in configure()). Verified against the v100 SDK.
-  orderId: string;
   onCancel?: () => void;
   onError?: (error: unknown) => void;
 }): Promise<void> {
@@ -65,6 +60,9 @@ export async function launchMpgsCheckout({
     throw new Error('MPGS checkout.js did not initialize');
   }
 
-  window.Checkout.configure({ session: { id: sessionId }, order: { id: orderId } });
+  // v67+ of the SDK allows ONLY `session` in configure() — order, amount,
+  // returnUrl, merchant were all set server-side at INITIATE_CHECKOUT and are
+  // rejected here. (Confirmed the session stores them by retrieving it.)
+  window.Checkout.configure({ session: { id: sessionId } });
   window.Checkout.showPaymentPage();
 }
