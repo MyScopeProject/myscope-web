@@ -1,8 +1,15 @@
 /**
- * Loads MPGS's checkout.js and launches the Hosted Checkout overlay.
+ * Loads MPGS's Hosted Checkout SDK and launches the payment page.
  *
  * The script URL comes from the backend (sandbox/production point at
  * different gateway hosts) rather than being hardcoded here.
+ *
+ * Return handling: this SDK's `data-complete` / `data-cancel` / `data-error`
+ * script attributes accept URLs — after payment the SDK does a full-page
+ * redirect to them. So there are no JS callbacks to fire (showPaymentPage
+ * navigates away). `data-complete` points at our API return handler (which
+ * verifies via retrieveOrder); `data-cancel`/`data-error` go straight back
+ * to the order/booking page.
  */
 
 declare global {
@@ -16,19 +23,29 @@ declare global {
 
 const loadedScriptUrls = new Set<string>();
 
-function loadCheckoutScript(checkoutJsUrl: string): Promise<void> {
-  if (loadedScriptUrls.has(checkoutJsUrl) && window.Checkout) {
+function loadCheckoutScript(
+  checkoutJsUrl: string,
+  returnUrl: string,
+  cancelUrl: string,
+): Promise<void> {
+  const existing = document.querySelector<HTMLScriptElement>(
+    `script[src="${checkoutJsUrl}"]`,
+  );
+  if (loadedScriptUrls.has(checkoutJsUrl) && window.Checkout && existing) {
+    // Keep the redirect targets current for this attempt.
+    existing.setAttribute('data-complete', returnUrl);
+    existing.setAttribute('data-cancel', cancelUrl);
+    existing.setAttribute('data-error', cancelUrl);
     return Promise.resolve();
   }
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = checkoutJsUrl;
-    // checkout.js reads these as global function NAMES at parse time, not
-    // closures — that's why launchMpgsCheckout indirects through stable
-    // window.__mpgsCancel/__mpgsError globals instead of passing the
-    // per-call onCancel/onError directly.
-    script.setAttribute('data-error', '__mpgsError');
-    script.setAttribute('data-cancel', '__mpgsCancel');
+    // The SDK reads these attributes when it executes; they must be present
+    // before the script loads. As URLs, the SDK full-page-redirects to them.
+    script.setAttribute('data-complete', returnUrl);
+    script.setAttribute('data-cancel', cancelUrl);
+    script.setAttribute('data-error', cancelUrl);
     script.onload = () => {
       loadedScriptUrls.add(checkoutJsUrl);
       resolve();
@@ -41,28 +58,22 @@ function loadCheckoutScript(checkoutJsUrl: string): Promise<void> {
 export async function launchMpgsCheckout({
   sessionId,
   checkoutJsUrl,
-  onCancel,
-  onError,
+  returnUrl,
+  cancelUrl,
 }: {
   sessionId: string;
   checkoutJsUrl: string;
-  onCancel?: () => void;
-  onError?: (error: unknown) => void;
+  returnUrl: string;
+  cancelUrl: string;
 }): Promise<void> {
-  // Registered globally so checkout.js's data-cancel/data-error attributes
-  // (string function names, not closures) can reach these callbacks.
-  (window as unknown as Record<string, unknown>).__mpgsCancel = () => onCancel?.();
-  (window as unknown as Record<string, unknown>).__mpgsError = (error: unknown) => onError?.(error);
-
-  await loadCheckoutScript(checkoutJsUrl);
+  await loadCheckoutScript(checkoutJsUrl, returnUrl, cancelUrl);
 
   if (!window.Checkout) {
     throw new Error('MPGS checkout.js did not initialize');
   }
 
-  // v67+ of the SDK allows ONLY `session` in configure() — order, amount,
-  // returnUrl, merchant were all set server-side at INITIATE_CHECKOUT and are
-  // rejected here. (Confirmed the session stores them by retrieving it.)
+  // Order/amount were attached to the session server-side (UPDATE_SESSION);
+  // this SDK version accepts ONLY the session object in configure().
   window.Checkout.configure({ session: { id: sessionId } });
   window.Checkout.showPaymentPage();
 }

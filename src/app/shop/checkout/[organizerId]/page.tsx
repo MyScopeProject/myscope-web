@@ -229,8 +229,9 @@ export default function CheckoutPage() {
         return
       }
 
-      // 3) Launch MPGS's Hosted Checkout overlay. The user completes payment
-      //    there and is returned to /api/payments/mpgs/return.
+      // 3) Launch MPGS's Hosted Checkout. showPaymentPage() redirects the
+      //    whole browser to MPGS; on completion the SDK redirects to returnUrl
+      //    (success, via /api/payments/mpgs/return) or cancelUrl (cancel).
       // Clear local cart now so the user doesn't see stale items on return.
       // Server already holds the stock; even if the user aborts payment the
       // order's status will flip to Cancelled and stock releases.
@@ -238,16 +239,12 @@ export default function CheckoutPage() {
       await launchMpgsCheckout({
         sessionId: payData.data.sessionId,
         checkoutJsUrl: payData.data.checkoutJsUrl,
-        onCancel: () => setSubmitting(false),
-        onError: (err) => {
-          console.error("MPGS checkout error:", err)
-          setError("Payment failed. Please try again.")
-          setSubmitting(false)
-        },
+        returnUrl: payData.data.returnUrl,
+        cancelUrl: payData.data.cancelUrl,
       })
     } catch (err) {
       console.error("Shop checkout submit error:", err)
-      setError("Network error. Please try again.")
+      setError("Payment failed. Please try again.")
       setSubmitting(false)
     }
   }

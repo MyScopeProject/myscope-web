@@ -528,21 +528,14 @@ export default function EventBookingDetailPage() {
     return;
    }
 
-   const { sessionId, checkoutJsUrl } = body.data;
-   await launchMpgsCheckout({
-    sessionId,
-    checkoutJsUrl,
-    onCancel: () => setPaying(false),
-    onError: (err) => {
-     console.error('MPGS checkout error:', err);
-     setError('Payment failed. Please try again.');
-     setPaying(false);
-    },
-   });
-   // Overlay is now showing; MPGS redirects the browser to the return URL
-   // on completion, so there's nothing further to do here.
-  } catch {
-   setError('Network error. Please try again.');
+   const { sessionId, checkoutJsUrl, returnUrl, cancelUrl } = body.data;
+   await launchMpgsCheckout({ sessionId, checkoutJsUrl, returnUrl, cancelUrl });
+   // showPaymentPage() redirects the whole browser to MPGS; on completion
+   // the SDK redirects to returnUrl (success) or cancelUrl (cancel/error).
+   // Nothing further runs here in the normal flow.
+  } catch (err) {
+   console.error('MPGS checkout error:', err);
+   setError('Payment failed. Please try again.');
    setPaying(false);
   }
  };
