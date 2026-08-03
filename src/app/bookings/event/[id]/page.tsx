@@ -533,7 +533,8 @@ export default function EventBookingDetailPage() {
     sessionId,
     checkoutJsUrl,
     onCancel: () => setPaying(false),
-    onError: () => {
+    onError: (err) => {
+     console.error('MPGS checkout error:', err);
      setError('Payment failed. Please try again.');
      setPaying(false);
     },
