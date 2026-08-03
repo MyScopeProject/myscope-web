@@ -12,8 +12,8 @@ import type { NextRequest } from "next/server";
 // dashboard already points at /organizer/...) pass through unchanged, so
 // existing navigation needs zero changes to work on either host.
 //
-// myscope.lk (the main host) is untouched — this only ever rewrites requests
-// whose Host header starts with "organizer.".
+// myscope.lk (the main host) is untouched — /organizer/* still works there
+// directly (dual access, see useOrganizerGuard).
 //
 // Named proxy.ts / export function proxy() per Next.js 16's rename of the
 // middleware file convention.
@@ -23,6 +23,12 @@ import type { NextRequest } from "next/server";
 // resolved to "localhost" in local dev regardless of the incoming Host
 // header), while the Host header itself is what both curl/dev testing and
 // Vercel's edge network reliably pass through unchanged.
+//
+// NOTE: this rewrite is invisible to usePathname() on the client — it keeps
+// showing the ORIGINAL pre-rewrite path ("/", "/login"), never the internal
+// destination. Anything that needs to know "is this an organizer route" client
+// side (SiteChrome, useOrganizerGuard) checks window.location.hostname
+// instead of pathname for that reason — see the comment on SiteChrome.
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   if (!host.startsWith("organizer.")) {

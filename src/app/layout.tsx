@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import Script from "next/script";
 import { IBM_Plex_Sans, Inter, Outfit } from "next/font/google";
 import "../styles/globals.css";
@@ -7,9 +6,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { ShopCartProvider } from "@/lib/shopCart";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { SiteHeader } from "@/components/site/site-header";
-import { SiteFooter } from "@/components/site/site-footer";
-import { AnnouncementBar } from "@/components/site/announcement-bar";
+import { SiteChrome } from "@/components/site/site-chrome";
 import { MaintenanceBanner } from "@/components/site/maintenance-banner";
 import { LightBeamsBackground } from "@/components/site/light-beams-background";
 import { Toaster } from "react-hot-toast";
@@ -163,21 +160,15 @@ export default function RootLayout({
               <LightBeamsBackground />
               {/* Maintenance banner above everything else — when admin flips
                   the maintenance toggle, every visitor sees the message at
-                  the very top of the viewport on every page. Renders null
-                  when the flag is off, so no layout cost otherwise. */}
+                  the very top of the viewport on every page (organizer
+                  dashboard included — a platform outage is relevant there
+                  too). Renders null when the flag is off, so no layout cost
+                  otherwise. */}
               <MaintenanceBanner />
-              {/* Moving announcement strip above the navbar. Scrolls away on
-                  page scroll; the sticky navbar then pins to the top. */}
-              <AnnouncementBar />
-              {/* SiteHeader uses useSearchParams() — Next 16 requires a
-                  Suspense boundary around any component that reads search
-                  params, or static prerender of /404 fails. Fallback is
-                  just an empty 16-tall band so layout doesn't jump. */}
-              <Suspense fallback={<div className="h-16" aria-hidden />}>
-                <SiteHeader />
-              </Suspense>
-              <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-              <SiteFooter />
+              {/* Ticker, main nav, and footer are consumer-site chrome —
+                  SiteChrome skips all three on organizer routes, which bring
+                  their own chrome (OrganizerTopBar) instead. */}
+              <SiteChrome>{children}</SiteChrome>
               {/* Professional in-app toaster — replaces native browser
                   alert()/confirm() dialogs (which prefix with
                   "www.myscope.lk says…"). Styled to match the project's

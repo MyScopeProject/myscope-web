@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { OrganizerTopBar } from "@/components/organizer/organizer-top-bar"
 
 const MENU = [
   { href: "/organizer", label: "Overview", icon: LayoutDashboard },
@@ -35,6 +36,8 @@ export function OrganizerShell({ children }: { children: React.ReactNode }) {
     href === "/organizer" ? pathname === "/organizer" : pathname.startsWith(href)
 
   return (
+    <>
+    <OrganizerTopBar />
     <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 sm:py-10">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 md:block">
@@ -124,5 +127,6 @@ export function OrganizerShell({ children }: { children: React.ReactNode }) {
 
       <div className="min-w-0 flex-1">{children}</div>
     </div>
+    </>
   )
 }

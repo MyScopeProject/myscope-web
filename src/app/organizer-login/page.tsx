@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { AlertCircle, Loader } from "lucide-react"
 import { useGoogleLogin } from "@react-oauth/google"
 import { useAuth } from "@/context/AuthContext"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 // Served at organizer.myscope.lk/login (middleware.ts rewrites it here) — the
 // dedicated entry point so organizers never need to visit the main site.
@@ -53,10 +54,18 @@ export default function OrganizerLoginPage() {
   })
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-8">
+    // Transparent wrapper — the root layout's ambient beam background shows
+    // through, same atmosphere as the rest of the site. No top bar here; just
+    // a theme toggle in the corner since this standalone page has no other
+    // access to one.
+    <div className="relative flex min-h-screen w-full items-center justify-center px-4 py-8">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-sm">
 
-        <div className="mb-8 flex flex-col items-center gap-2">
+        <div className="mb-8 flex flex-col items-center gap-3">
           <Image
             src="/Images/logo.png"
             alt="MyScope"
@@ -65,10 +74,10 @@ export default function OrganizerLoginPage() {
             className="h-12 w-auto"
             priority
           />
-          <h1 className="text-3xl font-bold tracking-tight text-violet-900 dark:text-white">
-            MyScope
-          </h1>
-          <p className="text-sm text-muted-foreground">Sign in to your organizer workspace</p>
+          <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Organizer
+          </span>
+          <p className="mt-1 text-sm text-muted-foreground">Sign in to your organizer workspace</p>
         </div>
 
         <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-8 shadow-sm dark:ring-1 dark:ring-white/10">
