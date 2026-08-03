@@ -41,11 +41,22 @@ function loadCheckoutScript(checkoutJsUrl: string): Promise<void> {
 export async function launchMpgsCheckout({
   sessionId,
   checkoutJsUrl,
+  orderId,
+  amount,
+  currency,
+  returnUrl,
   onCancel,
   onError,
 }: {
   sessionId: string;
   checkoutJsUrl: string;
+  // At the checkout.js SDK version this backend pairs with, order details
+  // must be supplied here client-side rather than at session-creation time
+  // — see the version note in myscope-api/lib/mpgs.js.
+  orderId: string;
+  amount: number | string;
+  currency: string;
+  returnUrl: string;
   onCancel?: () => void;
   onError?: (error: unknown) => void;
 }): Promise<void> {
@@ -60,6 +71,10 @@ export async function launchMpgsCheckout({
     throw new Error('MPGS checkout.js did not initialize');
   }
 
-  window.Checkout.configure({ session: { id: sessionId } });
+  window.Checkout.configure({
+    session: { id: sessionId },
+    order: { id: orderId, amount: Number(amount).toFixed(2), currency },
+    interaction: { operation: 'PURCHASE', returnUrl },
+  });
   window.Checkout.showPaymentPage();
 }
