@@ -528,10 +528,11 @@ export default function EventBookingDetailPage() {
     return;
    }
 
-   const { sessionId, checkoutJsUrl } = body.data;
+   const { sessionId, checkoutJsUrl, orderId } = body.data;
    await launchMpgsCheckout({
     sessionId,
     checkoutJsUrl,
+    orderId,
     onCancel: () => setPaying(false),
     onError: (err) => {
      console.error('MPGS checkout error:', err);

@@ -238,6 +238,7 @@ export default function CheckoutPage() {
       await launchMpgsCheckout({
         sessionId: payData.data.sessionId,
         checkoutJsUrl: payData.data.checkoutJsUrl,
+        orderId: payData.data.orderId,
         onCancel: () => setSubmitting(false),
         onError: (err) => {
           console.error("MPGS checkout error:", err)
