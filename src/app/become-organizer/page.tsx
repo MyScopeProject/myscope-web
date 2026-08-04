@@ -368,7 +368,7 @@ export default function BecomeOrganizerPage() {
                     <div className="flex-1">
                       <label
                         className={cn(
-                          "inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted",
+                          "inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted",
                           uploadingImage && "pointer-events-none opacity-60",
                         )}
                       >
@@ -571,7 +571,7 @@ export default function BecomeOrganizerPage() {
 }
 
 const inputCls =
-  "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-shadow"
+  "w-full rounded-lg border border-input bg-transparent dark:bg-input/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-shadow"
 
 function Field({
   label,

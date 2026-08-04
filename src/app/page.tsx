@@ -95,16 +95,17 @@ export default async function HomePage() {
       <section>
         <RevealOnScroll>
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16">
-          {/* Light mode: same brand violet block as the hero/footer/announcement
-              bar (oklch(0.37 0.17 302)). Dark mode keeps the existing
-              translucent card treatment. */}
-          <div className="overflow-hidden rounded-2xl border border-transparent bg-[oklch(0.37_0.17_302)] dark:border-border dark:bg-card/60 dark:backdrop-blur-sm p-5 sm:p-12">
+          {/* Same brand violet block as the hero/footer/announcement bar
+              (oklch(0.37 0.17 302)) in both light AND dark mode now — no
+              mode split, so this card and the app-promo card below always
+              match each other regardless of theme. */}
+          <div className="overflow-hidden rounded-2xl border border-transparent bg-[oklch(0.37_0.17_302)] p-5 sm:p-12">
             <div className="grid items-center gap-6 sm:gap-8 md:grid-cols-2">
               <div>
-                <h2 className="text-xl font-bold tracking-tight text-white dark:text-foreground sm:text-4xl">
+                <h2 className="text-xl font-bold tracking-tight text-white sm:text-4xl">
                   Sell out your next show.
                 </h2>
-                <p className="mt-2 text-sm text-white/80 dark:text-muted-foreground sm:mt-3 sm:text-base">
+                <p className="mt-2 text-sm text-white/80 sm:mt-3 sm:text-base">
                   Publish your event, take secure payments, scan tickets at the door,
                   and request payouts anytime — all from one dashboard built for Sri Lankan organizers.
                 </p>
@@ -112,7 +113,7 @@ export default async function HomePage() {
                   <Button
                     asChild
                     size="lg"
-                    className="w-full bg-white text-[oklch(0.37_0.17_302)] hover:bg-white/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/80 sm:w-auto"
+                    className="w-full bg-white text-[oklch(0.37_0.17_302)] hover:bg-white/90 sm:w-auto"
                   >
                     <Link href="/become-organizer">
                       Start hosting
@@ -123,7 +124,7 @@ export default async function HomePage() {
                     asChild
                     size="lg"
                     variant="ghost"
-                    className="w-full text-white hover:bg-white/10 hover:text-white dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground sm:w-auto"
+                    className="w-full text-white hover:bg-white/10 hover:text-white sm:w-auto"
                   >
                     <a href="https://organizer.myscope.lk" target="_blank" rel="noopener noreferrer">Organizer dashboard</a>
                   </Button>
@@ -139,13 +140,13 @@ export default async function HomePage() {
                 ].map(({ icon: Icon, title, desc }) => (
                   <li
                     key={title}
-                    className="rounded-xl border border-white/15 bg-white/10 p-3 dark:border-border dark:bg-background/60 sm:p-4"
+                    className="rounded-xl border border-white/15 bg-white/10 p-3 sm:p-4"
                   >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white dark:bg-primary/10 dark:text-primary sm:h-8 sm:w-8">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white sm:h-8 sm:w-8">
                       <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </span>
-                    <h3 className="mt-2 text-xs font-semibold text-white dark:text-foreground sm:mt-2.5 sm:text-sm">{title}</h3>
-                    <p className="mt-0.5 text-[11px] text-white/70 dark:text-muted-foreground sm:text-xs">{desc}</p>
+                    <h3 className="mt-2 text-xs font-semibold text-white sm:mt-2.5 sm:text-sm">{title}</h3>
+                    <p className="mt-0.5 text-[11px] text-white/70 sm:text-xs">{desc}</p>
                   </li>
                 ))}
               </ul>
