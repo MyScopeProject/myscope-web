@@ -6,19 +6,18 @@ import {
   AlertCircle,
   BadgeCheck,
   Building2,
-  CheckCircle2,
   Clock,
   ImagePlus,
   Landmark,
   Loader,
-  Save,
   ShieldAlert,
   XCircle,
 } from "lucide-react"
+import toast from "react-hot-toast"
 import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { EditableCard, ViewRow } from "@/components/profile/editable-card"
 import { ResignDangerZone } from "@/components/organizer/resign-danger-zone"
 import { cn } from "@/lib/utils"
 
@@ -118,29 +117,9 @@ export default function OrganizerProfilePage() {
     bank_code: "",
     branch_code: "",
   })
-  const [saving, setSaving] = React.useState(false)
-  const [bankSaving, setBankSaving] = React.useState(false)
+  // Only the brand-image uploader keeps a busy flag now — every editable card
+  // owns its own saving state (see EditableCard).
   const [imageUploading, setImageUploading] = React.useState(false)
-  const [saveResult, setSaveResult] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
-  const [bankResult, setBankResult] = React.useState<{ text: string; tone: "ok" | "err" } | null>(null)
-  // Transient "just saved" pulse on the save buttons. Auto-resets after ~2.5s
-  // so the button returns to its default label once the success is visually
-  // acknowledged. Keeps the action button itself as the source of truth for
-  // the saved state instead of relying on the inline status text.
-  const [profileJustSaved, setProfileJustSaved] = React.useState(false)
-  const [bankJustSaved, setBankJustSaved] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!profileJustSaved) return
-    const t = setTimeout(() => setProfileJustSaved(false), 2500)
-    return () => clearTimeout(t)
-  }, [profileJustSaved])
-
-  React.useEffect(() => {
-    if (!bankJustSaved) return
-    const t = setTimeout(() => setBankJustSaved(false), 2500)
-    return () => clearTimeout(t)
-  }, [bankJustSaved])
 
   const fetchProfile = React.useCallback(async () => {
     try {
@@ -188,17 +167,39 @@ export default function OrganizerProfilePage() {
     }
   }, [user, fetchProfile])
 
+  // Persist a brand-image change to the profile immediately (upload success or
+  // "remove"), so the image section is self-contained — no separate Save step.
+  const persistImage = async (url: string | null) => {
+    try {
+      const res = await fetch(`${API_URL}/api/organizers/me/profile`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile_image_url: url }),
+      })
+      const body = await res.json()
+      if (body?.success) {
+        setProfile(body.data?.profile ?? null)
+        setForm((prev) => ({ ...prev, profile_image_url: url ?? "" }))
+        toast.success(url ? "Brand image updated." : "Brand image removed.")
+      } else {
+        toast.error(body?.message || "Failed to update image.")
+      }
+    } catch {
+      toast.error("Network error updating image.")
+    }
+  }
+
   const handleImagePick = async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      setSaveResult({ text: "Pick an image file.", tone: "err" })
+      toast.error("Pick an image file.")
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      setSaveResult({ text: "Image must be under 5 MB.", tone: "err" })
+      toast.error("Image must be under 5 MB.")
       return
     }
     setImageUploading(true)
-    setSaveResult(null)
     try {
       const fd = new FormData()
       fd.append("image", file)
@@ -209,26 +210,26 @@ export default function OrganizerProfilePage() {
       })
       const body = await res.json()
       if (!body?.success) {
-        setSaveResult({ text: body?.message || "Upload failed.", tone: "err" })
+        toast.error(body?.message || "Upload failed.")
         return
       }
-      setForm((prev) => ({ ...prev, profile_image_url: body.data?.url ?? "" }))
-      setSaveResult({ text: "Image uploaded — remember to Save.", tone: "ok" })
+      await persistImage(body.data?.url ?? "")
     } catch {
-      setSaveResult({ text: "Network error uploading image.", tone: "err" })
+      toast.error("Network error uploading image.")
     } finally {
       setImageUploading(false)
     }
   }
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // ── Per-section saves. Each PATCHes only its own fields (the endpoints are
+  // partial), so editing several cards at once never cross-contaminates. Each
+  // resolves true on success so its EditableCard leaves edit mode.
+
+  const saveBusiness = async (): Promise<boolean> => {
     if (!form.business_name.trim()) {
-      setSaveResult({ text: "Business name is required.", tone: "err" })
-      return
+      toast.error("Business name is required.")
+      return false
     }
-    setSaving(true)
-    setSaveResult(null)
     try {
       const res = await fetch(`${API_URL}/api/organizers/me/profile`, {
         method: "PATCH",
@@ -237,33 +238,52 @@ export default function OrganizerProfilePage() {
         body: JSON.stringify({
           business_name: form.business_name.trim(),
           business_type: form.business_type || null,
-          phone: form.phone.trim() || null,
-          profile_image_url: form.profile_image_url || null,
-          witness_name: form.witness_name.trim() || null,
-          witness_nic: form.witness_nic.trim() || null,
-          witness_email: form.witness_email.trim() || null,
           facebook_url: form.facebook_url.trim() || null,
           instagram_url: form.instagram_url.trim() || null,
         }),
       })
       const body = await res.json()
-      setSaveResult({
-        text: body?.message || (body?.success ? "Saved." : "Save failed."),
-        tone: body?.success ? "ok" : "err",
-      })
       if (body?.success) {
         setProfile(body.data?.profile ?? null)
-        setProfileJustSaved(true)
+        toast.success("Business details saved.")
+        return true
       }
+      toast.error(body?.message || "Save failed.")
+      return false
     } catch {
-      setSaveResult({ text: "Network error saving profile.", tone: "err" })
-    } finally {
-      setSaving(false)
+      toast.error("Network error saving profile.")
+      return false
     }
   }
 
-  const saveBank = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const saveWitness = async (): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_URL}/api/organizers/me/profile`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          witness_name: form.witness_name.trim() || null,
+          witness_nic: form.witness_nic.trim() || null,
+          witness_email: form.witness_email.trim() || null,
+          phone: form.phone.trim() || null,
+        }),
+      })
+      const body = await res.json()
+      if (body?.success) {
+        setProfile(body.data?.profile ?? null)
+        toast.success("Witness information saved.")
+        return true
+      }
+      toast.error(body?.message || "Save failed.")
+      return false
+    } catch {
+      toast.error("Network error saving witness details.")
+      return false
+    }
+  }
+
+  const saveBank = async (): Promise<boolean> => {
     // Either the required set in full or everything blank — bank details only
     // make sense as a complete set. (Server side accepts partial, but UX-wise
     // we don't want half-filled rows that block payouts.) Bank code and branch
@@ -278,11 +298,9 @@ export default function OrganizerProfilePage() {
     const anyFilled = [...required, bankForm.bank_code, bankForm.branch_code].some((v) => v.trim())
     const requiredFilled = required.every((v) => v.trim())
     if (anyFilled && !requiredFilled) {
-      setBankResult({ text: "Fill bank, branch, account name and account number, or leave them all blank.", tone: "err" })
-      return
+      toast.error("Fill bank, branch, account name and account number, or leave them all blank.")
+      return false
     }
-    setBankSaving(true)
-    setBankResult(null)
     try {
       const res = await fetch(`${API_URL}/api/organizers/me/bank`, {
         method: "PATCH",
@@ -298,20 +316,47 @@ export default function OrganizerProfilePage() {
         }),
       })
       const body = await res.json()
-      setBankResult({
-        text: body?.message || (body?.success ? "Bank details saved." : "Save failed."),
-        tone: body?.success ? "ok" : "err",
-      })
       if (body?.success) {
         setProfile(body.data?.profile ?? null)
-        setBankJustSaved(true)
+        toast.success("Bank details saved.")
+        return true
       }
+      toast.error(body?.message || "Save failed.")
+      return false
     } catch {
-      setBankResult({ text: "Network error saving bank details.", tone: "err" })
-    } finally {
-      setBankSaving(false)
+      toast.error("Network error saving bank details.")
+      return false
     }
   }
+
+  // Cancel handlers — revert each section's draft to the last-saved profile.
+  const resetBusiness = () =>
+    setForm((f) => ({
+      ...f,
+      business_name: profile?.business_name ?? "",
+      business_type: (profile?.business_type ?? "") as "" | NonNullable<BusinessType>,
+      facebook_url: profile?.facebook_url ?? "",
+      instagram_url: profile?.instagram_url ?? "",
+    }))
+
+  const resetWitness = () =>
+    setForm((f) => ({
+      ...f,
+      witness_name: profile?.witness_name ?? "",
+      witness_nic: profile?.witness_nic ?? "",
+      witness_email: profile?.witness_email ?? "",
+      phone: profile?.phone ?? "",
+    }))
+
+  const resetBank = () =>
+    setBankForm({
+      bank_name: profile?.bank_name ?? "",
+      bank_account_number: profile?.bank_account_number ?? "",
+      bank_account_name: profile?.bank_account_name ?? "",
+      branch_name: profile?.branch_name ?? "",
+      bank_code: profile?.bank_code ?? "",
+      branch_code: profile?.branch_code ?? "",
+    })
 
   if (authLoading || loading) {
     return (
@@ -445,316 +490,285 @@ export default function OrganizerProfilePage() {
         )
       })()}
 
-      {/* Form */}
-      <form onSubmit={save} className="space-y-6">
-        {/* Brand image */}
-        <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
-          <header className="mb-4">
-            <h2 className="text-base font-semibold text-foreground">Brand image</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Shown on your event pages. Square images work best. PNG or JPG, max 5 MB.
-            </p>
-          </header>
-          <div className="flex flex-wrap items-start gap-4">
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
-              {form.profile_image_url ? (
-                // Next/Image needs known dimensions and either a configured loader or
-                // unoptimized for cross-origin URLs. Plain <img> avoids that hassle.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.profile_image_url} alt="Brand" className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                  <Building2 className="h-7 w-7" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 space-y-2">
-              <label className="inline-block">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) handleImagePick(f)
-                    e.target.value = ""
-                  }}
-                />
-                <span
-                  className={cn(
-                    "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-transparent px-3 py-2 text-xs font-medium hover:bg-muted",
-                    imageUploading && "opacity-60 pointer-events-none",
-                  )}
-                >
-                  {imageUploading ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
-                  {imageUploading ? "Uploading…" : form.profile_image_url ? "Replace image" : "Upload image"}
-                </span>
-              </label>
-              {form.profile_image_url && (
-                <button
-                  type="button"
-                  onClick={() => setForm((p) => ({ ...p, profile_image_url: "" }))}
-                  className="block text-xs text-destructive hover:underline"
-                >
-                  Remove image
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Business details */}
-        <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
-          <header className="mb-4">
-            <h2 className="text-base font-semibold text-foreground">Business details</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Attendees see your business name on every event you publish.
-            </p>
-          </header>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Business name" required>
-              <Input
-                type="text"
-                value={form.business_name}
-                onChange={(e) => setForm({ ...form, business_name: e.target.value })}
-                placeholder="e.g. Sansare Live"
-                required
-              />
-            </Field>
-            <Field label="Business type">
-              <select
-                aria-label="Business type"
-                value={form.business_type}
-                onChange={(e) => setForm({ ...form, business_type: e.target.value as "" | NonNullable<BusinessType> })}
-                className="h-9 w-full rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
-              >
-                <option value="">Not specified</option>
-                <option value="individual">Individual</option>
-                <option value="company">Company</option>
-                <option value="ngo">NGO</option>
-              </select>
-            </Field>
-            {/* Optional social links — surfaced on the public "Organized by"
-                card as small icon chips. Leave blank to hide. */}
-            <Field label="Facebook page" helper="Optional. Paste your page URL or @handle.">
-              <Input
-                type="url"
-                inputMode="url"
-                value={form.facebook_url}
-                onChange={(e) => setForm({ ...form, facebook_url: e.target.value })}
-                placeholder="https://facebook.com/yourpage"
-              />
-            </Field>
-            <Field label="Instagram" helper="Optional. Paste your profile URL or @handle.">
-              <Input
-                type="url"
-                inputMode="url"
-                value={form.instagram_url}
-                onChange={(e) => setForm({ ...form, instagram_url: e.target.value })}
-                placeholder="https://instagram.com/yourhandle"
-              />
-            </Field>
-          </div>
-
-          {/* Read-only context */}
-          <div className="mt-5 grid grid-cols-1 gap-3 border-t border-border pt-4 sm:grid-cols-2">
-            {profile.nic_or_br && (
-              <ReadonlyRow label="NIC / BR" value={profile.nic_or_br} />
-            )}
-            {profile.business_type && (
-              <ReadonlyRow
-                label="Current type"
-                value={BUSINESS_TYPE_LABEL[profile.business_type] || "—"}
-              />
-            )}
-            <ReadonlyRow label="Member since" value={new Date(profile.created_at).toLocaleDateString()} />
-            {profile.deactivated_at && (
-              <ReadonlyRow
-                label="Deactivated"
-                value={new Date(profile.deactivated_at).toLocaleDateString()}
-              />
-            )}
-          </div>
-        </section>
-
-        {/* Witness information — collected at registration (step 2); editable
-            here. `phone` is the witness's single mobile/WhatsApp number. */}
-        <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
-          <header className="mb-4">
-            <h2 className="text-base font-semibold text-foreground">Witness information</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Details of a witness who can vouch for your organization.
-            </p>
-          </header>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Organization witness name">
-              <Input
-                type="text"
-                value={form.witness_name}
-                onChange={(e) => setForm({ ...form, witness_name: e.target.value })}
-                placeholder="Full name"
-                autoComplete="off"
-              />
-            </Field>
-            <Field label="Witness NIC">
-              <Input
-                type="text"
-                value={form.witness_nic}
-                onChange={(e) => setForm({ ...form, witness_nic: e.target.value })}
-                placeholder="200012345678"
-                autoComplete="off"
-              />
-            </Field>
-            <Field label="Email address">
-              <Input
-                type="email"
-                value={form.witness_email}
-                onChange={(e) => setForm({ ...form, witness_email: e.target.value })}
-                placeholder="witness@example.com"
-                autoComplete="off"
-              />
-            </Field>
-            <Field label="Mobile number (WhatsApp)" helper="One number for both calls and WhatsApp.">
-              <Input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+94 77 123 4567"
-                autoComplete="tel"
-              />
-            </Field>
-          </div>
-        </section>
-
-        {/* Save bar — no bordered wrapper; lives directly in the form flow. */}
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {saveResult && (
-            <span className={cn(
-              "inline-flex items-center gap-1.5 text-sm",
-              saveResult.tone === "ok" ? "text-emerald-700 dark:text-emerald-400" : "text-destructive",
-            )}>
-              {saveResult.tone === "ok" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              {saveResult.text}
-            </span>
-          )}
-          <Button
-            type="submit"
-            disabled={saving || imageUploading}
-            className={cn(
-              "transition-colors",
-              profileJustSaved && !saving && "bg-emerald-600 text-white hover:bg-emerald-600",
-            )}
-          >
-            {saving ? (
-              <Loader className="animate-spin" />
-            ) : profileJustSaved ? (
-              <CheckCircle2 />
-            ) : (
-              <Save />
-            )}
-            {saving ? "Saving…" : profileJustSaved ? "Saved" : "Save profile"}
-          </Button>
-        </div>
-      </form>
-
-      {/* Banking details — separate form because the backend endpoint is
-          separate, and a payment-detail change deserves its own commit so
-          partial typing in one section doesn't block saves on the other. */}
-      <form onSubmit={saveBank} className="space-y-4 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5">
-        <header className="flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Landmark className="h-4 w-4" />
-          </span>
-          <h2 className="text-base font-semibold text-foreground">Banking details</h2>
+      {/* Brand image — self-contained: uploading or removing persists
+          immediately (no separate Save step), so it's a plain section rather
+          than an editable card. */}
+      <section className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6">
+        <header className="mb-4">
+          <h2 className="font-semibold text-foreground">Brand image</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Shown on your event pages. Square images work best. PNG or JPG, max 5 MB.
+          </p>
         </header>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Bank name">
-            <Input
-              type="text"
-              value={bankForm.bank_name}
-              onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
-              placeholder="Commercial Bank of Ceylon"
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Branch name">
-            <Input
-              type="text"
-              value={bankForm.branch_name}
-              onChange={(e) => setBankForm({ ...bankForm, branch_name: e.target.value })}
-              placeholder="Colombo Fort"
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Account holder name">
-            <Input
-              type="text"
-              value={bankForm.bank_account_name}
-              onChange={(e) => setBankForm({ ...bankForm, bank_account_name: e.target.value })}
-              placeholder="A. Perera"
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Account number">
-            <Input
-              type="text"
-              inputMode="numeric"
-              value={bankForm.bank_account_number}
-              onChange={(e) => setBankForm({ ...bankForm, bank_account_number: e.target.value.replace(/[^\d]/g, "") })}
-              placeholder="8001234567890"
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Bank code" helper="Optional">
-            <Input
-              type="text"
-              value={bankForm.bank_code}
-              onChange={(e) => setBankForm({ ...bankForm, bank_code: e.target.value })}
-              placeholder="7056"
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Branch code" helper="Optional">
-            <Input
-              type="text"
-              value={bankForm.branch_code}
-              onChange={(e) => setBankForm({ ...bankForm, branch_code: e.target.value })}
-              placeholder="001"
-              autoComplete="off"
-            />
-          </Field>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
-          {bankResult && (
-            <span className={cn(
-              "inline-flex items-center gap-1.5 text-sm",
-              bankResult.tone === "ok" ? "text-emerald-700 dark:text-emerald-400" : "text-destructive",
-            )}>
-              {bankResult.tone === "ok" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              {bankResult.text}
-            </span>
-          )}
-          <Button
-            type="submit"
-            disabled={bankSaving}
-            className={cn(
-              "transition-colors",
-              bankJustSaved && !bankSaving && "bg-emerald-600 text-white hover:bg-emerald-600",
-            )}
-          >
-            {bankSaving ? (
-              <Loader className="animate-spin" />
-            ) : bankJustSaved ? (
-              <CheckCircle2 />
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
+            {form.profile_image_url ? (
+              // Next/Image needs known dimensions and either a configured loader or
+              // unoptimized for cross-origin URLs. Plain <img> avoids that hassle.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.profile_image_url} alt="Brand" className="h-full w-full object-cover" />
             ) : (
-              <Save />
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <Building2 className="h-7 w-7" />
+              </div>
             )}
-            {bankSaving ? "Saving…" : bankJustSaved ? "Saved" : "Save bank details"}
-          </Button>
+          </div>
+          <div className="flex-1 space-y-2">
+            <label className="inline-block">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) handleImagePick(f)
+                  e.target.value = ""
+                }}
+              />
+              <span
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-transparent px-3 py-2 text-xs font-medium hover:bg-muted",
+                  imageUploading && "opacity-60 pointer-events-none",
+                )}
+              >
+                {imageUploading ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                {imageUploading ? "Uploading…" : form.profile_image_url ? "Replace image" : "Upload image"}
+              </span>
+            </label>
+            {form.profile_image_url && (
+              <button
+                type="button"
+                onClick={() => persistImage(null)}
+                disabled={imageUploading}
+                className="block text-xs text-destructive hover:underline disabled:opacity-60"
+              >
+                Remove image
+              </button>
+            )}
+          </div>
         </div>
-      </form>
+      </section>
+
+      {/* Business details */}
+      <EditableCard
+        title="Business details"
+        description="Attendees see your business name on every event you publish."
+        saveLabel="Save details"
+        onSave={saveBusiness}
+        onCancel={resetBusiness}
+      >
+        {(editing) => (
+          <>
+            {editing ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Business name" required>
+                  <Input
+                    type="text"
+                    value={form.business_name}
+                    onChange={(e) => setForm({ ...form, business_name: e.target.value })}
+                    placeholder="e.g. Sansare Live"
+                    required
+                  />
+                </Field>
+                <Field label="Business type">
+                  <select
+                    aria-label="Business type"
+                    value={form.business_type}
+                    onChange={(e) => setForm({ ...form, business_type: e.target.value as "" | NonNullable<BusinessType> })}
+                    className="h-9 w-full rounded-md border border-border bg-card/30 px-3 text-sm text-foreground backdrop-blur-md transition-colors focus:border-primary/50 focus:bg-card/50 focus:outline-none"
+                  >
+                    <option value="">Not specified</option>
+                    <option value="individual">Individual</option>
+                    <option value="company">Company</option>
+                    <option value="ngo">NGO</option>
+                  </select>
+                </Field>
+                <Field label="Facebook page" helper="Optional. Paste your page URL or @handle.">
+                  <Input
+                    type="url"
+                    inputMode="url"
+                    value={form.facebook_url}
+                    onChange={(e) => setForm({ ...form, facebook_url: e.target.value })}
+                    placeholder="https://facebook.com/yourpage"
+                  />
+                </Field>
+                <Field label="Instagram" helper="Optional. Paste your profile URL or @handle.">
+                  <Input
+                    type="url"
+                    inputMode="url"
+                    value={form.instagram_url}
+                    onChange={(e) => setForm({ ...form, instagram_url: e.target.value })}
+                    placeholder="https://instagram.com/yourhandle"
+                  />
+                </Field>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <ViewRow label="Business name" value={profile.business_name} />
+                <ViewRow
+                  label="Business type"
+                  value={profile.business_type ? BUSINESS_TYPE_LABEL[profile.business_type] : ""}
+                />
+                <ViewRow label="Facebook page" value={profile.facebook_url} />
+                <ViewRow label="Instagram" value={profile.instagram_url} />
+              </div>
+            )}
+
+            {/* Read-only context — never editable, shown in both modes. */}
+            <div className="mt-5 grid grid-cols-1 gap-3 border-t border-border pt-4 sm:grid-cols-2">
+              {profile.nic_or_br && <ReadonlyRow label="NIC / BR" value={profile.nic_or_br} />}
+              <ReadonlyRow label="Member since" value={new Date(profile.created_at).toLocaleDateString()} />
+              {profile.deactivated_at && (
+                <ReadonlyRow
+                  label="Deactivated"
+                  value={new Date(profile.deactivated_at).toLocaleDateString()}
+                />
+              )}
+            </div>
+          </>
+        )}
+      </EditableCard>
+
+      {/* Witness information — collected at registration (step 2); editable
+          here. `phone` is the witness's single mobile/WhatsApp number. */}
+      <EditableCard
+        title="Witness information"
+        description="Details of a witness who can vouch for your organization."
+        saveLabel="Save details"
+        onSave={saveWitness}
+        onCancel={resetWitness}
+      >
+        {(editing) =>
+          editing ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Organization witness name">
+                <Input
+                  type="text"
+                  value={form.witness_name}
+                  onChange={(e) => setForm({ ...form, witness_name: e.target.value })}
+                  placeholder="Full name"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Witness NIC">
+                <Input
+                  type="text"
+                  value={form.witness_nic}
+                  onChange={(e) => setForm({ ...form, witness_nic: e.target.value })}
+                  placeholder="200012345678"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Email address">
+                <Input
+                  type="email"
+                  value={form.witness_email}
+                  onChange={(e) => setForm({ ...form, witness_email: e.target.value })}
+                  placeholder="witness@example.com"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Mobile number (WhatsApp)" helper="One number for both calls and WhatsApp.">
+                <Input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="+94 77 123 4567"
+                  autoComplete="tel"
+                />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ViewRow label="Organization witness name" value={profile.witness_name} />
+              <ViewRow label="Witness NIC" value={profile.witness_nic} />
+              <ViewRow label="Email address" value={profile.witness_email} />
+              <ViewRow label="Mobile number (WhatsApp)" value={profile.phone} />
+            </div>
+          )
+        }
+      </EditableCard>
+
+      {/* Banking details — its own PATCH endpoint; a payment-detail change
+          deserves its own commit. */}
+      <EditableCard
+        title="Banking details"
+        icon={Landmark}
+        saveLabel="Save bank details"
+        onSave={saveBank}
+        onCancel={resetBank}
+      >
+        {(editing) =>
+          editing ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Bank name">
+                <Input
+                  type="text"
+                  value={bankForm.bank_name}
+                  onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
+                  placeholder="Commercial Bank of Ceylon"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Branch name">
+                <Input
+                  type="text"
+                  value={bankForm.branch_name}
+                  onChange={(e) => setBankForm({ ...bankForm, branch_name: e.target.value })}
+                  placeholder="Colombo Fort"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Account holder name">
+                <Input
+                  type="text"
+                  value={bankForm.bank_account_name}
+                  onChange={(e) => setBankForm({ ...bankForm, bank_account_name: e.target.value })}
+                  placeholder="A. Perera"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Account number">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={bankForm.bank_account_number}
+                  onChange={(e) => setBankForm({ ...bankForm, bank_account_number: e.target.value.replace(/[^\d]/g, "") })}
+                  placeholder="8001234567890"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Bank code" helper="Optional">
+                <Input
+                  type="text"
+                  value={bankForm.bank_code}
+                  onChange={(e) => setBankForm({ ...bankForm, bank_code: e.target.value })}
+                  placeholder="7056"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Branch code" helper="Optional">
+                <Input
+                  type="text"
+                  value={bankForm.branch_code}
+                  onChange={(e) => setBankForm({ ...bankForm, branch_code: e.target.value })}
+                  placeholder="001"
+                  autoComplete="off"
+                />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ViewRow label="Bank name" value={profile.bank_name} />
+              <ViewRow label="Branch name" value={profile.branch_name} />
+              <ViewRow label="Account holder name" value={profile.bank_account_name} />
+              <ViewRow label="Account number" value={profile.bank_account_number} />
+              <ViewRow label="Bank code" value={profile.bank_code} />
+              <ViewRow label="Branch code" value={profile.branch_code} />
+            </div>
+          )
+        }
+      </EditableCard>
 
       {/* Danger zone — voluntary resign-as-organizer flow. Same block as the
           dashboard so the action is reachable from either entry point. Sits

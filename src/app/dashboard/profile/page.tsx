@@ -4,10 +4,8 @@ import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
 import {
-  AlertCircle,
   ArrowRight,
   Building2,
-  Check,
   Lock,
   Loader,
   Mail,
@@ -15,19 +13,16 @@ import {
   Phone,
   User as UserIcon,
 } from "lucide-react"
+import toast from "react-hot-toast"
 import { useAuth } from "@/context/AuthContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+import { EditableCard, ViewRow } from "@/components/profile/editable-card"
 
 function ProfileContent() {
   const { user, updateUser } = useAuth()
   const [form, setForm] = React.useState({ name: "", phone: "", city: "" })
-  const [loading, setLoading] = React.useState(false)
-  const [message, setMessage] = React.useState<{ type: "success" | "error"; text: string } | null>(null)
 
   React.useEffect(() => {
     if (user) {
@@ -39,23 +34,31 @@ function ProfileContent() {
     }
   }, [user])
 
-  React.useEffect(() => {
-    if (!message) return
-    const t = setTimeout(() => setMessage(null), 3500)
-    return () => clearTimeout(t)
-  }, [message])
+  // Revert the Account details draft to the last-saved values (Cancel).
+  const resetAccount = () => {
+    setForm({
+      name: user?.name || "",
+      phone: user?.phone || "",
+      city: user?.city || "",
+    })
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setMessage(null)
-    const result = await updateUser(form)
-    setLoading(false)
-    if (result.success) {
-      setMessage({ type: "success", text: "Profile updated successfully." })
-    } else {
-      setMessage({ type: "error", text: result.error || "Failed to update profile." })
+  const saveAccount = async (): Promise<boolean> => {
+    if (!form.name.trim()) {
+      toast.error("Name is required.")
+      return false
     }
+    const result = await updateUser({
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      city: form.city.trim(),
+    })
+    if (result.success) {
+      toast.success("Profile updated.")
+      return true
+    }
+    toast.error(result.error || "Failed to update profile.")
+    return false
   }
 
   if (!user) {
@@ -108,97 +111,74 @@ function ProfileContent() {
         </div>
       </div>
 
-      {/* Flash message */}
-      {message && (
-        <div
-          className={cn(
-            "flex items-center gap-2 rounded-lg border px-4 py-3 text-sm",
-            message.type === "success"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-              : "border-destructive/30 bg-destructive/10 text-destructive",
-          )}
-        >
-          {message.type === "success"
-            ? <Check className="h-4 w-4 shrink-0" />
-            : <AlertCircle className="h-4 w-4 shrink-0" />}
-          {message.text}
-        </div>
-      )}
+      {/* Account details — read-only until the pencil is clicked. */}
+      <EditableCard
+        title="Account details"
+        description="Your personal information and contact details."
+        onSave={saveAccount}
+        onCancel={resetAccount}
+      >
+        {(editing) =>
+          editing ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <EditField
+                id="name"
+                label="Full name"
+                icon={UserIcon}
+                value={form.name}
+                onChange={(v) => setForm({ ...form, name: v })}
+                placeholder="Akila Perera"
+                required
+              />
 
-      {/* Account details */}
-      <section className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
-        <div className="border-b border-border px-6 py-4">
-          <h2 className="font-semibold text-foreground">Account details</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Changes are saved immediately to your account.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            {/* Full name */}
-            <EditField
-              id="name"
-              label="Full name"
-              icon={UserIcon}
-              value={form.name}
-              onChange={(v) => setForm({ ...form, name: v })}
-              placeholder="Akila Perera"
-              required
-            />
-
-            {/* Email — read-only */}
-            <div className="space-y-1.5">
-              <label htmlFor="email-readonly" className="text-sm font-medium text-foreground">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  id="email-readonly"
-                  type="email"
-                  value={user.email || ""}
-                  readOnly
-                  aria-label="Email address — cannot be changed"
-                  className="h-9 w-full rounded-md border border-input bg-muted/50 pl-9 pr-9 text-sm text-muted-foreground cursor-not-allowed focus:outline-none"
-                />
-                <Lock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+              {/* Email stays read-only — changing it isn't supported here. */}
+              <div className="space-y-1.5">
+                <label htmlFor="email-readonly" className="text-sm font-medium text-foreground">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    id="email-readonly"
+                    type="email"
+                    value={user.email || ""}
+                    readOnly
+                    aria-label="Email address — cannot be changed"
+                    className="h-9 w-full rounded-md border border-input bg-muted/50 pl-9 pr-9 text-sm text-muted-foreground cursor-not-allowed focus:outline-none"
+                  />
+                  <Lock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+                </div>
               </div>
+
+              <EditField
+                id="phone"
+                label="Phone"
+                type="tel"
+                icon={Phone}
+                value={form.phone}
+                onChange={(v) => setForm({ ...form, phone: v })}
+                placeholder="+94 77 123 4567"
+              />
+
+              <EditField
+                id="city"
+                label="City"
+                icon={MapPin}
+                value={form.city}
+                onChange={(v) => setForm({ ...form, city: v })}
+                placeholder="Colombo"
+              />
             </div>
-
-            {/* Phone */}
-            <EditField
-              id="phone"
-              label="Phone"
-              type="tel"
-              icon={Phone}
-              value={form.phone}
-              onChange={(v) => setForm({ ...form, phone: v })}
-              placeholder="+94 77 123 4567"
-            />
-
-            {/* City */}
-            <EditField
-              id="city"
-              label="City"
-              icon={MapPin}
-              value={form.city}
-              onChange={(v) => setForm({ ...form, city: v })}
-              placeholder="Colombo"
-            />
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <Button type="submit" disabled={loading} size="sm">
-              {loading ? (
-                <><Loader className="h-3.5 w-3.5 animate-spin" /> Saving…</>
-              ) : (
-                "Save changes"
-              )}
-            </Button>
-          </div>
-        </form>
-      </section>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <ViewRow label="Full name" value={user.name} />
+              <ViewRow label="Email" value={user.email} />
+              <ViewRow label="Phone" value={user.phone} />
+              <ViewRow label="City" value={user.city} />
+            </div>
+          )
+        }
+      </EditableCard>
 
       {/* Organizer access */}
       {(user.role === "organizer" || user.role === "superadmin") && (
