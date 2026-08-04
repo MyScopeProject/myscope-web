@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   Search,
+  ShoppingBag,
   User,
   X,
 } from "lucide-react"
@@ -195,6 +196,7 @@ export function SiteHeader() {
                   </div>
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   <MenuItem href="/dashboard" icon={Calendar}>My Events</MenuItem>
+                  <MenuItem href="/shop/orders" icon={ShoppingBag}>My Orders</MenuItem>
                   <MenuItem href="/dashboard/profile" icon={User}>Profile</MenuItem>
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   <DropdownMenu.Item
@@ -339,6 +341,9 @@ export function SiteHeader() {
                   <div className="space-y-0.5">
                     <DrawerLink href="/dashboard" icon={Calendar} onNavigate={() => setMobileOpen(false)}>
                       My Events
+                    </DrawerLink>
+                    <DrawerLink href="/shop/orders" icon={ShoppingBag} onNavigate={() => setMobileOpen(false)}>
+                      My Orders
                     </DrawerLink>
                     <DrawerLink href="/dashboard/profile" icon={User} onNavigate={() => setMobileOpen(false)}>
                       Profile

@@ -22,12 +22,6 @@ const CATEGORY_PILLS = [
   })),
 ]
 
-// Shop isn't an event category — it's a real page, not an in-place filter —
-// so it's kept out of CATEGORY_PILLS above and rendered separately as an
-// actual link, styled to match the pills so it still reads as part of the
-// same row.
-const SHOP_PILL = NAV_ITEMS.find((item) => item.category === "__shop")
-
 interface Props {
   // Server-fetched "All" list, rendered immediately with zero client fetch —
   // only switching to a different pill triggers a client-side refetch.
@@ -97,14 +91,6 @@ export function UpcomingEventsSection({ initialEvents }: Props) {
             </button>
           )
         })}
-        {SHOP_PILL && (
-          <Link
-            href={SHOP_PILL.href}
-            className="shrink-0 whitespace-nowrap rounded-full border border-border bg-card/30 px-4 py-2 text-sm font-semibold text-muted-foreground backdrop-blur-md transition-colors hover:bg-muted hover:text-foreground"
-          >
-            {SHOP_PILL.label}
-          </Link>
-        )}
       </div>
 
       {loading ? (
