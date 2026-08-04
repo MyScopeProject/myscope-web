@@ -93,7 +93,7 @@ export default function OrganizerLoginPage() {
             type="button"
             onClick={() => signIn()}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm px-4 py-2.5 text-sm font-medium text-foreground shadow-xs transition-colors hover:bg-muted disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-transparent px-4 py-2.5 text-sm font-medium text-foreground shadow-xs transition-colors hover:bg-muted/60 disabled:opacity-60"
           >
             {loading ? (
               <Loader className="h-4 w-4 animate-spin" />

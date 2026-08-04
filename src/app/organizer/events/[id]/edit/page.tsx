@@ -584,7 +584,7 @@ export default function EditEventPage() {
               "flex w-full cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition-colors",
               form.sms_reminders
                 ? "border-primary/40 bg-primary/5"
-                : "border-border bg-card hover:border-primary/40",
+                : "border-border bg-transparent hover:border-primary/40",
             )}
           >
             <span

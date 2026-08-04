@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { DropdownMenu } from "radix-ui"
-import { ChevronDown, LogOut, UserCircle } from "lucide-react"
+import { ChevronDown, LogOut } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 
@@ -78,16 +78,6 @@ export function OrganizerTopBar() {
                       <div className="truncate text-xs text-muted-foreground">{user.email}</div>
                     </div>
                   </div>
-                  <DropdownMenu.Separator className="my-1 h-px bg-border" />
-                  <DropdownMenu.Item asChild>
-                    <Link
-                      href="/organizer/profile"
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-foreground outline-none transition-colors data-[highlighted]:bg-muted"
-                    >
-                      <UserCircle className="h-4 w-4 text-muted-foreground" />
-                      Profile
-                    </Link>
-                  </DropdownMenu.Item>
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   <DropdownMenu.Item
                     onSelect={handleLogout}

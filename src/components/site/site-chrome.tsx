@@ -1,16 +1,23 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
-import { SiteHeader } from "@/components/site/site-header"
-import { SiteFooter } from "@/components/site/site-footer"
-import { AnnouncementBar } from "@/components/site/announcement-bar"
+import { useEffect, useState } from "react"
 
 /**
  * Wraps the consumer-site chrome (marketing ticker, main nav, footer) around
  * page content — except on organizer routes (the dashboard + its dedicated
  * login page), which bring their own chrome (OrganizerTopBar) since
  * organizer.myscope.lk has no reason to carry the consumer site's nav.
+ *
+ * `ticker`/`header`/`footer` are passed in as already-rendered nodes from the
+ * root layout (a Server Component) rather than imported and rendered directly
+ * in this file. That distinction matters: AnnouncementBar and SiteFooter have
+ * no "use client" directive, so importing+rendering them HERE would pull them
+ * into the client bundle and make them execute on the client too — which is
+ * exactly what caused a real hydration mismatch (whitespace in SiteFooter's
+ * copyright line differed between the server pass and the client re-render).
+ * Receiving them as props keeps them pure Server Components that render
+ * once, server-side, and simply pass through this client boundary untouched.
  *
  * "Is this an organizer route" needs TWO signals, checked client-side only
  * (deliberately — reading the real signal server-side via headers()/cookies()
@@ -32,7 +39,17 @@ import { AnnouncementBar } from "@/components/site/announcement-bar"
  * consistent with the rest of the organizer section, which already has a
  * brief auth-loading flash on every page (useOrganizerGuard).
  */
-export function SiteChrome({ children }: { children: React.ReactNode }) {
+export function SiteChrome({
+  ticker,
+  header,
+  footer,
+  children,
+}: {
+  ticker: React.ReactNode
+  header: React.ReactNode
+  footer: React.ReactNode
+  children: React.ReactNode
+}) {
   const pathname = usePathname()
   const [isOrganizerHost, setIsOrganizerHost] = useState(false)
 
@@ -48,16 +65,10 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <AnnouncementBar />
-      {/* SiteHeader uses useSearchParams() — Next 16 requires a Suspense
-          boundary around any component that reads search params, or static
-          prerender of /404 fails. Fallback is just an empty 16-tall band so
-          layout doesn't jump. */}
-      <Suspense fallback={<div className="h-16" aria-hidden />}>
-        <SiteHeader />
-      </Suspense>
+      {ticker}
+      {header}
       <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-      <SiteFooter />
+      {footer}
     </>
   )
 }

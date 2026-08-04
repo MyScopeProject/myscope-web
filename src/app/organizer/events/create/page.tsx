@@ -661,7 +661,7 @@ function DetailsStep({
                   "group flex items-start gap-3 rounded-xl border p-4 text-left transition-colors",
                   selected
                     ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                    : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",
+                    : "border-border bg-transparent hover:border-primary/40 hover:bg-muted/40",
                 )}
               >
                 <span
@@ -806,7 +806,7 @@ function DetailsStep({
           "flex w-full cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition-colors",
           value.sms_reminders
             ? "border-primary/40 bg-primary/5"
-            : "border-border bg-card hover:border-primary/40",
+            : "border-border bg-transparent hover:border-primary/40",
         )}
       >
         <span
@@ -1086,7 +1086,7 @@ function SeatsStep({
 
       {/* CUSTOM — upload documents; the admin team builds the seat map */}
       {choice === "custom" && (
-        <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <div className="space-y-4 rounded-xl border border-border bg-transparent p-4">
           <div className="flex items-start gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <MessageSquare className="h-4 w-4" />
@@ -1331,7 +1331,7 @@ function SimpleLayoutBuilder({
   }, [buildLayoutData, stagePosition, totalSeats])
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+    <div className="space-y-4 rounded-xl border border-border bg-transparent p-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1.5">
           <FieldLabel htmlFor="stage-pos">Stage</FieldLabel>

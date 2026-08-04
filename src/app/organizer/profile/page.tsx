@@ -482,7 +482,7 @@ export default function OrganizerProfilePage() {
                 />
                 <span
                   className={cn(
-                    "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium hover:bg-muted",
+                    "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-transparent px-3 py-2 text-xs font-medium hover:bg-muted",
                     imageUploading && "opacity-60 pointer-events-none",
                   )}
                 >

@@ -104,9 +104,6 @@ function ProfileContent() {
           <p className="truncate text-sm text-muted-foreground">{user.email}</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <Badge variant="default" className="capitalize">{user.role}</Badge>
-            {user.provider && user.provider !== "local" && (
-              <Badge variant="outline" className="capitalize">via {user.provider}</Badge>
-            )}
           </div>
         </div>
       </div>
@@ -225,9 +222,7 @@ function ProfileContent() {
               </div>
             </div>
             <Button asChild size="sm" variant="outline" className="shrink-0">
-              <a href="https://organizer.myscope.lk">
-                Open <ArrowRight className="h-3.5 w-3.5" />
-              </a>
+              <a href="https://organizer.myscope.lk" target="_blank" rel="noopener noreferrer">Open</a>
             </Button>
           </div>
         </section>

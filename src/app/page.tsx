@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import {
   ArrowRight,
   BarChart3,
@@ -7,7 +8,6 @@ import {
   Wallet,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { type EventCardData } from "@/components/events/event-card"
 import { HeroCarousel, type HeroSlide } from "@/components/home/hero-carousel"
 import { UpcomingEventsSection } from "@/components/home/upcoming-events-section"
@@ -95,28 +95,37 @@ export default async function HomePage() {
       <section>
         <RevealOnScroll>
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16">
-          {/* Flat card — no gradient, just border + bg-card. Tighter padding
-              + smaller type on phones so it doesn't dominate the scroll. */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 sm:p-12">
+          {/* Light mode: same brand violet block as the hero/footer/announcement
+              bar (oklch(0.37 0.17 302)). Dark mode keeps the existing
+              translucent card treatment. */}
+          <div className="overflow-hidden rounded-2xl border border-transparent bg-[oklch(0.37_0.17_302)] dark:border-border dark:bg-card/60 dark:backdrop-blur-sm p-5 sm:p-12">
             <div className="grid items-center gap-6 sm:gap-8 md:grid-cols-2">
               <div>
-                <Badge>For organizers</Badge>
-                <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground sm:text-4xl">
+                <h2 className="text-xl font-bold tracking-tight text-white dark:text-foreground sm:text-4xl">
                   Sell out your next show.
                 </h2>
-                <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
+                <p className="mt-2 text-sm text-white/80 dark:text-muted-foreground sm:mt-3 sm:text-base">
                   Publish your event, take secure payments, scan tickets at the door,
                   and request payouts anytime — all from one dashboard built for Sri Lankan organizers.
                 </p>
                 <div className="mt-4 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:gap-3">
-                  <Button asChild size="lg" className="w-full sm:w-auto">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="w-full bg-white text-[oklch(0.37_0.17_302)] hover:bg-white/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/80 sm:w-auto"
+                  >
                     <Link href="/become-organizer">
                       Start hosting
                       <ArrowRight className="ml-1 h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button asChild size="lg" variant="ghost" className="w-full sm:w-auto">
-                    <a href="https://organizer.myscope.lk">Organizer dashboard</a>
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="ghost"
+                    className="w-full text-white hover:bg-white/10 hover:text-white dark:text-foreground dark:hover:bg-muted dark:hover:text-foreground sm:w-auto"
+                  >
+                    <a href="https://organizer.myscope.lk" target="_blank" rel="noopener noreferrer">Organizer dashboard</a>
                   </Button>
                 </div>
               </div>
@@ -130,13 +139,13 @@ export default async function HomePage() {
                 ].map(({ icon: Icon, title, desc }) => (
                   <li
                     key={title}
-                    className="rounded-xl border border-border bg-background/60 p-3 sm:p-4"
+                    className="rounded-xl border border-white/15 bg-white/10 p-3 dark:border-border dark:bg-background/60 sm:p-4"
                   >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary sm:h-8 sm:w-8">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white dark:bg-primary/10 dark:text-primary sm:h-8 sm:w-8">
                       <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </span>
-                    <h3 className="mt-2 text-xs font-semibold text-foreground sm:mt-2.5 sm:text-sm">{title}</h3>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">{desc}</p>
+                    <h3 className="mt-2 text-xs font-semibold text-white dark:text-foreground sm:mt-2.5 sm:text-sm">{title}</h3>
+                    <p className="mt-0.5 text-[11px] text-white/70 dark:text-muted-foreground sm:text-xs">{desc}</p>
                   </li>
                 ))}
               </ul>
@@ -147,8 +156,7 @@ export default async function HomePage() {
       </section>
 
       {/* Our Partners — admin-curated logo strip. Hidden when empty so the
-          home page stays clean before any partners are added. Sits as the
-          last section before the global footer. */}
+          home page stays clean before any partners are added. */}
       {partners.length > 0 && (
         <section className="py-16 sm:py-20">
           <RevealOnScroll>
@@ -161,6 +169,49 @@ export default async function HomePage() {
           </RevealOnScroll>
         </section>
       )}
+
+      {/* MyScope Organizer app promo — deliberately simple (no nested cards
+          inside this one, per feedback): just a heading, description, and the
+          real App Store badge asset. iOS link only for now. Sits as the last
+          section before the global footer. */}
+      <section>
+        <RevealOnScroll>
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
+          {/* Light mode: same brand violet block as the hero/footer/announcement
+              bar (oklch(0.37 0.17 302)), so this card reads as an identity
+              moment rather than a plain content card. Dark mode keeps the
+              existing translucent card treatment. */}
+          <div className="rounded-2xl border border-transparent bg-[oklch(0.37_0.17_302)] dark:border-border dark:bg-card/60 dark:backdrop-blur-sm p-5 sm:p-10">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-xl font-bold tracking-tight text-white dark:text-foreground sm:text-3xl">
+                Manage your event with MyScope Client
+              </h2>
+              <p className="mt-2 text-sm text-white/80 dark:text-muted-foreground sm:mt-3 sm:text-base">
+                Manage events, monitor ticket sales, track bookings, handle check-ins, and
+                access real-time event insights — all from one powerful platform designed
+                to simplify event management.
+              </p>
+              <div className="mt-5 flex justify-center sm:mt-6">
+                <a
+                  href="https://apps.apple.com/lk/app/myscope-client/id6771127791"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Download MyScope Client on the App Store"
+                >
+                  <Image
+                    src="/Images/app-store.png"
+                    alt="Download on the App Store"
+                    width={180}
+                    height={63}
+                    className="h-12 w-auto sm:h-14"
+                  />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+        </RevealOnScroll>
+      </section>
     </div>
   )
 }

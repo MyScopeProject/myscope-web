@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Script from "next/script";
 import { IBM_Plex_Sans, Inter, Outfit } from "next/font/google";
 import "../styles/globals.css";
@@ -7,6 +8,9 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { ShopCartProvider } from "@/lib/shopCart";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { SiteChrome } from "@/components/site/site-chrome";
+import { SiteHeader } from "@/components/site/site-header";
+import { SiteFooter } from "@/components/site/site-footer";
+import { AnnouncementBar } from "@/components/site/announcement-bar";
 import { MaintenanceBanner } from "@/components/site/maintenance-banner";
 import { LightBeamsBackground } from "@/components/site/light-beams-background";
 import { Toaster } from "react-hot-toast";
@@ -167,8 +171,27 @@ export default function RootLayout({
               <MaintenanceBanner />
               {/* Ticker, main nav, and footer are consumer-site chrome —
                   SiteChrome skips all three on organizer routes, which bring
-                  their own chrome (OrganizerTopBar) instead. */}
-              <SiteChrome>{children}</SiteChrome>
+                  their own chrome (OrganizerTopBar) instead. Rendered HERE
+                  (in this Server Component) and passed down as already-
+                  rendered nodes rather than imported inside the client
+                  SiteChrome — importing them there would pull these Server
+                  Components into client execution too, which is what caused
+                  a real hydration mismatch in SiteFooter's copyright line. */}
+              <SiteChrome
+                ticker={<AnnouncementBar />}
+                header={
+                  // SiteHeader uses useSearchParams() — Next 16 requires a
+                  // Suspense boundary around any component that reads search
+                  // params, or static prerender of /404 fails. Fallback is
+                  // just an empty 16-tall band so layout doesn't jump.
+                  <Suspense fallback={<div className="h-16" aria-hidden />}>
+                    <SiteHeader />
+                  </Suspense>
+                }
+                footer={<SiteFooter />}
+              >
+                {children}
+              </SiteChrome>
               {/* Professional in-app toaster — replaces native browser
                   alert()/confirm() dialogs (which prefix with
                   "www.myscope.lk says…"). Styled to match the project's

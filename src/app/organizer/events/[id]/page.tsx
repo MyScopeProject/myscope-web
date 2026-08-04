@@ -1028,7 +1028,7 @@ function CheckinTab({ eventId }: { eventId: string }) {
         ) : (
           <ul className="space-y-2">
             {data.recent.map(r => (
-              <li key={r.id} className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2 text-sm">
+              <li key={r.id} className="flex items-center justify-between rounded-lg border border-border bg-transparent px-4 py-2 text-sm">
                 <div className="min-w-0">
                   <div className="truncate font-medium text-foreground">{r.name || "—"}</div>
                   <div className="text-xs font-mono text-muted-foreground">{r.booking_reference} · {r.number_of_tickets} ticket(s)</div>
@@ -1174,7 +1174,7 @@ function ScannersTab({ eventId }: { eventId: string }) {
               <QRCodeSVG value={reveal.code} size={132} level="M" />
             </div>
             <div className="flex-1 space-y-2">
-              <div className="rounded-lg border border-border bg-card px-4 py-3 text-center font-mono text-3xl font-bold tracking-[0.4em] text-foreground">
+              <div className="rounded-lg border border-border bg-transparent px-4 py-3 text-center font-mono text-3xl font-bold tracking-[0.4em] text-foreground">
                 {reveal.code}
               </div>
               <div className="flex items-center gap-2">
@@ -1857,7 +1857,7 @@ function CommsTab({ eventId }: { eventId: string }) {
         rows={6}
         maxLength={5000}
         required
-        className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
       />
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] text-muted-foreground">
