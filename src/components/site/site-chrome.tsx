@@ -65,8 +65,14 @@ export function SiteChrome({
 
   return (
     <>
-      {ticker}
-      {header}
+      {/* Ticker + nav are stitched into one sticky unit: square corners flush
+          to the very top of the viewport, rounded corners only at the
+          bottom (see SiteHeader) — reads as a single panel, not two
+          separately-floating pieces. */}
+      <div className="sticky top-0 z-40">
+        {ticker}
+        {header}
+      </div>
       <main className="min-h-[calc(100vh-4rem)]">{children}</main>
       {footer}
     </>

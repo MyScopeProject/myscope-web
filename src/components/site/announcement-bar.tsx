@@ -16,7 +16,7 @@ const MESSAGES = [
 // a true violet rather than blue.
 export function AnnouncementBar() {
   return (
-    <div className="w-full overflow-hidden border-b border-border bg-[oklch(0.37_0.17_302)] text-white dark:bg-foreground dark:text-[oklch(0.33_0.16_302)]">
+    <div className="w-full overflow-hidden bg-[oklch(0.37_0.17_302)] text-white dark:bg-foreground dark:text-[oklch(0.33_0.16_302)]">
       <div className="flex w-max animate-marquee whitespace-nowrap py-2 hover:paused">
         {/* Two identical sets back-to-back for the seamless -50% loop. */}
         {[0, 1].map((copy) => (

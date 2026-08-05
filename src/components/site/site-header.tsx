@@ -3,7 +3,7 @@
 import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { DropdownMenu } from "radix-ui"
 
 import {
@@ -11,7 +11,6 @@ import {
   ChevronDown,
   LogOut,
   Menu,
-  Search,
   ShoppingBag,
   User,
   X,
@@ -19,27 +18,14 @@ import {
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { NavSearch } from "@/components/site/nav-search"
 import { cn } from "@/lib/utils"
-// NAV_ITEMS lives in a plain module (no "use client") so the server-rendered
-// homepage can import the real array. Importing it out of this client module
-// would hand the server a client reference, not the array — that's what broke
-// the homepage with `NAV_ITEMS.map is not a function`.
-import { NAV_ITEMS } from "@/components/site/nav-items"
-
-// The header nav bar (desktop + mobile drawer) shows Shop only — Events /
-// Concerts / Theatre / Sports stay in NAV_ITEMS itself (unchanged) since the
-// homepage's category pills and the /events page's own filter still use the
-// full list; this is scoped to just the header.
-const HEADER_NAV_ITEMS = NAV_ITEMS.filter((item) => item.category === "__shop")
 
 export function SiteHeader() {
   const { user, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [mobileOpen, setMobileOpen] = React.useState(false)
-  const [query, setQuery] = React.useState("")
-  const searchRef = React.useRef<HTMLInputElement>(null)
 
   // Close mobile drawer on route change
   React.useEffect(() => {
@@ -61,37 +47,6 @@ export function SiteHeader() {
     }
   }, [mobileOpen])
 
-  // Press "/" anywhere (outside a text field) to jump into search — a small
-  // command-bar affordance that keeps the search a keystroke away without a
-  // full modal palette.
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return
-      const el = document.activeElement
-      const typing =
-        el instanceof HTMLInputElement ||
-        el instanceof HTMLTextAreaElement ||
-        (el instanceof HTMLElement && el.isContentEditable)
-      if (typing) return
-      e.preventDefault()
-      searchRef.current?.focus()
-    }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [])
-
-  const isActive = (category: string) => {
-    if (category === "__shop") return pathname?.startsWith("/shop") ?? false
-    if (pathname !== "/events") return false
-    return (searchParams?.get("category") ?? "") === category
-  }
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    const q = query.trim()
-    router.push(q ? `/events?search=${encodeURIComponent(q)}` : "/events")
-  }
-
   const handleLogout = () => {
     logout()
     router.push("/")
@@ -99,15 +54,14 @@ export function SiteHeader() {
 
   return (
     <>
-    {/* Floating navbar: the outer <header> stays sticky and edge-to-edge so
-        it has somewhere to pin; the inner pill is what actually renders —
-        rounded, bordered, lifted on a soft shadow, sitting a few px in from
-        every edge. Border/blur/shadow all ride theme tokens so the pill reads
-        the same way the announcement bar + footer bracket the page: a clean
-        self-contained block rather than a full-bleed bar. */}
-    <header className="sticky top-0 z-40 w-full">
-      <div className="mx-auto max-w-7xl px-3 pt-3 sm:px-4 sm:pt-4">
-        <div className="flex h-16 items-center gap-1.5 rounded-2xl border border-border bg-background/80 px-2.5 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/65 sm:gap-2 sm:px-4">
+    {/* Stitched navbar: full-bleed background flush against the announcement
+        bar directly above it (stickiness is applied to both together by the
+        SiteChrome wrapper) — square top corners so the seam is invisible,
+        rounded-b-2xl on the bottom only so it still reads as a distinct,
+        lifted panel over the page content beneath it. */}
+    <header className="w-full border-b border-border bg-card/80 rounded-b-2xl shadow-lg backdrop-blur supports-backdrop-filter:bg-card/65">
+      <div className="mx-auto max-w-7xl px-3 sm:px-4">
+        <div className="flex h-16 items-center gap-1.5 sm:gap-2">
         {/* Brand */}
         <Link href="/" className="flex shrink-0 items-center" aria-label="MyScope home">
           <Image
@@ -120,52 +74,13 @@ export function SiteHeader() {
           />
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="ml-1 hidden items-center gap-0.5 md:flex">
-          {HEADER_NAV_ITEMS.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.category)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-                  // One active/idle rule for both themes — dark `--primary` is
-                  // a bright, legible violet and dark `--foreground` is already
-                  // near-white, so the tokens carry the contrast without any
-                  // per-theme white overrides.
-                  active
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* Search (desktop) — rounded pill matching the nav chips, with a "/"
-            keyboard hint that fades out once the field is focused. */}
-        <form onSubmit={handleSearch} className="ml-auto hidden max-w-sm flex-1 md:block">
-          <div className="group relative">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              ref={searchRef}
-              type="search"
-              placeholder="Search events…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-9 w-full rounded-full border border-transparent bg-muted/60 pl-10 pr-10 text-sm transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            />
-            <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 select-none rounded border border-border bg-background px-1.5 font-sans text-[11px] font-medium text-muted-foreground group-focus-within:opacity-0 lg:inline-block">
-              /
-            </kbd>
-          </div>
-        </form>
+        {/* Search (desktop) — centered in the bar now that the category nav
+            links are gone. Search input + independent date/price pickers
+            sit side by side (see NavSearch) so widening beyond the old
+            max-w-md gives the extra controls room to breathe. */}
+        <div className="mx-auto hidden max-w-xl flex-1 md:block">
+          <NavSearch />
+        </div>
 
         {/* Right cluster */}
         <div className="ml-auto flex items-center gap-0.5 sm:gap-1 md:ml-0">
@@ -296,52 +211,14 @@ export function SiteHeader() {
 
             {/* Search */}
             <div className="border-b border-border p-4">
-              <form onSubmit={handleSearch}>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="search"
-                    placeholder="Search events…"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-input bg-muted/40 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                  />
-                </div>
-              </form>
+              <NavSearch />
             </div>
 
             {/* Nav */}
             <nav className="flex-1 overflow-y-auto px-2 py-3">
-              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Browse
-              </p>
-              <div className="space-y-0.5">
-                {HEADER_NAV_ITEMS.map((item) => {
-                  const Icon = item.icon
-                  const active = isActive(item.category)
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-muted",
-                      )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      {item.label}
-                    </Link>
-                  )
-                })}
-              </div>
-
               {user && (
                 <>
-                  <p className="mt-5 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Account
                   </p>
                   <div className="space-y-0.5">

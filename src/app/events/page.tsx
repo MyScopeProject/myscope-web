@@ -63,6 +63,14 @@ function EventsPageInner() {
     () => (searchParams?.get("when") as DateFilter) ?? "all",
   )
 
+  // Deep-link-only params from the navbar search's date-range + price-range
+  // pickers — no UI on this page duplicates them, they just ride along in
+  // the fetch and stay in the URL so the link stays shareable.
+  const [from, setFrom] = React.useState(() => searchParams?.get("from") ?? "")
+  const [to, setTo] = React.useState(() => searchParams?.get("to") ?? "")
+  const [minPrice, setMinPrice] = React.useState(() => searchParams?.get("minPrice") ?? "")
+  const [maxPrice, setMaxPrice] = React.useState(() => searchParams?.get("maxPrice") ?? "")
+
   // Keep category in sync when navigating via navbar links (same page, new query params).
   React.useEffect(() => {
     setCategory(searchParams?.get("category") ?? "")
@@ -85,11 +93,17 @@ function EventsPageInner() {
     if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim())
     if (category) params.set("category", category)
     if (dateFilter !== "all") params.set("when", dateFilter)
+    if (from) params.set("from", from)
+    if (to) params.set("to", to)
+    if (minPrice) params.set("minPrice", minPrice)
+    if (maxPrice) params.set("maxPrice", maxPrice)
     const qs = params.toString()
     router.replace(qs ? `/events?${qs}` : "/events", { scroll: false })
-  }, [debouncedSearch, category, dateFilter, router])
+  }, [debouncedSearch, category, dateFilter, from, to, minPrice, maxPrice, router])
 
-  // Fetch when search/category change. Date filter is applied client-side.
+  // Fetch when search/category change. Date filter is applied client-side;
+  // from/to/minPrice/maxPrice (set by the navbar search) are forwarded
+  // straight through to the API, which filters them server-side.
   React.useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -100,6 +114,10 @@ function EventsPageInner() {
         params.set("upcoming", "true")
         if (category) params.set("category", category)
         if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim())
+        if (from) params.set("from", from)
+        if (to) params.set("to", to)
+        if (minPrice) params.set("minPrice", minPrice)
+        if (maxPrice) params.set("maxPrice", maxPrice)
 
         const res = await fetch(`${API_URL}/api/events?${params.toString()}`)
         const data = await res.json()
@@ -118,7 +136,7 @@ function EventsPageInner() {
     return () => {
       cancelled = true
     }
-  }, [debouncedSearch, category])
+  }, [debouncedSearch, category, from, to, minPrice, maxPrice])
 
   // Client-side date window filter.
   const filtered = React.useMemo(() => {
@@ -146,9 +164,21 @@ function EventsPageInner() {
     setSearch("")
     setCategory("")
     setDateFilter("all")
+    setFrom("")
+    setTo("")
+    setMinPrice("")
+    setMaxPrice("")
   }
 
-  const hasActiveFilters = !!(search || category || dateFilter !== "all")
+  const hasActiveFilters = !!(
+    search ||
+    category ||
+    dateFilter !== "all" ||
+    from ||
+    to ||
+    minPrice ||
+    maxPrice
+  )
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
