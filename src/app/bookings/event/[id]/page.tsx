@@ -845,8 +845,8 @@ export default function EventBookingDetailPage() {
      <div className="mt-6 flex items-start gap-2 font-inter">
       <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
       <div className="min-w-0">
-       <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Phone number verified</p>
-       <p className="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-400/80">
+       <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Phone number verified</p>
+       <p className="mt-0.5 text-xs text-emerald-600/80 dark:text-emerald-400/80">
         You&rsquo;ll receive SMS updates for this booking.
        </p>
       </div>
