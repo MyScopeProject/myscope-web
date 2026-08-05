@@ -74,7 +74,7 @@ export function SiteHeader() {
             alt="MyScope"
             width={275}
             height={80}
-            className="h-12 w-auto"
+            className="h-14 w-auto"
             priority
           />
         </Link>

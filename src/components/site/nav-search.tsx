@@ -24,21 +24,23 @@ function formatDate(d?: Date) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
-// Navbar search: a text input plus independent date-range and price-range
-// icon buttons. Any combination of the three (typed text, a date range, a
-// price range) drives ONE live results panel anchored under the input —
-// results update in place as filters change, no navigation to /events. The
-// date and price popovers are just pickers; there's no separate "search"
-// step, picking a range is itself the filter.
+// Navbar search: one unified pill — date-range and price-range icon+chevron
+// segments on the left, a plain text field in the middle, and a solid
+// search button on the right (same shape language as a typical booking-site
+// search bar: icon dropdowns | input | CTA button). Any combination of the
+// three (typed text, a date range, a price range) drives ONE live results
+// panel anchored under the input — results update in place, no navigation
+// to /events. The date/price popovers are just pickers; picking a range is
+// itself the filter, no separate "apply" step.
 export function NavSearch({
   className,
   onPrimary = false,
 }: {
   className?: string
-  // True when rendered directly on the solid --primary header bar (desktop
-  // nav) — swaps the input/trigger colors for primary-foreground-based
-  // tones so they read against a saturated violet background instead of the
-  // neutral bg-muted styling used inside the mobile drawer's plain surface.
+  // True when rendered directly on the solid --primary/brand-violet header
+  // bar (desktop nav) — adds dark-mode-only primary-foreground contrast
+  // tones so it reads against a saturated background instead of the neutral
+  // styling used inside the mobile drawer's plain surface.
   onPrimary?: boolean
 }) {
   const router = useRouter()
@@ -155,41 +157,161 @@ export function NavSearch({
     setResultsOpen(false)
   }
 
+  // Search button — bypasses the debounce so a click reacts immediately
+  // instead of waiting out the 300ms typing delay.
+  const runSearchNow = () => {
+    const trimmed = query.trim()
+    setDebouncedQuery(trimmed)
+    if (trimmed || hasDate || hasPrice) setResultsOpen(true)
+    inputRef.current?.focus()
+  }
+
+  const segmentBase =
+    "flex shrink-0 items-center gap-1 px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+  const segmentOnPrimary = onPrimary && "dark:text-primary-foreground/80 dark:hover:text-primary-foreground"
+  const segmentActive = "text-primary"
+  const segmentActiveOnPrimary = onPrimary && "dark:text-primary-foreground"
+
   return (
-    <div className={cn("flex w-full items-center gap-1.5 sm:gap-2", className)}>
-      {/* Single results panel — anchored under the whole row, driven by
+    <div
+      className={cn(
+        "flex h-11 w-full items-stretch overflow-hidden rounded-full border border-border bg-card/50",
+        onPrimary && "dark:border-primary-foreground/20 dark:bg-primary-foreground/10",
+        className,
+      )}
+    >
+      {/* Date range — independent trigger, usable with or without typed text */}
+      <Popover open={dateOpen} onOpenChange={setDateOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={hasDate ? `Dates: ${dateLabel}` : "Select dates"}
+            className={cn(segmentBase, segmentOnPrimary, hasDate && cn(segmentActive, segmentActiveOnPrimary))}
+          >
+            <CalendarIcon className="h-4 w-4" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" sideOffset={10} className="w-auto p-3">
+          <div className="mb-2 flex items-center justify-between gap-4">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Select dates
+            </p>
+            {hasDate && (
+              <button
+                type="button"
+                onClick={clearDate}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <Calendar
+            mode="range"
+            selected={dateRange}
+            onSelect={setDateRange}
+            numberOfMonths={1}
+            disabled={{ before: new Date() }}
+          />
+        </PopoverContent>
+      </Popover>
+
+      <span
+        className={cn(
+          "my-2.5 w-px shrink-0 bg-border",
+          onPrimary && "dark:bg-primary-foreground/20",
+        )}
+      />
+
+      {/* Price range — independent trigger, usable with or without typed text */}
+      <Popover
+        open={priceOpen}
+        onOpenChange={(next) => {
+          setPriceOpen(next)
+          if (next) ensureBounds()
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={hasPrice ? `Price: ${priceLabel}` : "Filter by price"}
+            className={cn(segmentBase, segmentOnPrimary, hasPrice && cn(segmentActive, segmentActiveOnPrimary))}
+          >
+            <Tag className="h-4 w-4" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" sideOffset={10} className="w-72 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Price range
+            </p>
+            {hasPrice && (
+              <button
+                type="button"
+                onClick={resetPrice}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          {!bounds || !priceRange ? (
+            <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+              <Loader className="h-3.5 w-3.5 animate-spin" /> Loading…
+            </div>
+          ) : bounds.max > bounds.min ? (
+            <>
+              <p className="mb-3 text-xs text-muted-foreground">
+                LKR {priceRange[0].toLocaleString()} – LKR {priceRange[1].toLocaleString()}
+              </p>
+              <Slider
+                min={bounds.min}
+                max={bounds.max}
+                step={Math.max(1, Math.round((bounds.max - bounds.min) / 100))}
+                value={priceRange}
+                onValueChange={(v) => setPriceRange([v[0], v[1]])}
+              />
+            </>
+          ) : (
+            <p className="py-2 text-xs text-muted-foreground">No price range available yet.</p>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      <span
+        className={cn(
+          "my-2.5 w-px shrink-0 bg-border",
+          onPrimary && "dark:bg-primary-foreground/20",
+        )}
+      />
+
+      {/* Single results panel — anchored under the input, driven by
           whichever combination of text/date/price is currently set. */}
       <Popover open={resultsOpen} onOpenChange={setResultsOpen}>
         <PopoverAnchor asChild>
-          <div className="relative min-w-0 flex-1">
-            <Search
-              className={cn(
-                "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground",
-                onPrimary && "dark:text-primary-foreground/70",
-              )}
-            />
-            <input
-              ref={inputRef}
-              type="search"
-              placeholder="Explore Events Book Tickets"
-              value={query}
-              onFocus={() => (debouncedQuery || hasDate || hasPrice) && setResultsOpen(true)}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.preventDefault()
-              }}
-              className={cn(
-                "h-9 w-full rounded-full border-none bg-muted/60 pl-10 pr-3 text-sm placeholder:text-muted-foreground transition-colors focus-visible:bg-background focus-visible:outline-none",
-                onPrimary &&
-                  "dark:bg-primary-foreground/15 dark:text-primary-foreground dark:placeholder:text-primary-foreground/60 dark:focus-visible:bg-primary-foreground/20",
-              )}
-            />
-          </div>
+          <input
+            ref={inputRef}
+            type="search"
+            placeholder="Explore Events Book Tickets"
+            value={query}
+            onFocus={() => (debouncedQuery || hasDate || hasPrice) && setResultsOpen(true)}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                runSearchNow()
+              }
+            }}
+            className={cn(
+              "min-w-0 flex-1 bg-transparent px-4 text-sm text-foreground placeholder:text-muted-foreground outline-none",
+              onPrimary && "dark:text-primary-foreground dark:placeholder:text-primary-foreground/60",
+            )}
+          />
         </PopoverAnchor>
 
         <PopoverContent
           align="start"
-          sideOffset={8}
+          sideOffset={10}
           onOpenAutoFocus={(e) => e.preventDefault()}
           className="max-h-[70vh] w-[min(92vw,24rem)] overflow-y-auto p-2"
         >
@@ -233,116 +355,20 @@ export function NavSearch({
         </PopoverContent>
       </Popover>
 
-      {/* Date range — independent trigger, usable with or without typed text */}
-      <Popover open={dateOpen} onOpenChange={setDateOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label={hasDate ? `Dates: ${dateLabel}` : "Select dates"}
-            title={hasDate ? dateLabel : "Select dates"}
-            className={cn(
-              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-transparent transition-colors",
-              hasDate
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-              onPrimary &&
-                (hasDate
-                  ? "dark:border-primary-foreground/60 dark:text-primary-foreground"
-                  : "dark:text-primary-foreground/80 dark:hover:text-primary-foreground"),
-            )}
-          >
-            <CalendarIcon className="h-4 w-4" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="center" sideOffset={8} className="w-auto p-3">
-          <div className="mb-2 flex items-center justify-between gap-4">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Select dates
-            </p>
-            {hasDate && (
-              <button
-                type="button"
-                onClick={clearDate}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <Calendar
-            mode="range"
-            selected={dateRange}
-            onSelect={setDateRange}
-            numberOfMonths={1}
-            disabled={{ before: new Date() }}
-          />
-        </PopoverContent>
-      </Popover>
-
-      {/* Price range — independent trigger, usable with or without typed text */}
-      <Popover
-        open={priceOpen}
-        onOpenChange={(next) => {
-          setPriceOpen(next)
-          if (next) ensureBounds()
-        }}
+      {/* Search button — solid fill, full-height, flush against the pill's
+          right edge (same shape language as the reference design). */}
+      <button
+        type="button"
+        aria-label="Search"
+        onClick={runSearchNow}
+        className={cn(
+          "flex shrink-0 items-center justify-center bg-primary px-5 text-primary-foreground transition-colors hover:bg-primary/90",
+          onPrimary &&
+            "dark:bg-primary-foreground dark:text-[oklch(0.37_0.17_302)] dark:hover:bg-primary-foreground/90",
+        )}
       >
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label={hasPrice ? `Price: ${priceLabel}` : "Filter by price"}
-            title={hasPrice ? priceLabel : "Filter by price"}
-            className={cn(
-              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-transparent transition-colors",
-              hasPrice
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-              onPrimary &&
-                (hasPrice
-                  ? "dark:border-primary-foreground/60 dark:text-primary-foreground"
-                  : "dark:text-primary-foreground/80 dark:hover:text-primary-foreground"),
-            )}
-          >
-            <Tag className="h-4 w-4" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="center" sideOffset={8} className="w-72 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Price range
-            </p>
-            {hasPrice && (
-              <button
-                type="button"
-                onClick={resetPrice}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-          {!bounds || !priceRange ? (
-            <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
-              <Loader className="h-3.5 w-3.5 animate-spin" /> Loading…
-            </div>
-          ) : bounds.max > bounds.min ? (
-            <>
-              <p className="mb-3 text-xs text-muted-foreground">
-                LKR {priceRange[0].toLocaleString()} – LKR {priceRange[1].toLocaleString()}
-              </p>
-              <Slider
-                min={bounds.min}
-                max={bounds.max}
-                step={Math.max(1, Math.round((bounds.max - bounds.min) / 100))}
-                value={priceRange}
-                onValueChange={(v) => setPriceRange([v[0], v[1]])}
-              />
-            </>
-          ) : (
-            <p className="py-2 text-xs text-muted-foreground">No price range available yet.</p>
-          )}
-        </PopoverContent>
-      </Popover>
+        <Search className="h-4 w-4" />
+      </button>
     </div>
   )
 }
