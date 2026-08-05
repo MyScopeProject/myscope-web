@@ -26,6 +26,12 @@ import { cn } from "@/lib/utils"
 // the homepage with `NAV_ITEMS.map is not a function`.
 import { NAV_ITEMS } from "@/components/site/nav-items"
 
+// The header nav bar (desktop + mobile drawer) shows Shop only — Events /
+// Concerts / Theatre / Sports stay in NAV_ITEMS itself (unchanged) since the
+// homepage's category pills and the /events page's own filter still use the
+// full list; this is scoped to just the header.
+const HEADER_NAV_ITEMS = NAV_ITEMS.filter((item) => item.category === "__shop")
+
 export function SiteHeader() {
   const { user, logout } = useAuth()
   const router = useRouter()
@@ -116,7 +122,7 @@ export function SiteHeader() {
 
         {/* Desktop nav */}
         <nav className="ml-1 hidden items-center gap-0.5 md:flex">
-          {NAV_ITEMS.map((item) => {
+          {HEADER_NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const active = isActive(item.category)
             return (
@@ -310,7 +316,7 @@ export function SiteHeader() {
                 Browse
               </p>
               <div className="space-y-0.5">
-                {NAV_ITEMS.map((item) => {
+                {HEADER_NAV_ITEMS.map((item) => {
                   const Icon = item.icon
                   const active = isActive(item.category)
                   return (
