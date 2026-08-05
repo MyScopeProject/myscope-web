@@ -416,15 +416,6 @@ export default function EventDetailsPage() {
 
  return (
   <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
-   {/* Back link */}
-   <Link
-    href="/events"
-    className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-   >
-    <ArrowLeft className="h-4 w-4" />
-    Back to events
-   </Link>
-
    {/* Hero — cinematic poster + info */}
    <section className="relative mb-10 overflow-hidden border border-border bg-muted">
     {/* Blurred backdrop — always the MAIN banner, never changes as the
