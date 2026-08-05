@@ -329,8 +329,23 @@ function BookingCard({ booking }: { booking: BookingRow }) {
   }
 
   return (
-    <li className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-      <div className="flex">
+    <li className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
+      <div className="relative flex">
+        {/* Ticket-stub notches — a small ring "punch hole" at the top and
+            bottom of the thumbnail/info divider. Uses an explicit border
+            (not a background-color match) because --background and --card
+            are the identical white in light mode — a color-matched circle
+            was invisible there. Only where the divider itself exists (sm+,
+            where the thumbnail is shown). */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute top-0 left-32 hidden h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-border bg-card sm:block"
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-32 hidden h-6 w-6 -translate-x-1/2 translate-y-1/2 rounded-full border-2 border-border bg-card sm:block"
+        />
+
         {/* Thumbnail */}
         <div className="relative hidden w-32 shrink-0 overflow-hidden bg-muted sm:block">
           {banner ? (
@@ -346,8 +361,8 @@ function BookingCard({ booking }: { booking: BookingRow }) {
           )}
         </div>
 
-        {/* Info */}
-        <div className="min-w-0 flex-1 p-4">
+        {/* Info — dashed divider off the thumbnail, like a torn ticket stub */}
+        <div className="min-w-0 flex-1 p-4 sm:border-l sm:border-dashed sm:border-border">
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant={meta.variant} className="text-xs">{meta.label}</Badge>
             {postponed && <Badge variant="warning" className="text-xs">Postponed</Badge>}
@@ -414,9 +429,9 @@ function BookingCard({ booking }: { booking: BookingRow }) {
         </div>
       </div>
 
-      {/* QR panel */}
+      {/* QR panel — dashed top divider continues the tear-off ticket motif */}
       {isConfirmed && showQr && (
-        <div className="border-t border-border bg-muted/20 p-4">
+        <div className="border-t border-dashed border-border bg-muted/20 p-4">
           {isReserved ? (
             loadingTickets ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
