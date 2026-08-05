@@ -167,7 +167,7 @@ export function UpcomingEventsSection({ initialEvents }: Props) {
           </>
         )
       ) : events.length === 0 ? (
-        <EmptyEvents />
+        <EmptyEvents onBrowseAll={() => selectCategory("")} />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           {events.slice(0, 8).map((event) => (
@@ -179,15 +179,15 @@ export function UpcomingEventsSection({ initialEvents }: Props) {
   )
 }
 
-function EmptyEvents() {
+function EmptyEvents({ onBrowseAll }: { onBrowseAll: () => void }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 p-12 text-center">
       <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Calendar className="h-5 w-5" />
       </span>
       <h3 className="text-base font-semibold text-foreground">No upcoming events right now</h3>
-      <Button asChild variant="outline" size="sm">
-        <Link href="/events">Browse all events</Link>
+      <Button type="button" variant="outline" size="sm" onClick={onBrowseAll}>
+        Browse all events
       </Button>
     </div>
   )
