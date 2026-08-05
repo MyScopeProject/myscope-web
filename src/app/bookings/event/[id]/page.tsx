@@ -837,11 +837,19 @@ export default function EventBookingDetailPage() {
      </div>
     )}
 
-    {/* Verified confirmation chip */}
+    {/* Verified confirmation — plain inline row, no card/border/background.
+      Text stays green (consistent with the checkmark meaning "verified"
+      elsewhere) but without a container it doesn't compete with the
+      "Payment received" success banner, which keeps the card treatment. */}
     {!!bookingPhone && isPhoneVerified && !isCancelled && (
-     <div className="mt-6 flex items-center gap-2 border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
-      <ShieldCheck className="h-4 w-4 shrink-0" />
-      <span>Phone number verified — you&rsquo;ll receive SMS updates for this booking.</span>
+     <div className="mt-6 flex items-start gap-2 font-inter">
+      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+      <div className="min-w-0">
+       <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Phone number verified</p>
+       <p className="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-400/80">
+        You&rsquo;ll receive SMS updates for this booking.
+       </p>
+      </div>
      </div>
     )}
 
@@ -919,10 +927,8 @@ export default function EventBookingDetailPage() {
        disabled={paying}
        className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 text-base font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-lg"
       >
-       {paying ? <Loader className="w-5 h-5 animate-spin" /> : <Ticket className="w-5 h-5" />}
-       {paying
-        ? 'Redirecting to secure checkout…'
-        : `Confirm and pay LKR ${Number(booking.total_amount).toLocaleString()}`}
+       {paying && <Loader className="w-5 h-5 animate-spin" />}
+       {paying ? 'Redirecting to secure checkout…' : 'Confirm and Pay'}
       </button>
       <p className="text-center text-xs text-muted-foreground">
        You&rsquo;ll be redirected to our secure payment gateway to complete your payment.
