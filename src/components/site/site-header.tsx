@@ -232,7 +232,7 @@ export function SiteHeader() {
 
             {/* Search */}
             <div className="border-b border-border p-4">
-              <NavSearch />
+              <NavSearch placeholder="Search events…" />
             </div>
 
             {/* Nav */}

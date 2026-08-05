@@ -35,6 +35,7 @@ function formatDate(d?: Date) {
 export function NavSearch({
   className,
   onPrimary = false,
+  placeholder = "Explore Events Book Tickets",
 }: {
   className?: string
   // True when rendered directly on the solid --primary/brand-violet header
@@ -42,6 +43,10 @@ export function NavSearch({
   // tones so it reads against a saturated background instead of the neutral
   // styling used inside the mobile drawer's plain surface.
   onPrimary?: boolean
+  // The mobile drawer instance passes a shorter string — the full default
+  // doesn't fit next to the date/price icon segments + search button in a
+  // narrow mobile-width pill and gets visually clipped.
+  placeholder?: string
 }) {
   const router = useRouter()
 
@@ -292,7 +297,7 @@ export function NavSearch({
           <input
             ref={inputRef}
             type="search"
-            placeholder="Explore Events Book Tickets"
+            placeholder={placeholder}
             value={query}
             onFocus={() => (debouncedQuery || hasDate || hasPrice) && setResultsOpen(true)}
             onChange={(e) => setQuery(e.target.value)}
@@ -362,9 +367,10 @@ export function NavSearch({
         aria-label="Search"
         onClick={runSearchNow}
         className={cn(
-          "flex shrink-0 items-center justify-center bg-primary px-5 text-primary-foreground transition-colors hover:bg-primary/90",
-          onPrimary &&
-            "dark:bg-primary-foreground dark:text-[#401268] dark:hover:bg-primary-foreground/90",
+          "flex shrink-0 items-center justify-center border-0 bg-primary px-5 text-primary-foreground outline-none transition-colors hover:bg-primary/90 focus-visible:outline-none",
+          onPrimary
+            ? "dark:bg-primary-foreground dark:text-[#401268] dark:hover:bg-primary-foreground/90"
+            : "dark:bg-[#401268] dark:hover:bg-[#401268]/90",
         )}
       >
         <Search className="h-4 w-4" />

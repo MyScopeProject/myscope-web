@@ -1,6 +1,6 @@
-import Image from "next/image"
 import Link from "next/link"
 import { Facebook, Instagram, Mail, MapPin, Phone } from "lucide-react"
+import { FooterLogo } from "@/components/site/footer-logo"
 
 const COL_PRODUCT = [
   { label: "Concerts", href: "/events?category=Concerts" },
@@ -54,19 +54,13 @@ export function SiteFooter() {
             and Contact column span the full 2 cols. On md+ everything
             flattens into the original 12-col layout. */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:grid-cols-12 md:gap-x-10 md:gap-y-10">
-          {/* Brand block — full width on mobile (col-span-2). Uses the same
-              `navbar_logo.png` mark as the header for one consistent brand
-              mark top-to-bottom; it reads on both the light and dark muted
-              footer bands. */}
+          {/* Brand block — full width on mobile (col-span-2). Same
+              theme-aware logo swap as the header (see footer-logo.tsx) for
+              one consistent brand mark top-to-bottom that reads correctly
+              on both the light and dark muted footer bands. */}
           <div className="col-span-2 md:col-span-4">
             <Link href="/" className="inline-flex items-center">
-              <Image
-                src="/Images/navbar_logo.png"
-                alt="MyScope"
-                width={275}
-                height={80}
-                className="h-20 w-auto sm:h-24"
-              />
+              <FooterLogo className="h-20 w-auto sm:h-24" />
             </Link>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground sm:mt-5">
               MyScope is Sri Lanka&rsquo;s Smartest Ticket Booking Platform — concerts, theatre, sports, and everything in between. Discover, book, and show up with QR coded tickets, real time seat maps, and instant gate check in.
