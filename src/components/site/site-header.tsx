@@ -201,7 +201,7 @@ export function SiteHeader() {
             the DOM always so the slide-out animation has somewhere to play. */}
         <aside
           className={cn(
-            "absolute inset-y-0 right-0 flex w-[85%] max-w-sm flex-col border-l border-border bg-card shadow-2xl transition-transform duration-300 ease-out",
+            "absolute inset-y-0 right-0 flex w-[85%] max-w-sm flex-col border-l border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-2xl transition-transform duration-300 ease-out",
             mobileOpen ? "translate-x-0" : "translate-x-full",
           )}
         >
