@@ -10,7 +10,6 @@ import {
   Loader,
   Mail,
   MapPin,
-  Phone,
   User as UserIcon,
 } from "lucide-react"
 import toast from "react-hot-toast"
@@ -19,16 +18,18 @@ import ProtectedRoute from "@/components/ProtectedRoute"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EditableCard, ViewRow } from "@/components/profile/editable-card"
+import { PhoneVerifyCard } from "@/components/profile/phone-verify-card"
 
 function ProfileContent() {
-  const { user, updateUser } = useAuth()
-  const [form, setForm] = React.useState({ name: "", phone: "", city: "" })
+  // Phone is managed separately (with SMS verification) in PhoneVerifyCard,
+  // so Account details only edits name + city.
+  const { user, updateUser, checkAuth } = useAuth()
+  const [form, setForm] = React.useState({ name: "", city: "" })
 
   React.useEffect(() => {
     if (user) {
       setForm({
         name: user.name || "",
-        phone: user.phone || "",
         city: user.city || "",
       })
     }
@@ -38,7 +39,6 @@ function ProfileContent() {
   const resetAccount = () => {
     setForm({
       name: user?.name || "",
-      phone: user?.phone || "",
       city: user?.city || "",
     })
   }
@@ -50,7 +50,6 @@ function ProfileContent() {
     }
     const result = await updateUser({
       name: form.name.trim(),
-      phone: form.phone.trim(),
       city: form.city.trim(),
     })
     if (result.success) {
@@ -151,16 +150,6 @@ function ProfileContent() {
               </div>
 
               <EditField
-                id="phone"
-                label="Phone"
-                type="tel"
-                icon={Phone}
-                value={form.phone}
-                onChange={(v) => setForm({ ...form, phone: v })}
-                placeholder="+94 77 123 4567"
-              />
-
-              <EditField
                 id="city"
                 label="City"
                 icon={MapPin}
@@ -173,12 +162,19 @@ function ProfileContent() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <ViewRow label="Full name" value={user.name} />
               <ViewRow label="Email" value={user.email} />
-              <ViewRow label="Phone" value={user.phone} />
               <ViewRow label="City" value={user.city} />
             </div>
           )
         }
       </EditableCard>
+
+      {/* Phone number — verified once here so bookings with this number skip
+          the checkout OTP. */}
+      <PhoneVerifyCard
+        phone={user.phone}
+        phoneVerified={user.phone_verified}
+        onVerified={checkAuth}
+      />
 
       {/* Organizer access */}
       {(user.role === "organizer" || user.role === "superadmin") && (

@@ -11,6 +11,7 @@ interface User {
   profileImage?: string;
   provider?: string; // 'local', 'google', etc.
   phone?: string;
+  phone_verified?: boolean;
   city?: string;
 }
 
@@ -54,6 +55,7 @@ type RawUser = {
   profile_image?: string;
   google_id?: string;
   phone?: string;
+  phone_verified?: boolean;
   city?: string;
 };
 
@@ -66,6 +68,7 @@ const mapUser = (raw: RawUser): User => ({
   profileImage: raw.profile_image,
   provider: raw.google_id ? 'google' : 'local',
   phone: raw.phone,
+  phone_verified: raw.phone_verified ?? false,
   city: raw.city,
 });
 
