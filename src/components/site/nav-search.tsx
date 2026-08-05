@@ -30,7 +30,17 @@ function formatDate(d?: Date) {
 // results update in place as filters change, no navigation to /events. The
 // date and price popovers are just pickers; there's no separate "search"
 // step, picking a range is itself the filter.
-export function NavSearch({ className }: { className?: string }) {
+export function NavSearch({
+  className,
+  onPrimary = false,
+}: {
+  className?: string
+  // True when rendered directly on the solid --primary header bar (desktop
+  // nav) — swaps the input/trigger colors for primary-foreground-based
+  // tones so they read against a saturated violet background instead of the
+  // neutral bg-muted styling used inside the mobile drawer's plain surface.
+  onPrimary?: boolean
+}) {
   const router = useRouter()
 
   const [query, setQuery] = React.useState("")
@@ -140,19 +150,6 @@ export function NavSearch({ className }: { className?: string }) {
     ? `LKR ${debouncedPriceRange[0].toLocaleString()}–${debouncedPriceRange[1].toLocaleString()}`
     : "Price"
 
-  const eventsHref = () => {
-    const params = new URLSearchParams()
-    if (query.trim()) params.set("search", query.trim())
-    if (dateRange?.from) params.set("from", dateRange.from.toISOString())
-    if (dateRange?.to) params.set("to", dateRange.to.toISOString())
-    if (hasPrice && debouncedPriceRange) {
-      params.set("minPrice", String(debouncedPriceRange[0]))
-      params.set("maxPrice", String(debouncedPriceRange[1]))
-    }
-    const qs = params.toString()
-    return qs ? `/events?${qs}` : "/events"
-  }
-
   const goToEvent = (id: string) => {
     router.push(`/events/${id}`)
     setResultsOpen(false)
@@ -165,18 +162,27 @@ export function NavSearch({ className }: { className?: string }) {
       <Popover open={resultsOpen} onOpenChange={setResultsOpen}>
         <PopoverAnchor asChild>
           <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search
+              className={cn(
+                "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground",
+                onPrimary && "dark:text-primary-foreground/70",
+              )}
+            />
             <input
               ref={inputRef}
               type="search"
-              placeholder="Search events…"
+              placeholder="Explore Events Book Tickets"
               value={query}
               onFocus={() => (debouncedQuery || hasDate || hasPrice) && setResultsOpen(true)}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.preventDefault()
               }}
-              className="h-9 w-full rounded-full border border-transparent bg-muted/60 pl-10 pr-3 text-sm transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              className={cn(
+                "h-9 w-full rounded-full border-none bg-muted/60 pl-10 pr-3 text-sm placeholder:text-muted-foreground transition-colors focus-visible:bg-background focus-visible:outline-none",
+                onPrimary &&
+                  "dark:bg-primary-foreground/15 dark:text-primary-foreground dark:placeholder:text-primary-foreground/60 dark:focus-visible:bg-primary-foreground/20",
+              )}
             />
           </div>
         </PopoverAnchor>
@@ -196,41 +202,33 @@ export function NavSearch({ className }: { className?: string }) {
               No events match these filters
             </p>
           ) : (
-            <>
-              <ul className="space-y-0.5">
-                {results.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => goToEvent(s.id)}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
-                    >
-                      <span className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-muted">
-                        {s.banner_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={s.banner_url} alt="" className="h-full w-full object-cover" />
-                        ) : null}
+            <ul className="space-y-0.5">
+              {results.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => goToEvent(s.id)}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
+                  >
+                    <span className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-muted">
+                      {s.banner_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={s.banner_url} alt="" className="h-full w-full object-cover" />
+                      ) : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {s.title}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {s.title}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {s.category || "Event"}
-                          {s.price != null ? ` · LKR ${Number(s.price).toLocaleString()}` : ""}
-                        </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {s.category || "Event"}
+                        {s.price != null ? ` · LKR ${Number(s.price).toLocaleString()}` : ""}
                       </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <a
-                href={eventsHref()}
-                className="mt-1 block rounded-lg px-2 py-2 text-center text-xs font-medium text-primary hover:underline"
-              >
-                View all results
-              </a>
-            </>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </PopoverContent>
       </Popover>
@@ -243,10 +241,14 @@ export function NavSearch({ className }: { className?: string }) {
             aria-label={hasDate ? `Dates: ${dateLabel}` : "Select dates"}
             title={hasDate ? dateLabel : "Select dates"}
             className={cn(
-              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
+              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-transparent transition-colors",
               hasDate
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-transparent bg-muted/60 text-muted-foreground hover:text-foreground",
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+              onPrimary &&
+                (hasDate
+                  ? "dark:border-primary-foreground/60 dark:text-primary-foreground"
+                  : "dark:text-primary-foreground/80 dark:hover:text-primary-foreground"),
             )}
           >
             <CalendarIcon className="h-4 w-4" />
@@ -291,10 +293,14 @@ export function NavSearch({ className }: { className?: string }) {
             aria-label={hasPrice ? `Price: ${priceLabel}` : "Filter by price"}
             title={hasPrice ? priceLabel : "Filter by price"}
             className={cn(
-              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
+              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-transparent transition-colors",
               hasPrice
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-transparent bg-muted/60 text-muted-foreground hover:text-foreground",
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+              onPrimary &&
+                (hasPrice
+                  ? "dark:border-primary-foreground/60 dark:text-primary-foreground"
+                  : "dark:text-primary-foreground/80 dark:hover:text-primary-foreground"),
             )}
           >
             <Tag className="h-4 w-4" />

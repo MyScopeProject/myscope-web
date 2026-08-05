@@ -16,13 +16,14 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-0", className)}
+      className={cn("relative p-0", className)}
       classNames={{
+        root: "relative",
         months: "flex flex-col gap-4",
         month: "space-y-3",
-        month_caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium text-foreground",
-        nav: "flex items-center justify-between absolute inset-x-0 top-0",
+        month_caption: "flex justify-center items-center pt-1 px-9",
+        caption_label: "text-sm font-medium text-foreground truncate",
+        nav: "flex items-center justify-between absolute inset-x-0 top-0 z-10",
         button_previous: cn(
           buttonVariants({ variant: "ghost", size: "icon-sm" }),
           "text-muted-foreground",

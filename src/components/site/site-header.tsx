@@ -58,8 +58,13 @@ export function SiteHeader() {
         bar directly above it (stickiness is applied to both together by the
         SiteChrome wrapper) — square top corners so the seam is invisible,
         rounded-b-2xl on the bottom only so it still reads as a distinct,
-        lifted panel over the page content beneath it. */}
-    <header className="w-full border-b border-border bg-card/80 rounded-b-2xl shadow-lg backdrop-blur supports-backdrop-filter:bg-card/65">
+        lifted panel over the page content beneath it.
+        Light mode: unchanged neutral bg-card, same as before. Dark mode:
+        solid --primary violet (same as the Button component) — bg-card in
+        dark mode was the same near-black as the page's ambient background,
+        so the bar was invisible there; violet fixes that. Content below
+        picks up matching dark:-only primary-foreground contrast tones. */}
+    <header className="w-full border-b border-border bg-card/80 dark:border-primary-foreground/10 dark:bg-[oklch(0.37_0.17_302)] rounded-b-2xl shadow-lg backdrop-blur supports-backdrop-filter:bg-card/65 dark:supports-backdrop-filter:bg-[oklch(0.37_0.17_302)]">
       <div className="mx-auto max-w-7xl px-3 sm:px-4">
         <div className="flex h-16 items-center gap-1.5 sm:gap-2">
         {/* Brand */}
@@ -77,14 +82,15 @@ export function SiteHeader() {
         {/* Search (desktop) — centered in the bar now that the category nav
             links are gone. Search input + independent date/price pickers
             sit side by side (see NavSearch) so widening beyond the old
-            max-w-md gives the extra controls room to breathe. */}
+            max-w-md gives the extra controls room to breathe. onPrimary
+            adds dark-mode-only contrast tones for the violet header. */}
         <div className="mx-auto hidden max-w-xl flex-1 md:block">
-          <NavSearch />
+          <NavSearch onPrimary />
         </div>
 
         {/* Right cluster */}
         <div className="ml-auto flex items-center gap-0.5 sm:gap-1 md:ml-0">
-          <ThemeToggle />
+          <ThemeToggle className="dark:hover:bg-primary-foreground/10 dark:hover:text-primary-foreground dark:focus-visible:ring-primary-foreground/50" />
 
           {user ? (
             // Account dropdown is desktop-only — on mobile the drawer menu
@@ -94,11 +100,11 @@ export function SiteHeader() {
               <DropdownMenu.Trigger asChild>
                 <button
                   type="button"
-                  className="group hidden items-center gap-2 rounded-full py-1 pl-1 pr-2 text-sm transition-colors hover:bg-muted data-[state=open]:bg-muted md:inline-flex"
+                  className="group hidden items-center gap-2 rounded-full py-1 pl-1 pr-2 text-sm transition-colors hover:bg-muted data-[state=open]:bg-muted dark:hover:bg-primary-foreground/10 dark:data-[state=open]:bg-primary-foreground/10 md:inline-flex"
                 >
-                  <Avatar user={user} className="h-7 w-7 text-xs" />
+                  <Avatar user={user} className="h-7 w-7 text-xs dark:bg-primary-foreground/20 dark:text-primary-foreground" />
                   <span className="text-sm font-medium">{user.name?.split(" ")[0]}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 dark:text-primary-foreground/70" />
                 </button>
               </DropdownMenu.Trigger>
 
@@ -132,7 +138,10 @@ export function SiteHeader() {
             </DropdownMenu.Root>
           ) : (
             <div className="hidden items-center sm:flex">
-              <Button asChild className="rounded-full">
+              <Button
+                asChild
+                className="rounded-full dark:bg-primary-foreground dark:text-[oklch(0.37_0.17_302)] dark:hover:bg-primary-foreground/90"
+              >
                 <Link href="/auth/login">Sign in</Link>
               </Button>
             </div>
@@ -141,7 +150,7 @@ export function SiteHeader() {
           {/* Mobile menu trigger */}
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-muted md:hidden"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-muted dark:border-primary-foreground/25 dark:bg-primary-foreground/10 dark:text-primary-foreground dark:hover:bg-primary-foreground/20 md:hidden"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Open menu"
           >
