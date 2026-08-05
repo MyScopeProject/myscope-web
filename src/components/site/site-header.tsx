@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
+import { useTheme } from "@/components/theme/theme-provider"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { NavSearch } from "@/components/site/nav-search"
@@ -26,6 +27,17 @@ export function SiteHeader() {
   const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = React.useState(false)
+
+  // Separate logo art per theme (drawn for each background specifically,
+  // not just a recolor) — default to the light logo before mount so SSR and
+  // the first client render match; ThemeToggle uses the same guard pattern.
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
+  const logoSrc =
+    mounted && resolvedTheme === "dark"
+      ? "/Images/navbar_logo_dark.png"
+      : "/Images/navbar_logo_light.png"
 
   // Close mobile drawer on route change
   React.useEffect(() => {
@@ -64,13 +76,13 @@ export function SiteHeader() {
         dark mode was the same near-black as the page's ambient background,
         so the bar was invisible there; violet fixes that. Content below
         picks up matching dark:-only primary-foreground contrast tones. */}
-    <header className="w-full border-b border-border bg-card/80 dark:border-primary-foreground/10 dark:bg-[oklch(0.37_0.17_302)] rounded-b-2xl shadow-lg backdrop-blur supports-backdrop-filter:bg-card/65 dark:supports-backdrop-filter:bg-[oklch(0.37_0.17_302)]">
+    <header className="w-full border-b border-border bg-card/80 dark:border-primary-foreground/10 dark:bg-[#401268] rounded-b-2xl shadow-lg backdrop-blur supports-backdrop-filter:bg-card/65 dark:supports-backdrop-filter:bg-[#401268]">
       <div className="mx-auto max-w-7xl px-3 sm:px-4">
         <div className="flex h-16 items-center gap-1.5 sm:gap-2">
         {/* Brand */}
         <Link href="/" className="flex shrink-0 items-center" aria-label="MyScope home">
           <Image
-            src="/Images/navbar_logo.png"
+            src={logoSrc}
             alt="MyScope"
             width={275}
             height={80}
@@ -140,7 +152,7 @@ export function SiteHeader() {
             <div className="hidden items-center sm:flex">
               <Button
                 asChild
-                className="rounded-full dark:bg-primary-foreground dark:text-[oklch(0.37_0.17_302)] dark:hover:bg-primary-foreground/90"
+                className="rounded-full dark:bg-primary-foreground dark:text-[#401268] dark:hover:bg-primary-foreground/90"
               >
                 <Link href="/auth/login">Sign in</Link>
               </Button>

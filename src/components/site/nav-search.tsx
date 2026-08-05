@@ -364,7 +364,7 @@ export function NavSearch({
         className={cn(
           "flex shrink-0 items-center justify-center bg-primary px-5 text-primary-foreground transition-colors hover:bg-primary/90",
           onPrimary &&
-            "dark:bg-primary-foreground dark:text-[oklch(0.37_0.17_302)] dark:hover:bg-primary-foreground/90",
+            "dark:bg-primary-foreground dark:text-[#401268] dark:hover:bg-primary-foreground/90",
         )}
       >
         <Search className="h-4 w-4" />
