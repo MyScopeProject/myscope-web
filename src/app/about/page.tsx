@@ -256,7 +256,7 @@ export default function AboutPage() {
                 LinkedIn
               </a>
               <a
-                href="mailto:hello.myscope@gmail.com"
+                href="mailto:nishanakila10@gmail.com"
                 className="font-medium text-primary hover:underline"
               >
                 nishanakila10@gmail.com
@@ -285,7 +285,7 @@ export default function AboutPage() {
           </Link>{" "}
           or email{" "}
           <a
-            href="mailto:hello.myscope@gmail.com"
+            href="mailto:hello@myscope.lk"
             className="font-medium text-primary hover:underline"
           >
             hello@myscope.lk

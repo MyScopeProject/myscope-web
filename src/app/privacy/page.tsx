@@ -51,7 +51,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   },
   {
     h: "8. Contact",
-    p: ["Questions about your privacy? Email hello.myscope@gmail.com."],
+    p: ["Questions about your privacy? Email hello@myscope.lk."],
   },
 ]
 

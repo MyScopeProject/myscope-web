@@ -916,7 +916,7 @@ function CheckoutPageInner() {
         {subtotal > 0 && (
          <div className="border-t border-border pt-3">
           {promoApplied ? (
-           <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm">
+           <div className="flex items-center justify-between px-3 py-2 text-sm">
             <span className="font-medium text-emerald-700 dark:text-emerald-400">
              Code <span className="font-mono">{promoApplied.code}</span> applied
             </span>

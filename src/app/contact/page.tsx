@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
-import { SiGmail, SiWhatsapp, SiGooglemaps } from "react-icons/si"
+import { Mail } from "lucide-react"
+import { SiWhatsapp, SiGooglemaps } from "react-icons/si"
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -21,15 +22,15 @@ export default function ContactPage() {
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <a
-          href="mailto:hello.myscope@gmail.com"
+          href="mailto:hello@myscope.lk"
           className="flex items-start gap-3 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 transition-colors hover:border-primary/40"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EA4335]/10 text-[#EA4335]">
-            <SiGmail className="h-5 w-5" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Mail className="h-5 w-5" />
           </span>
           <span className="min-w-0">
             <span className="block font-semibold text-foreground">Email</span>
-            <span className="block text-sm text-muted-foreground">hello.myscope@gmail.com</span>
+            <span className="block text-sm text-muted-foreground">hello@myscope.lk</span>
           </span>
         </a>
 

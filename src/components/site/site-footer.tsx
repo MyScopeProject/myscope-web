@@ -32,7 +32,7 @@ const SOCIAL: Array<{
 }> = [
   { icon: Instagram, href: "https://www.instagram.com/myscope.lk/", label: "Instagram", iconClass: "text-[#E4405F]" },
   { icon: Facebook, href: "https://www.facebook.com/profile.php?id=61583531460821", label: "Facebook", iconClass: "text-[#1877F2]" },
-  { icon: Mail, href: "mailto:hello.myscope@gmail.com", label: "Email", iconClass: "text-primary" },
+  { icon: Mail, href: "mailto:hello@myscope.lk", label: "Email", iconClass: "text-primary" },
 ]
 
 const CONTACT_PHONE = "+94 76 467 0645"
