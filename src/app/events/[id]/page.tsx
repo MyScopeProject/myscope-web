@@ -429,6 +429,12 @@ export default function EventDetailsPage() {
        aria-hidden="true"
        className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl brightness-110 saturate-150"
       />
+      {/* Soft scrim — just enough to keep the white hero text readable on a
+          light/pastel banner, without flattening the image's own color like
+          a uniform tint does. Bottom-left gradient only, faded out toward
+          the poster on the right so that side stays vivid. */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-transparent to-transparent" />
      </>
     ) : (
      <div className="absolute inset-0 bg-muted" />
