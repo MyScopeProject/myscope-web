@@ -18,7 +18,6 @@ import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { EditableCard, ViewRow } from "@/components/profile/editable-card"
-import { ResignDangerZone } from "@/components/organizer/resign-danger-zone"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -770,10 +769,6 @@ export default function OrganizerProfilePage() {
         }
       </EditableCard>
 
-      {/* Danger zone — voluntary resign-as-organizer flow. Same block as the
-          dashboard so the action is reachable from either entry point. Sits
-          at the bottom of the profile page after all editable fields. */}
-      <ResignDangerZone />
     </div>
   )
 }
