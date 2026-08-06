@@ -307,9 +307,9 @@ export default function BecomeOrganizerPage() {
           )}
 
           {success && (
-            <div className="mb-5 flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+            <div className="mb-5 flex items-start gap-3">
               <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <p className="text-sm text-emerald-700 dark:text-emerald-400">{success}</p>
+              <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
             </div>
           )}
 

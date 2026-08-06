@@ -467,16 +467,18 @@ export default function OrganizerEventControlPage() {
       </div>
 
       {headerMsg && (
-        <div className={cn(
-          "rounded-md border px-3 py-2 text-sm",
-          headerMsg.tone === "ok"
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-            : headerMsg.tone === "info"
+        headerMsg.tone === "ok" ? (
+          <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{headerMsg.text}</p>
+        ) : (
+          <div className={cn(
+            "rounded-md border px-3 py-2 text-sm",
+            headerMsg.tone === "info"
               ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
               : "border-destructive/30 bg-destructive/10 text-destructive",
-        )}>
-          {headerMsg.text}
-        </div>
+          )}>
+            {headerMsg.text}
+          </div>
+        )
       )}
 
       {postponeOpen && (

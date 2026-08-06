@@ -173,7 +173,7 @@ export default function VerifyEmailPage() {
             </div>
           )}
           {info && (
-            <div className="text-sm text-green-400 bg-green-500/10 border border-green-500/25 rounded-lg p-3 flex items-center gap-2">
+            <div className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
               <CheckCircle className="w-4 h-4 shrink-0" />
               {info}
             </div>

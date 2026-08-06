@@ -411,15 +411,17 @@ export default function EditEventPage() {
 
       {/* Inline confirmation after a successful save / submit. */}
       {savedNotice && (
-        <div className={cn(
-          "flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm",
-          savedNotice.kind === "queued"
-            ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-            : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-        )}>
-          <Check className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{savedNotice.text}</span>
-        </div>
+        savedNotice.kind === "queued" ? (
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+            <Check className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{savedNotice.text}</span>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+            <Check className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{savedNotice.text}</span>
+          </div>
+        )
       )}
 
       {/* Locked banner */}
@@ -813,7 +815,7 @@ function CustomLayoutPanel({
         </div>
       ) : hasAnySeats ? (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
             <Check className="h-4 w-4 shrink-0" />
             <span>This is the seat map buyers see at checkout.</span>
           </div>

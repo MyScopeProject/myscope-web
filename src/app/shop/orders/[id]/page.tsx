@@ -234,7 +234,7 @@ function OrderDetailInner() {
       </Link>
 
         {paymentResult === "success" && order.status === "Confirmed" && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-success/40 bg-success/10 p-3 text-sm text-success">
+          <div className="mt-4 flex items-start gap-2 text-sm text-emerald-600 dark:text-emerald-400">
             <CheckCircle2 className="mt-0.5 h-4 w-4" />
             <span>Payment received. The organizer has been notified and will start preparing your order.</span>
           </div>
