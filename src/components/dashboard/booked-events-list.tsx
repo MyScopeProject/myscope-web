@@ -36,6 +36,11 @@ interface EventLite {
   postponed_to?: string | null
 }
 
+interface TierBreakdown {
+  name: string
+  quantity: number
+}
+
 interface BookingRow {
   id: string
   booking_reference: string
@@ -48,6 +53,10 @@ interface BookingRow {
   ticket_url?: string | null
   checked_in_at?: string | null
   created_at: string
+  // Single-tier bookings carry a name; mixed-tier / reserved-GA bookings
+  // carry a per-tier breakdown instead (see eventBookingController.js).
+  ticket_tier_name?: string | null
+  tier_breakdown?: TierBreakdown[] | null
   event: EventLite | null
 }
 
@@ -303,6 +312,12 @@ function BookingCard({ booking }: { booking: BookingRow }) {
       ? dateObj.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })
       : null
 
+  // Mixed-tier bookings (reserved GA hybrids, multi-category orders) show
+  // each tier + its count; single-tier bookings just show the tier name.
+  const tierLabel = booking.tier_breakdown && booking.tier_breakdown.length > 0
+    ? booking.tier_breakdown.map((t) => `${t.name} ×${t.quantity}`).join(", ")
+    : booking.ticket_tier_name || null
+
   const [showQr, setShowQr] = React.useState(false)
   const [seatTickets, setSeatTickets] = React.useState<SeatTicket[] | null>(null)
   const [loadingTickets, setLoadingTickets] = React.useState(false)
@@ -396,6 +411,7 @@ function BookingCard({ booking }: { booking: BookingRow }) {
           {/* Booking details */}
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-4">
             <Detail label="Booking code" value={booking.short_code || booking.booking_reference} mono />
+            {tierLabel && <Detail label="Ticket tier" value={tierLabel} />}
             <Detail label="Tickets" value={String(booking.number_of_tickets)} />
             <Detail label="Total paid" value={lkr(booking.total_amount)} />
             <Detail
