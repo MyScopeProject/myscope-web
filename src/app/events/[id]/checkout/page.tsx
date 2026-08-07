@@ -551,7 +551,7 @@ function CheckoutPageInner() {
      <div className="space-y-6">
      {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
      {isReserved ? (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 shadow-xs dark:bg-card/40">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 shadow-xs">
        <header className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
          <h2 className="text-base font-semibold text-foreground sm:text-lg">Pick your seats</h2>
@@ -673,7 +673,7 @@ function CheckoutPageInner() {
      </div>
 
      {/* Attendee details */}
-     <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs dark:bg-card/40">
+     <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
       <header className="flex items-start gap-3 border-b border-border px-5 py-4">
        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
         1
@@ -751,7 +751,7 @@ function CheckoutPageInner() {
        forced through a "leave blank or fill?" prompt. Only meaningful
        when ticketCount > 1 (or 1 ticket bought for somebody else). */}
      {ticketCount > 0 && (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs dark:bg-card/40">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
        <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex items-start gap-3">
          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -825,7 +825,7 @@ function CheckoutPageInner() {
         so seat labels, prices, and the total stay readable against the
         deep page background. Stays in the theme's purple-violet hue. */}
     <aside className="lg:col-span-1">
-     <div className="sticky top-20 space-y-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs dark:bg-card/40">
+     <div className="sticky top-20 space-y-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs">
       <h2 className="text-base font-semibold text-foreground">Order summary</h2>
 
       {nonReservedCount > 0 || isReserved ? (
