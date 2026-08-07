@@ -337,7 +337,7 @@ export default function EventDetailsPage() {
   return (
    <section>
     <SectionHeading>Organized by</SectionHeading>
-    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card/30 p-4 backdrop-blur-md">
+    <div className="mt-3 flex items-center gap-3 p-4">
      <span
       className={cn(
        "inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10 font-semibold text-primary",
