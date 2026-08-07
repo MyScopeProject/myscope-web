@@ -252,6 +252,13 @@ export function SeatMapPicker({
   // Hovered seat (visual mode) — drives the floating info card. Cleared on
   // pointerleave or when the seat unmounts.
   const [hoveredSeat, setHoveredSeat] = React.useState<SeatMapSeat | null>(null)
+  // Touch devices don't have hover, so a single tap can't "preview" a seat
+  // the way a mouse hover does — the old behaviour was tap = instant select,
+  // giving no chance to check the price/tier first. previewSeatId pins the
+  // hover card open (with a real Select button) after a FIRST tap; a SECOND
+  // tap on the same seat actually selects it. Mouse/pen interactions are
+  // untouched — they still select on the first click, hover does the previewing.
+  const [previewSeatId, setPreviewSeatId] = React.useState<string | null>(null)
 
   // Flat list of all seats — handy for lookups across sections.
   const allSeats = React.useMemo(() => {
@@ -544,6 +551,23 @@ export function SeatMapPicker({
     }
   }
 
+  // Routes a seat tap/click through the tap-to-preview flow on touch (see
+  // previewSeatId above) while leaving mouse/pen behaviour as an immediate
+  // select — hover already previews for those pointer types.
+  const handleSeatInteract = (seat: SeatMapSeat, pointerType: string) => {
+    if (pointerType !== "touch") {
+      toggleSeat(seat)
+      return
+    }
+    if (previewSeatId !== seat.id) {
+      setPreviewSeatId(seat.id)
+      setHoveredSeat(seat)
+      return
+    }
+    setPreviewSeatId(null)
+    toggleSeat(seat)
+  }
+
   // Best-effort release on unmount / tab close. Uses sendBeacon so the
   // browser fires it even during a navigation away.
   React.useEffect(() => {
@@ -684,7 +708,7 @@ export function SeatMapPicker({
           still reads `holdSecondsLeft` internally to surface the expiry
           message and to reconcile selection on the next fetch tick. */}
       {holdSecondsLeft !== null && holdSecondsLeft <= 0 && selectedIds.size > 0 && (
-        <div className="flex items-center justify-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+        <div className="flex items-center justify-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
           <Clock className="h-4 w-4 shrink-0" />
           <span>Your hold has expired — please re-select your seats.</span>
         </div>
@@ -698,7 +722,7 @@ export function SeatMapPicker({
       )}
 
       {selectionWarning && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+        <div className="flex items-start gap-2 text-sm text-amber-600 dark:text-amber-400">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{selectionWarning}</span>
         </div>
@@ -727,6 +751,14 @@ export function SeatMapPicker({
           // while disabling the browser's native pinch — that lets our
           // two-finger touchmove handler run instead of the page zooming.
           className="overflow-auto pb-2 max-h-[80vh] [touch-action:pan-x_pan-y]"
+          // Double-click to zoom (desktop only — dblclick doesn't fire from
+          // touch taps) — a quick way to jump in without hunting for the
+          // toolbar. Skipped on seats themselves so it can't double-fire
+          // toggleSeat (select-then-deselect) as a side effect.
+          onDoubleClick={(e) => {
+            if ((e.target as Element).closest('[data-seat="true"]')) return
+            setZoom(z => clampZoom(z > 2 ? 1 : z * 1.6))
+          }}
         >
           <div
             className="relative"
@@ -738,8 +770,14 @@ export function SeatMapPicker({
               selectedIds={selectedIds}
               inFlightIds={inFlightIds}
               activeTicketTypeId={activeTicketTypeId}
-              onSeatClick={toggleSeat}
-              onSeatHover={setHoveredSeat}
+              onSeatInteract={handleSeatInteract}
+              onSeatHover={(seat) => {
+                // A touch pointerleave fires almost immediately after tap-up
+                // (the finger lifts) — without this guard it would instantly
+                // clear the pinned preview before the buyer can even read it.
+                if (seat === null && previewSeatId) return
+                setHoveredSeat(seat)
+              }}
               tierColorFor={(id) =>
                 id !== undefined && tierIndex.has(id)
                   ? resolveTierColor(id, tierIndex.get(id) as number)
@@ -748,7 +786,9 @@ export function SeatMapPicker({
             />
             {/* Floating seat info card — anchored above the hovered seat.
                 Position is expressed as a percentage of the viewbox so it
-                scales with the responsive SVG without needing a zoom factor. */}
+                scales with the responsive SVG without needing a zoom factor.
+                Pinned (pointer-events-auto + Select button) when this is a
+                touch tap-to-preview, plain decorative tooltip on desktop hover. */}
             {hoveredSeat && hoveredSeat.x != null && hoveredSeat.y != null && (
               <SeatHoverCard
                 seat={hoveredSeat}
@@ -760,6 +800,15 @@ export function SeatMapPicker({
                     : tierColorByIndex(0)
                 }
                 isSelected={selectedIds.has(hoveredSeat.id)}
+                pinned={previewSeatId === hoveredSeat.id}
+                onSelect={() => {
+                  setPreviewSeatId(null)
+                  toggleSeat(hoveredSeat)
+                }}
+                onDismiss={() => {
+                  setPreviewSeatId(null)
+                  setHoveredSeat(null)
+                }}
               />
             )}
           </div>
@@ -1019,7 +1068,7 @@ function VisualSeatMap({
   selectedIds,
   inFlightIds,
   activeTicketTypeId,
-  onSeatClick,
+  onSeatInteract,
   onSeatHover,
   tierColorFor,
 }: {
@@ -1028,7 +1077,7 @@ function VisualSeatMap({
   selectedIds: Set<string>
   inFlightIds: Set<string>
   activeTicketTypeId: string | null
-  onSeatClick: (seat: SeatMapSeat) => void
+  onSeatInteract: (seat: SeatMapSeat, pointerType: string) => void
   onSeatHover: (seat: SeatMapSeat | null) => void
   tierColorFor: (ticketTypeId: string | undefined) => string
 }) {
@@ -1109,7 +1158,7 @@ function VisualSeatMap({
             seat.ticket_type?.id !== activeTicketTypeId
           }
           tierColor={tierColorFor(seat.ticket_type?.id)}
-          onClick={() => onSeatClick(seat)}
+          onInteract={(pointerType) => onSeatInteract(seat, pointerType)}
           onPointerEnter={() => onSeatHover(seat)}
           onPointerLeave={() => onSeatHover(null)}
         />
@@ -1201,14 +1250,14 @@ const SEAT_R = 11   // seat circle radius, in viewbox units
 const HIT_R  = 16   // invisible hit-target radius (bigger tap area on mobile)
 
 function VisualSeat({
-  seat, isSelected, inFlight, otherTier, tierColor, onClick, onPointerEnter, onPointerLeave,
+  seat, isSelected, inFlight, otherTier, tierColor, onInteract, onPointerEnter, onPointerLeave,
 }: {
   seat: SeatMapSeat
   isSelected: boolean
   inFlight: boolean
   otherTier: boolean
   tierColor: string
-  onClick: () => void
+  onInteract: (pointerType: string) => void
   onPointerEnter: () => void
   onPointerLeave: () => void
 }) {
@@ -1254,18 +1303,22 @@ function VisualSeat({
   const rotation = seat.rotation
   const transform = rotation ? `rotate(${rotation} ${cx} ${cy})` : undefined
 
-  // Click handler is attached to the whole <g> so the invisible hit circle
-  // also forwards taps. We swallow the click when disabled but still route
-  // locked-tier clicks through so the parent's tier-switch banner fires.
-  const handleClick = () => {
+  // Pointer handler (not onClick) is attached to the whole <g> so the
+  // invisible hit circle also forwards taps, and so we get `pointerType`
+  // ("mouse" | "touch" | "pen") to drive the tap-to-preview flow on touch —
+  // see previewSeatId in the parent. We swallow it when disabled but still
+  // route locked-tier interactions through so the parent's tier-switch
+  // banner fires.
+  const handlePointerUp = (e: React.PointerEvent) => {
     if (isDisabled) return
-    onClick()
+    onInteract(e.pointerType)
   }
 
   return (
     <g
       transform={transform}
-      onClick={handleClick}
+      data-seat="true"
+      onPointerUp={handlePointerUp}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       style={{ cursor: isDisabled ? "not-allowed" : "pointer" }}
@@ -1273,8 +1326,13 @@ function VisualSeat({
       // text-foreground drives `currentColor` for the selected seat ring,
       // so it auto-adapts to light vs dark mode.
       className={cn("text-foreground", inFlight && "animate-pulse")}
+      role="img"
+      aria-label={title}
     >
-      <title>{title}</title>
+      {/* No <title> here on purpose — it duplicated SeatHoverCard with the
+          browser's own unstyled tooltip (visible at the same time, in a
+          different spot, looking like two overlapping info boxes). The
+          accessible name now lives on aria-label instead. */}
       {/* Hit target — invisible but pointer-receptive, sized larger than
           the visible square to give phones a comfortable tap radius. */}
       <rect
@@ -1334,13 +1392,25 @@ function SeatHoverCard({
   topPct,
   tierColor,
   isSelected,
+  pinned,
+  onSelect,
+  onDismiss,
 }: {
   seat: SeatMapSeat
   leftPct: number
   topPct: number
   tierColor: string
   isSelected: boolean
+  // True when this is a touch tap-to-preview (see previewSeatId in the
+  // parent) rather than a desktop hover — makes the card interactive
+  // (pointer-events-auto) with a real Select/Deselect button and a close
+  // affordance, instead of the plain decorative desktop tooltip.
+  pinned?: boolean
+  onSelect?: () => void
+  onDismiss?: () => void
 }) {
+  const isUnavailable = seat.status === "booked" || seat.status === "disabled" ||
+    (seat.status === "held" && !seat.held_by_me)
   const statusLabel = (() => {
     if (isSelected) return "Selected"
     if (seat.status === "booked") return "Sold"
@@ -1348,18 +1418,41 @@ function SeatHoverCard({
     if (seat.status === "disabled") return "Not for sale"
     return "Available"
   })()
+  const canPick = !isUnavailable && !!seat.ticket_type && !seat.ticket_type.is_free_seating
+
+  // Edge-aware anchoring — a plain "always centered, always above" card
+  // clips off-screen for seats near the map's edges (seen in practice on
+  // front-row / aisle seats). Shift the anchor instead of always centering,
+  // and flip below the seat when there's no room above.
+  const hHorizontal = leftPct < 15 ? "left" : leftPct > 85 ? "right" : "center"
+  const vVertical = topPct < 12 ? "below" : "above"
+  const translateX = hHorizontal === "left" ? "0%" : hHorizontal === "right" ? "-100%" : "-50%"
+  const translateY = vVertical === "below" ? "calc(0% + 8px)" : "calc(-100% - 8px)"
 
   return (
     <div
-      className="pointer-events-none absolute z-20 min-w-[140px] -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded-lg border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg"
-      style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+      className={cn(
+        "absolute z-20 min-w-[150px] max-w-[200px] rounded-lg border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg",
+        pinned ? "pointer-events-auto" : "pointer-events-none",
+      )}
+      style={{ left: `${leftPct}%`, top: `${topPct}%`, transform: `translate(${translateX}, ${translateY})` }}
       role="tooltip"
     >
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {seat.ticket_type && (
-          <TierDot color={tierColor} />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {seat.ticket_type && <TierDot color={tierColor} />}
+          <span>{seat.ticket_type?.name ?? "Reserved"}</span>
+        </div>
+        {pinned && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Close"
+            className="-mr-1 -mt-1 rounded p-1 text-muted-foreground hover:text-foreground"
+          >
+            ×
+          </button>
         )}
-        <span>{seat.ticket_type?.name ?? "Reserved"}</span>
       </div>
       <div className="mt-0.5 font-mono text-sm font-semibold text-foreground">
         {seat.seat_label || seat.seat_number}
@@ -1372,6 +1465,15 @@ function SeatHoverCard({
           </span>
         )}
       </div>
+      {pinned && canPick && (
+        <button
+          type="button"
+          onClick={onSelect}
+          className="mt-2 w-full rounded-md bg-primary px-2 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          {isSelected ? "Remove seat" : "Select seat"}
+        </button>
+      )}
     </div>
   )
 }
