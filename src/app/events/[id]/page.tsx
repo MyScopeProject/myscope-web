@@ -17,14 +17,11 @@ import {
  ExternalLink,
  Facebook,
  ImageIcon,
- Info,
  Instagram,
  Loader,
  MapPin,
  ShieldCheck,
  Ticket,
- User,
- Youtube,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -339,7 +336,7 @@ export default function EventDetailsPage() {
 
   return (
    <section>
-    <SectionHeading icon={User}>Organized by</SectionHeading>
+    <SectionHeading>Organized by</SectionHeading>
     <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-card/30 p-4 backdrop-blur-md">
      <span
       className={cn(
@@ -577,7 +574,7 @@ export default function EventDetailsPage() {
     <div className="space-y-10 lg:col-span-2">
      {/* About */}
      <section>
-      <SectionHeading icon={Info}>About this event</SectionHeading>
+      <SectionHeading>About this event</SectionHeading>
       <p className="mt-3 whitespace-pre-wrap leading-relaxed text-muted-foreground">
        {event.description || "No description provided."}
       </p>
@@ -594,7 +591,7 @@ export default function EventDetailsPage() {
       if (!embedSrc) return null
       return (
        <section>
-        <SectionHeading icon={Youtube}>Trailer</SectionHeading>
+        <SectionHeading>Trailer</SectionHeading>
         <div className="relative mt-3 aspect-video overflow-hidden rounded-2xl border border-border bg-black">
          <iframe
           src={embedSrc}
@@ -612,7 +609,7 @@ export default function EventDetailsPage() {
      {/* Venue location */}
      {(event.venue_address || event.venue_location_url) && (
       <section>
-       <SectionHeading icon={MapPin}>Venue</SectionHeading>
+       <SectionHeading>Venue</SectionHeading>
        <div className="mt-3 rounded-2xl border border-border bg-card/30 p-4 backdrop-blur-md">
         {event.venue_name && (
          <p className="font-semibold text-foreground">{event.venue_name}</p>
@@ -909,14 +906,16 @@ function SectionHeading({
  icon: Icon,
  children,
 }: {
- icon: React.ComponentType<{ className?: string }>
+ icon?: React.ComponentType<{ className?: string }>
  children: React.ReactNode
 }) {
  return (
   <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
-   <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-    <Icon className="h-4 w-4" />
-   </span>
+   {Icon && (
+    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+     <Icon className="h-4 w-4" />
+    </span>
+   )}
    {children}
   </h2>
  )
@@ -953,7 +952,7 @@ function CountdownCard({ target }: { target: Date }) {
 
 function CountdownUnit({ value, label }: { value: number; label: string }) {
  return (
-  <div className="flex flex-col items-center rounded-lg bg-muted py-2.5">
+  <div className="flex flex-col items-center rounded-lg bg-muted dark:bg-primary/10 py-2.5">
    <span className="text-2xl font-bold tabular-nums text-foreground">
     {String(value).padStart(2, "0")}
    </span>
