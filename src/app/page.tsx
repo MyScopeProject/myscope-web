@@ -141,7 +141,7 @@ export default async function HomePage() {
                 ].map(({ icon: Icon, title, desc }) => (
                   <li
                     key={title}
-                    className="rounded-xl border border-white/15 bg-white/10 p-3 dark:border-border dark:bg-background/60 sm:p-4"
+                    className="rounded-xl border border-white/15 bg-white/10 p-3 dark:border-border dark:bg-card/40 sm:p-4"
                   >
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white dark:bg-primary/10 dark:text-primary sm:h-8 sm:w-8">
                       <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
