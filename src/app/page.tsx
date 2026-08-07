@@ -69,7 +69,7 @@ export default async function HomePage() {
       {/* Featured events — category pills filter this section in place,
           client-side (see UpcomingEventsSection), instead of navigating
           away to /events. */}
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+      <section id="shop" className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
         <RevealOnScroll>
           <UpcomingEventsSection initialEvents={events} />
         </RevealOnScroll>

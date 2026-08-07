@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { ArrowRight, Calendar, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { EventCard, type EventCardData } from "@/components/events/event-card"
@@ -31,12 +32,23 @@ interface Props {
 }
 
 export function UpcomingEventsSection({ initialEvents }: Props) {
+  const searchParams = useSearchParams()
   const [mode, setMode] = React.useState<"events" | "shop">("events")
   const [category, setCategory] = React.useState("")
   const [events, setEvents] = React.useState(initialEvents)
   const [products, setProducts] = React.useState<ShopProductData[]>([])
   const [loading, setLoading] = React.useState(false)
   const isFirstRun = React.useRef(true)
+
+  // Deep-link support: /?section=shop switches straight to the Shop pill and
+  // scrolls this section into view — used by "Go to shop" links elsewhere
+  // (e.g. the empty My Orders state) that now point here instead of /shop.
+  React.useEffect(() => {
+    if (searchParams.get("section") !== "shop") return
+    setMode("shop")
+    document.getElementById("shop")?.scrollIntoView({ behavior: "smooth", block: "start" })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   React.useEffect(() => {
     // The server already fetched the "All" list — skip the redundant

@@ -819,39 +819,6 @@ function CheckoutPageInner() {
      </>
      )}
 
-     {/* Mobile: primary action — Continue on step 0, Pay on step 1. */}
-     <div className="lg:hidden">
-      {step === 0 ? (
-       <Button
-        type="button"
-        size="lg"
-        className="w-full"
-        onClick={advanceToPay}
-        disabled={isReserved ? ticketCount === 0 : nonReservedCount === 0}
-       >
-        Continue to payment
-       </Button>
-      ) : (
-       <div className="flex flex-col gap-2">
-        <Button
-         type="submit"
-         size="lg"
-         className="w-full"
-         disabled={submitting || (isReserved ? ticketCount === 0 : nonReservedCount === 0)}
-        >
-         <Lock />
-         {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
-        </Button>
-        <button
-         type="button"
-         onClick={() => setStep(0)}
-         className="text-center text-sm text-muted-foreground hover:text-foreground"
-        >
-         ← Back to seats
-        </button>
-       </div>
-      )}
-     </div>
     </div>
 
     {/* Right: sticky order summary — explicit brighter shade in dark mode
@@ -1035,6 +1002,42 @@ function CheckoutPageInner() {
         </button>
        </>
       )}
+
+      {/* Mobile: primary action — Continue on step 0, Pay on step 1.
+          Placed here (inside the order summary card) so it renders below
+          Order summary on mobile, where the grid collapses to one column. */}
+      <div className="lg:hidden">
+       {step === 0 ? (
+        <Button
+         type="button"
+         size="lg"
+         className="w-full"
+         onClick={advanceToPay}
+         disabled={isReserved ? ticketCount === 0 : nonReservedCount === 0}
+        >
+         Continue to payment
+        </Button>
+       ) : (
+        <div className="flex flex-col gap-2">
+         <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={submitting || (isReserved ? ticketCount === 0 : nonReservedCount === 0)}
+         >
+          <Lock />
+          {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
+         </Button>
+         <button
+          type="button"
+          onClick={() => setStep(0)}
+          className="text-center text-sm text-muted-foreground hover:text-foreground"
+         >
+          ← Back to seats
+         </button>
+        </div>
+       )}
+      </div>
 
       <p className="text-xs text-muted-foreground">
        By completing your purchase you agree to MyScope&rsquo;s{" "}

@@ -123,8 +123,7 @@ export default function MyOrdersPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-foreground">
-          <ShoppingBag className="h-6 w-6 text-primary" />
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           My Orders
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -152,7 +151,7 @@ export default function MyOrdersPage() {
               : "Completed orders are archived once they've been delivered or picked up."}
           </p>
           <Button asChild className="mt-4">
-            <Link href="/shop">Go to shop</Link>
+            <Link href="/?section=shop">Go to shop</Link>
           </Button>
         </div>
       ) : (
