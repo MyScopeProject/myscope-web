@@ -601,7 +601,7 @@ function CheckoutPageInner() {
       const emptyText = isZoned ? "No zones available." : "No tickets available."
 
       return (
-     <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
+     <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
       <header className="border-b border-border px-5 py-4">
        <h2 className="text-base font-semibold text-foreground">{heading}</h2>
       </header>
@@ -1176,7 +1176,7 @@ function LayoutImageZoom({ imageUrl }: { imageUrl: string }) {
  const reset = () => setZoom(LAYOUT_MIN_ZOOM)
  const btn = "inline-flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
  return (
-  <section className="overflow-hidden rounded-2xl border border-border bg-card/30 shadow-xs backdrop-blur-md">
+  <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
    <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
     <h2 className="text-sm font-semibold text-foreground">Seating layout</h2>
     <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shadow-sm dark:bg-card/40">
