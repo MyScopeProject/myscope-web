@@ -953,7 +953,7 @@ function CountdownCard({ target }: { target: Date }) {
 
 function CountdownUnit({ value, label }: { value: number; label: string }) {
  return (
-  <div className="flex flex-col items-center bg-background py-2.5">
+  <div className="flex flex-col items-center rounded-lg bg-muted py-2.5">
    <span className="text-2xl font-bold tabular-nums text-foreground">
     {String(value).padStart(2, "0")}
    </span>
