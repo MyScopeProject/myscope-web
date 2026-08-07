@@ -10,13 +10,13 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "1. Information we collect",
     p: [
-      "We collect information you provide when you create an account or book tickets — such as your name, email address, and phone number — and details about your bookings. We also collect limited technical data (such as device and usage information) to operate and improve the service.",
+      "We collect information you provide when you create an account, book tickets, or order from the MyScope shop, such as your name, email address, phone number, and details about your bookings or orders. If you buy a physical product with shipping delivery, we also collect your delivery address. We also collect limited technical data (such as device and usage information) to operate and improve the service.",
     ],
   },
   {
     h: "2. How we use your information",
     p: [
-      "We use your information to process bookings, deliver e-tickets, send booking confirmations and important event updates (such as reminders, postponements, or cancellations), provide support, and improve MyScope.",
+      "We use your information to process bookings and shop orders, deliver e-tickets, arrange shipping or pickup of physical items, send confirmations and important updates (such as reminders, postponements, cancellations, or delivery status), provide support, and improve MyScope.",
     ],
   },
   {
@@ -28,7 +28,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "4. Sharing your information",
     p: [
-      "We share necessary booking information with the relevant event organizer so they can manage attendance and contact you about their event. We do not sell your personal information. We may share data with service providers (such as email and SMS providers) strictly to deliver the service, and where required by law.",
+      "We share necessary booking information with the relevant event organizer so they can manage attendance and contact you about their event. For shop orders, we share your delivery address and order details with the selling organizer (and their courier, where shipping is used) so your order can be fulfilled. We do not sell your personal information. We may share data with service providers (such as email and SMS providers) strictly to deliver the service, and where required by law.",
     ],
   },
   {
@@ -59,7 +59,7 @@ export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Last updated: 23 May 2026</p>
+      <p className="mt-2 text-sm text-muted-foreground">Last updated: 7 August 2026</p>
 
       <div className="mt-8 space-y-8">
         {SECTIONS.map((s) => (

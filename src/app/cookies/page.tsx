@@ -16,7 +16,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "1. What cookies are",
     p: [
-      "Cookies are small text files stored in your browser by websites you visit. They let sites remember information about you across visits — for example, keeping you logged in or remembering your theme preference. Local storage and session storage are similar technologies; this policy covers all three together.",
+      "Cookies are small text files stored in your browser by websites you visit. They let sites remember information about you across visits, for example keeping you logged in or remembering your theme preference. Local storage and session storage are similar technologies; this policy covers all three together.",
     ],
   },
   {
@@ -24,7 +24,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
     p: [
       "Authentication: a 'token' cookie that keeps you logged in after you sign up or sign in. It expires 7 days after you log in, or sooner if you log out. Without it, you would have to log in on every page reload.",
       "Theme preference: stored in local storage so the site can paint with your chosen light/dark mode before the page renders (preventing a colour flash). No personal information is stored.",
-      "Cart / checkout state: temporary keys used while you're in the middle of buying tickets, so a page refresh doesn't lose your selection. Cleared when checkout finishes or you leave the site.",
+      "Cart / checkout state: temporary keys used while you're in the middle of buying tickets or shop products, so a page refresh doesn't lose your selection. Cleared when checkout finishes or you leave the site.",
     ],
   },
   {
@@ -49,14 +49,14 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "6. How to disable cookies",
     p: [
-      "You can disable cookies in your browser settings. If you do, you will not be able to log into MyScope and most features will not work — the authentication cookie is required for any account action. You can still browse public event pages.",
+      "You can disable cookies in your browser settings. If you do, you will not be able to log into MyScope and most features will not work, since the authentication cookie is required for any account action. You can still browse public event pages.",
       "Most modern browsers also let you delete cookies for specific sites. Doing this for myscope.lk will log you out and reset your preferences, but will not delete your account or bookings.",
     ],
   },
   {
     h: "7. Do Not Track",
     p: [
-      "We honour the Do Not Track header where it makes sense — since we do not track you across sites, there is no third-party tracking to disable. Authentication and functional cookies are not affected by DNT.",
+      "We honour the Do Not Track header where it makes sense. Since we do not track you across sites, there is no third-party tracking to disable. Authentication and functional cookies are not affected by DNT.",
     ],
   },
   {
@@ -75,7 +75,7 @@ export default function CookiePolicyPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Cookie Policy</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Last updated: 27 May 2026</p>
+      <p className="mt-2 text-sm text-muted-foreground">Last updated: 7 August 2026</p>
 
       <div className="mt-8 space-y-8">
         {SECTIONS.map((s) => (

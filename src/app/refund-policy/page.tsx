@@ -35,7 +35,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "3. When refunds are at the organizer's discretion",
     p: [
-      "For all other requests — including change of mind, inability to attend, illness, travel changes, or external disruptions outside the organizer's control — the refund decision rests with the event organizer. MyScope will pass your request to the organizer; if they approve, we will process the refund. We cannot guarantee a refund in these cases.",
+      "For all other requests, including change of mind, inability to attend, illness, travel changes, or external disruptions outside the organizer's control, the refund decision rests with the event organizer. MyScope will pass your request to the organizer; if they approve, we will process the refund. We cannot guarantee a refund in these cases.",
     ],
   },
   {
@@ -47,29 +47,35 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: "5. How to request a refund",
     p: [
-      "Email hello@myscope.lk with the subject line 'Refund — [booking reference]' and include: your name, the booking reference shown on your e-ticket, the event name, and the reason for the request. We respond within 2 business days.",
+      "For ticket bookings, the fastest way to request a refund is the 'Request refund' button on your booking's page in My Bookings, which submits your request directly to our team for review. You can also email hello@myscope.lk with the subject line 'Refund - [booking reference]' and include: your name, the booking reference shown on your e-ticket, the event name, and the reason for the request. Either way, we review requests within 2-3 business days.",
     ],
   },
   {
-    h: "6. Booking fees and add-ons",
+    h: "6. Shop orders (physical products)",
     p: [
-      "Where a non-refundable booking fee is shown at checkout, that fee is retained even when the ticket price is refunded. Add-ons such as event merchandise or parking, if offered, follow the refund stance disclosed at the time of purchase.",
+      "Shop orders are sold by the organizer or vendor listing the product, reviewed by MyScope before going live. Refunds or exchanges for a shop order (e.g. a defective, wrong, or undelivered item) are at the seller's discretion, in line with the return policy shown on the product page at the time of purchase. Contact hello@myscope.lk with your order reference if you need help reaching the seller or escalating an issue.",
     ],
   },
   {
-    h: "7. Chargebacks",
+    h: "7. Booking fees and add-ons",
     p: [
-      "If you raise a chargeback with your bank before contacting us, your account may be suspended pending resolution. We strongly prefer to resolve refund requests directly — please contact us first.",
+      "Where a non-refundable booking fee is shown at checkout, that fee is retained even when the ticket price is refunded. Add-ons such as parking, if offered, follow the refund stance disclosed at the time of purchase.",
     ],
   },
   {
-    h: "8. Disputes",
+    h: "8. Chargebacks",
+    p: [
+      "If you raise a chargeback with your bank before contacting us, your account may be suspended pending resolution. We strongly prefer to resolve refund requests directly, so please contact us first.",
+    ],
+  },
+  {
+    h: "9. Disputes",
     p: [
       "If you are not satisfied with the outcome of a refund request, you may escalate the matter to our support team at hello@myscope.lk and we will review the case. Final disputes about an organizer's refund decision are between you and the organizer; MyScope's role is to facilitate communication and process approved refunds.",
     ],
   },
   {
-    h: "9. Contact",
+    h: "10. Contact",
     p: ["Questions about refunds? Email hello@myscope.lk."],
   },
 ]
@@ -78,7 +84,7 @@ export default function RefundPolicyPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Refund Policy</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Last updated: 27 May 2026</p>
+      <p className="mt-2 text-sm text-muted-foreground">Last updated: 7 August 2026</p>
 
       <div className="mt-8 space-y-8">
         {SECTIONS.map((s) => (
