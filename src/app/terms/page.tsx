@@ -1,9 +1,17 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions",
-  description: "The terms governing your use of MyScope and the purchase of tickets.",
+  title: { absolute: "Terms & Conditions | MyScope Ticketing Platform" },
+  description:
+    "The terms governing your use of MyScope, including accounts, ticket and shop purchases, refunds, and organizer responsibilities on the platform.",
   alternates: { canonical: "https://www.myscope.lk/terms" },
+  openGraph: {
+    title: "Terms & Conditions | MyScope Ticketing Platform",
+    description:
+      "The terms governing your use of MyScope, including accounts, ticket and shop purchases, refunds, and organizer responsibilities on the platform.",
+    url: "https://www.myscope.lk/terms",
+    type: "website",
+  },
 }
 
 const SECTIONS: { h: string; p: string[] }[] = [

@@ -1,11 +1,19 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import Script from "next/script"
 
 export const metadata: Metadata = {
-  title: "Help center",
+  title: { absolute: "Help Center — MyScope Ticket Booking FAQs" },
   description:
-    "Answers to common questions about booking tickets, e-tickets, refunds, and hosting events on MyScope.",
+    "Answers to the questions we hear most: getting your e-tickets, accepted payment methods, refunds, event postponements, and how to start hosting on MyScope.",
   alternates: { canonical: "https://www.myscope.lk/help" },
+  openGraph: {
+    title: "Help Center — MyScope Ticket Booking FAQs",
+    description:
+      "Answers to the questions we hear most: getting your e-tickets, accepted payment methods, refunds, event postponements, and how to start hosting on MyScope.",
+    url: "https://www.myscope.lk/help",
+    type: "website",
+  },
 }
 
 const FAQS: { q: string; a: string }[] = [
@@ -35,9 +43,29 @@ const FAQS: { q: string; a: string }[] = [
   },
 ]
 
+// FAQPage JSON-LD from the same question/answer pairs rendered below —
+// keeps the structured data and the visible copy from drifting apart.
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+}
+
 export default function HelpPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
+      <Script
+        id="jsonld-faqpage"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Help center</h1>
       <p className="mt-4 text-base leading-relaxed text-muted-foreground">
         Quick answers to the questions we hear most. Still stuck?{" "}
@@ -47,14 +75,17 @@ export default function HelpPage() {
         and we&rsquo;ll help.
       </p>
 
-      <dl className="mt-8 divide-y divide-border">
+      {/* Previously a <dl>/<dt>/<dd> list — switched to h2 headings (same
+          visual styling) so each question contributes to the page's heading
+          outline and maps cleanly to the FAQPage schema above. */}
+      <div className="mt-8 divide-y divide-border">
         {FAQS.map((item) => (
           <div key={item.q} className="py-5">
-            <dt className="text-base font-semibold text-foreground">{item.q}</dt>
-            <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.a}</dd>
+            <h2 className="text-base font-semibold text-foreground">{item.q}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
           </div>
         ))}
-      </dl>
+      </div>
     </div>
   )
 }

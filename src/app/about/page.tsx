@@ -15,9 +15,9 @@ import {
 const FOUNDER_LINKEDIN = "https://www.linkedin.com/in/akila-jayakody-4b0289214/"
 
 export const metadata: Metadata = {
-  title: "About",
+  title: { absolute: "About MyScope — Sri Lanka's Event Ticketing Platform" },
   description:
-    "MyScope is Sri Lanka’s Smartest Ticket Booking Platform — built by Akila Jayakody to make discovering, booking, and attending concerts, theatre, and sports effortless across the island.",
+    "MyScope is Sri Lanka's smartest ticket booking platform, built by Akila Jayakody to make discovering and booking concerts, theatre, and sports effortless.",
   alternates: { canonical: "https://www.myscope.lk/about" },
   openGraph: {
     title: "About MyScope — Sri Lanka's Smartest Event Ticket booking Platform",

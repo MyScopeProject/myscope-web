@@ -4,6 +4,12 @@ export const metadata: Metadata = {
   title: "Cancellation Policy",
   description: "How event cancellations, postponements, and ticket cancellations work on MyScope.",
   alternates: { canonical: "https://www.myscope.lk/cancellation-policy" },
+  openGraph: {
+    title: "Cancellation Policy · MyScope",
+    description: "How event cancellations, postponements, and ticket cancellations work on MyScope.",
+    url: "https://www.myscope.lk/cancellation-policy",
+    type: "website",
+  },
 }
 
 // Two distinct cancellation flows live here:

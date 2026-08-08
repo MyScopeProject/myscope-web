@@ -1,9 +1,17 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "How MyScope collects, uses, and protects your personal information.",
+  title: { absolute: "Privacy Policy | MyScope Ticketing Platform" },
+  description:
+    "Learn how MyScope collects, uses, and protects your personal information when you book tickets, shop, or host events on the platform.",
   alternates: { canonical: "https://www.myscope.lk/privacy" },
+  openGraph: {
+    title: "Privacy Policy | MyScope Ticketing Platform",
+    description:
+      "Learn how MyScope collects, uses, and protects your personal information when you book tickets, shop, or host events on the platform.",
+    url: "https://www.myscope.lk/privacy",
+    type: "website",
+  },
 }
 
 const SECTIONS: { h: string; p: string[] }[] = [

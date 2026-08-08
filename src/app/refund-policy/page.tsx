@@ -1,9 +1,17 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Refund Policy",
-  description: "When and how MyScope refunds tickets, what's eligible, and how to request a refund.",
+  title: { absolute: "Refund Policy | MyScope Event Tickets" },
+  description:
+    "When you're entitled to a refund, when it's at the organizer's discretion, how long refunds take, and how to request one on MyScope.",
   alternates: { canonical: "https://www.myscope.lk/refund-policy" },
+  openGraph: {
+    title: "Refund Policy | MyScope Event Tickets",
+    description:
+      "When you're entitled to a refund, when it's at the organizer's discretion, how long refunds take, and how to request one on MyScope.",
+    url: "https://www.myscope.lk/refund-policy",
+    type: "website",
+  },
 }
 
 // MyScope-side refund policy. Sri Lanka has no central consumer-protection

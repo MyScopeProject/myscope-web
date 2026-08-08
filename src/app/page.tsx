@@ -1,4 +1,5 @@
 import { Suspense } from "react"
+import type { Metadata } from "next"
 import Link from "next/link"
 import Image from "next/image"
 import {
@@ -25,6 +26,13 @@ import { HeroSearchForm } from "@/components/home/hero-search-form"
 // fetches per visitor against the Render API in Oregon — that's the latency
 // this conversion eliminates.
 export const revalidate = 60
+
+// Homepage title/description come from the layout defaults (they're already
+// correct here) — this just adds the self-referencing canonical, which the
+// layout can't provide per-route.
+export const metadata: Metadata = {
+  alternates: { canonical: "https://www.myscope.lk/" },
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -64,8 +72,18 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* Hero — carousel when admins have published slides, otherwise the default hero */}
-      {showCarousel ? <HeroCarousel slides={heroSlides} /> : <DefaultHero />}
+      {/* Hero — carousel when admins have published slides, otherwise the default hero.
+          DefaultHero renders its own visible <h1>; the carousel has no heading of its
+          own (it's a pure image stage), so it needs an sr-only one here to keep exactly
+          one <h1> on the page regardless of which hero variant is active. */}
+      {showCarousel ? (
+        <>
+          <h1 className="sr-only">Discover and Book Events Across Sri Lanka</h1>
+          <HeroCarousel slides={heroSlides} />
+        </>
+      ) : (
+        <DefaultHero />
+      )}
 
       {/* Featured events — category pills filter this section in place,
           client-side (see UpcomingEventsSection), instead of navigating

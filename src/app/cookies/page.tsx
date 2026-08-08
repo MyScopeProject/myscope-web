@@ -1,9 +1,17 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Cookie Policy",
-  description: "What cookies MyScope uses, why we use them, and how to control them.",
+  title: { absolute: "Cookie Policy | MyScope Ticketing Platform" },
+  description:
+    "What cookies MyScope sets, why we use them, third-party cookies you may encounter, and how to control them across the site.",
   alternates: { canonical: "https://www.myscope.lk/cookies" },
+  openGraph: {
+    title: "Cookie Policy | MyScope Ticketing Platform",
+    description:
+      "What cookies MyScope sets, why we use them, third-party cookies you may encounter, and how to control them across the site.",
+    url: "https://www.myscope.lk/cookies",
+    type: "website",
+  },
 }
 
 // MyScope's cookie footprint is small and entirely first-party. We don't run

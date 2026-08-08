@@ -3,10 +3,17 @@ import { Mail } from "lucide-react"
 import { SiWhatsapp, SiGooglemaps } from "react-icons/si"
 
 export const metadata: Metadata = {
-  title: "Contact",
+  title: { absolute: "Contact MyScope — Ticketing Support in Sri Lanka" },
   description:
-    "Get in touch with the MyScope team — email, WhatsApp, and support for event-goers and organizers in Sri Lanka.",
+    "Reach the MyScope team by email or WhatsApp for booking help, refund questions, or organizer support — we typically respond within a day, island-wide.",
   alternates: { canonical: "https://www.myscope.lk/contact" },
+  openGraph: {
+    title: "Contact MyScope — Ticketing Support in Sri Lanka",
+    description:
+      "Reach the MyScope team by email or WhatsApp for booking help, refund questions, or organizer support — we typically respond within a day, island-wide.",
+    url: "https://www.myscope.lk/contact",
+    type: "website",
+  },
 }
 
 const WHATSAPP = "94764670645"
