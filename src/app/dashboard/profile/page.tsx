@@ -6,6 +6,7 @@ import Link from "next/link"
 import {
   ArrowRight,
   Building2,
+  CreditCard,
   Lock,
   Loader,
   Mail,
@@ -24,13 +25,14 @@ function ProfileContent() {
   // Phone is managed separately (with SMS verification) in PhoneVerifyCard,
   // so Account details only edits name + city.
   const { user, updateUser, checkAuth } = useAuth()
-  const [form, setForm] = React.useState({ name: "", city: "" })
+  const [form, setForm] = React.useState({ name: "", city: "", nic: "" })
 
   React.useEffect(() => {
     if (user) {
       setForm({
         name: user.name || "",
         city: user.city || "",
+        nic: user.nic || "",
       })
     }
   }, [user])
@@ -40,6 +42,7 @@ function ProfileContent() {
     setForm({
       name: user?.name || "",
       city: user?.city || "",
+      nic: user?.nic || "",
     })
   }
 
@@ -51,6 +54,7 @@ function ProfileContent() {
     const result = await updateUser({
       name: form.name.trim(),
       city: form.city.trim(),
+      nic: form.nic.trim(),
     })
     if (result.success) {
       toast.success("Profile updated.")
@@ -157,12 +161,22 @@ function ProfileContent() {
                 onChange={(v) => setForm({ ...form, city: v })}
                 placeholder="Colombo"
               />
+
+              <EditField
+                id="nic"
+                label="NIC / Passport"
+                icon={CreditCard}
+                value={form.nic}
+                onChange={(v) => setForm({ ...form, nic: v })}
+                placeholder="200012345678"
+              />
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <ViewRow label="Full name" value={user.name} />
               <ViewRow label="Email" value={user.email} />
               <ViewRow label="City" value={user.city} />
+              <ViewRow label="NIC / Passport" value={user.nic} />
             </div>
           )
         }

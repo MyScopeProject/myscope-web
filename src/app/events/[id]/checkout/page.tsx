@@ -6,13 +6,16 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
  AlertCircle,
  ArrowLeft,
+ BadgeCheck,
  CalendarClock,
+ Check,
  Loader,
  Lock,
  Maximize2,
  Minus,
  Plus,
 } from "lucide-react"
+import toast from "react-hot-toast"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,8 +31,14 @@ import {
   type SelectedFreeSeating,
 } from "@/components/events/seat-map-picker"
 import { pickBestOffer, type EventOffer } from "@/lib/offers"
+import { launchMpgsCheckout } from "@/lib/mpgsCheckout"
+import { launchKokoCheckout } from "@/lib/kokoCheckout"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+
+// Koko (BNPL) is opt-in — the KOKO payment option only appears when this is
+// set. Card (MPGS) is always available.
+const KOKO_ENABLED = process.env.NEXT_PUBLIC_KOKO_ENABLED === "true"
 
 interface TicketType {
  id: string
@@ -82,7 +91,7 @@ function CheckoutPageInner() {
  const params = useParams<{ id: string }>()
  const searchParams = useSearchParams()
  const eventId = params?.id
- const { user, loading: authLoading } = useAuth()
+ const { user, loading: authLoading, checkAuth } = useAuth()
 
  // Pre-selection from the event detail page (?tt=…&qty=…)
  const ttFromUrl = searchParams?.get("tt") ?? null
@@ -99,13 +108,29 @@ function CheckoutPageInner() {
  // of the global indicator is Details (which we collapse into Pay on this
  // page), so we map: step 0 → activeIndex 0, step 1 → activeIndex 1.
  const [step, setStep] = React.useState<0 | 1>(0)
+ // Selected payment gateway on the merged (billing + payment) step. 'card' →
+ // MPGS; 'koko' → Koko BNPL (only user-selectable when KOKO_ENABLED).
+ const [paymentMethod, setPaymentMethod] = React.useState<"card" | "koko">("card")
  // Step-1 transition: validate that the user has actually picked seats /
  // a ticket type before showing the Pay screen, and reset any prior submit
  // error so the new screen renders clean.
  const advanceToPay = React.useCallback(() => {
   setSubmitError("")
-  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
+  if (typeof window !== "undefined") {
+   window.scrollTo({ top: 0, behavior: "smooth" })
+   // Choose and Details & Pay are one URL (just this `step` state), so
+   // without a history entry the browser's back button skips straight past
+   // step 0 and leaves checkout entirely. Push one so back returns to Choose.
+   window.history.pushState({ checkoutStep: 1 }, "")
+  }
   setStep(1)
+ }, [])
+
+ // Browser back button while on step 1 → step 0, instead of leaving checkout.
+ React.useEffect(() => {
+  const onPopState = () => setStep(0)
+  window.addEventListener("popstate", onPopState)
+  return () => window.removeEventListener("popstate", onPopState)
  }, [])
 
  // Non-reserved cart: per-tier quantities keyed by ticket_type_id. A tier with
@@ -115,7 +140,85 @@ function CheckoutPageInner() {
  const [quantities, setQuantities] = React.useState<Record<string, number>>(
   ttFromUrl && qtyFromUrl && qtyFromUrl > 0 ? { [ttFromUrl]: qtyFromUrl } : {},
  )
- const [attendee, setAttendee] = React.useState({ name: "", email: "", phone: "" })
+ const [attendee, setAttendee] = React.useState({ firstName: "", lastName: "", email: "", phone: "", nic: "" })
+ // Compulsory Terms & Conditions acceptance before payment.
+ const [acceptedTerms, setAcceptedTerms] = React.useState(false)
+ // True right after a submit attempt was blocked on the checkbox — highlights
+ // the checkbox itself instead of a generic top-of-page error.
+ const [termsError, setTermsError] = React.useState(false)
+ // Inline profile-phone verification on this step, for logged-in buyers only.
+ // Once verified here, EVERY future booking with this number skips
+ // verification too (same as the profile page's PhoneVerifyCard — this is
+ // just that flow surfaced inline so buyers don't have to leave checkout).
+ const [phoneOtpStep, setPhoneOtpStep] = React.useState<"idle" | "sent">("idle")
+ const [phoneOtp, setPhoneOtp] = React.useState("")
+ const [sendingPhoneOtp, setSendingPhoneOtp] = React.useState(false)
+ const [verifyingPhoneOtp, setVerifyingPhoneOtp] = React.useState(false)
+ const [phoneOtpSentTo, setPhoneOtpSentTo] = React.useState("")
+
+ // True once the number in the form matches the buyer's already-verified
+ // profile number — no need to verify again.
+ const phoneIsVerified =
+  !!user?.phone_verified && !!user.phone && user.phone.trim() === attendee.phone.trim()
+
+ const requestPhoneOtp = async () => {
+  const value = attendee.phone.trim()
+  if (!value) {
+   toast.error("Enter a phone number first.")
+   return
+  }
+  setSendingPhoneOtp(true)
+  try {
+   const res = await fetch(`${API_URL}/api/user/phone/request-otp`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone: value }),
+   })
+   const body = await res.json()
+   if (body?.success) {
+    setPhoneOtpSentTo(body.data?.sent_to_last4 || value.slice(-4))
+    setPhoneOtpStep("sent")
+    toast.success("Verification code sent.")
+   } else {
+    toast.error(body?.message || "Couldn't send the code.")
+   }
+  } catch {
+   toast.error("Network error sending the code.")
+  } finally {
+   setSendingPhoneOtp(false)
+  }
+ }
+
+ const verifyPhoneOtp = async () => {
+  const code = phoneOtp.trim()
+  if (!code) {
+   toast.error("Enter the code.")
+   return
+  }
+  setVerifyingPhoneOtp(true)
+  try {
+   const res = await fetch(`${API_URL}/api/user/phone/verify`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ otp: code }),
+   })
+   const body = await res.json()
+   if (body?.success) {
+    toast.success("Phone verified.")
+    await checkAuth()
+    setPhoneOtpStep("idle")
+    setPhoneOtp("")
+   } else {
+    toast.error(body?.message || "Verification failed.")
+   }
+  } catch {
+   toast.error("Network error verifying the code.")
+  } finally {
+   setVerifyingPhoneOtp(false)
+  }
+ }
 
  // Reserved-mode state — seat picker manages its own list, parent just holds the result.
  const [selectedSeats, setSelectedSeats] = React.useState<SelectedSeat[]>([])
@@ -220,11 +323,16 @@ function CheckoutPageInner() {
  // Guests start with blank fields — they edit them directly.
  React.useEffect(() => {
   if (user) {
-   setAttendee({
-    name: user.name || "",
+   const parts = (user.name || "").trim().split(/\s+/).filter(Boolean)
+   setAttendee((prev) => ({
+    ...prev,
+    firstName: parts[0] || "",
+    lastName: parts.slice(1).join(" ") || "",
     email: user.email || "",
     phone: user.phone || "",
-   })
+    // Prefill NIC from the profile if the buyer saved one before; still editable.
+    nic: user.nic || prev.nic || "",
+   }))
   }
  }, [user])
 
@@ -366,6 +474,10 @@ function CheckoutPageInner() {
   e.preventDefault()
   setSubmitError("")
 
+  if (!attendee.firstName.trim()) {
+   setSubmitError("First name is required.")
+   return
+  }
   if (!attendee.email.trim()) {
    setSubmitError("Email is required.")
    return
@@ -374,6 +486,17 @@ function CheckoutPageInner() {
    setSubmitError("Phone number is required for SMS updates.")
    return
   }
+  if (!attendee.nic.trim()) {
+   setSubmitError("NIC / Passport is required.")
+   return
+  }
+  if (!acceptedTerms) {
+   // Highlight the checkbox itself rather than a generic top-of-page error —
+   // it's right there next to the button the buyer just clicked.
+   setTermsError(true)
+   return
+  }
+  setTermsError(false)
 
   let body: Record<string, unknown>
 
@@ -406,9 +529,10 @@ function CheckoutPageInner() {
      })),
     } : {}),
     attendee_info: {
-     name: attendee.name.trim() || undefined,
+     name: `${attendee.firstName.trim()} ${attendee.lastName.trim()}`.trim() || undefined,
      email: attendee.email.trim() || undefined,
      phone: attendee.phone.trim() || undefined,
+     nic: attendee.nic.trim() || undefined,
     },
     ...(giftPayload.length ? { recipients: giftPayload } : {}),
     ...(promoApplied ? { promo_code: promoApplied.code } : {}),
@@ -424,9 +548,10 @@ function CheckoutPageInner() {
     event_id: event!.id,
     items: nonReservedCart.map((l) => ({ ticket_type_id: l.tt.id, quantity: l.qty })),
     attendee_info: {
-     name: attendee.name.trim() || undefined,
+     name: `${attendee.firstName.trim()} ${attendee.lastName.trim()}`.trim() || undefined,
      email: attendee.email.trim() || undefined,
      phone: attendee.phone.trim() || undefined,
+     nic: attendee.nic.trim() || undefined,
     },
     ...(giftPayload.length ? { recipients: giftPayload } : {}),
     ...(promoApplied ? { promo_code: promoApplied.code } : {}),
@@ -449,8 +574,57 @@ function CheckoutPageInner() {
    // Guest bookings come with an opaque access token instead of a session —
    // pass it via ?t= so the confirmation page can re-authenticate the buyer.
    const guestToken = data.data.guest_access_token as string | undefined
-   const dest = `/bookings/event/${data.data.booking.id}${guestToken ? `?t=${encodeURIComponent(guestToken)}` : ""}`
-   router.push(dest)
+   const bookingId = data.data.booking.id as string
+   // The booking page doubles as the post-payment confirmation screen AND the
+   // fallback if we can't launch the gateway from here — same URL either way.
+   const bookingUrl = `/bookings/event/${bookingId}${guestToken ? `?t=${encodeURIComponent(guestToken)}` : ""}`
+
+   // Free bookings auto-confirm server-side — no gateway needed.
+   if (total === 0) {
+    router.push(bookingUrl)
+    return
+   }
+
+   // Otherwise launch the chosen gateway right here (merged checkout) so the
+   // buyer never sees an intermediate page. On ANY payment-init failure we
+   // fall back to the booking page, where the existing pay button lets them
+   // retry — the booking (Pending) is never lost.
+   const initBody = JSON.stringify({ bookingId, ...(guestToken ? { guestToken } : {}) })
+   try {
+    if (KOKO_ENABLED && paymentMethod === "koko") {
+     const kres = await fetch(`${API_URL}/api/payments/initialize-event-koko`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: initBody,
+     })
+     const kbody = await kres.json()
+     if (!kbody?.success) { router.push(bookingUrl); return }
+     // Full-page form POST to Koko; verdict returns via the signed webhook.
+     launchKokoCheckout({ actionUrl: kbody.data.actionUrl, fields: kbody.data.fields })
+     return
+    }
+    const pres = await fetch(`${API_URL}/api/payments/initialize-event`, {
+     method: "POST",
+     credentials: "include",
+     headers: { "Content-Type": "application/json" },
+     body: initBody,
+    })
+    const pbody = await pres.json()
+    if (!pbody?.success) { router.push(bookingUrl); return }
+    await launchMpgsCheckout({
+     sessionId: pbody.data.sessionId,
+     checkoutJsUrl: pbody.data.checkoutJsUrl,
+     // These fire only for problems BEFORE the browser leaves for MPGS (bad
+     // session, SDK config) — fall back to the booking page to retry.
+     onCancel: () => router.push(bookingUrl),
+     onError: () => router.push(bookingUrl),
+    })
+   } catch {
+    // Booking exists but we couldn't start payment — send them to the
+    // booking page to retry rather than stranding them here.
+    router.push(bookingUrl)
+   }
   } catch {
    setSubmitError("Network error. Please try again.")
   } finally {
@@ -497,21 +671,7 @@ function CheckoutPageInner() {
  }
 
  return (
-  <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-   <Link
-    href={`/events/${eventId}`}
-    className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-   >
-    <ArrowLeft className="h-4 w-4" /> Back to event
-   </Link>
-
-   <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-    <div>
-     <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-      {event.title}
-     </h1>
-    </div>
-   </div>
+  <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
 
    {/* Postpone tag — buy-ticket section. Buyers booking a postponed event see
      the rescheduled status (or "date to be announced") before paying. */}
@@ -539,9 +699,9 @@ function CheckoutPageInner() {
      screen at /bookings/event/[id]. */}
    <CheckoutSteps activeIndex={step === 0 ? 0 : 1} />
 
-   <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+   <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-5">
     {/* Left: step 0 = ticket / seat selection · step 1 = attendee form */}
-    <div className="space-y-6 lg:col-span-2">
+    <div className="space-y-6 lg:col-span-3">
      {/* ---- Step 0: Choose ----
        Rendered always (just hidden on step 1) so the SeatMapPicker stays
        mounted across the wizard. Unmounting it would fire the picker's
@@ -551,7 +711,7 @@ function CheckoutPageInner() {
      <div className="space-y-6">
      {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
      {isReserved ? (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 shadow-xs">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm p-5 shadow-xs">
        <header className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
          <h2 className="text-base font-semibold text-foreground sm:text-lg">Pick your seats</h2>
@@ -601,7 +761,7 @@ function CheckoutPageInner() {
       const emptyText = isZoned ? "No zones available." : "No tickets available."
 
       return (
-     <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
+     <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm shadow-xs">
       <header className="border-b border-border px-5 py-4">
        <h2 className="text-base font-semibold text-foreground">{heading}</h2>
       </header>
@@ -655,43 +815,16 @@ function CheckoutPageInner() {
      <>
      {/* Step header — quick orientation + summary chip so the buyer remembers
        what they're paying for without scrolling to the right rail. */}
-     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-       <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
-        Almost there
-       </h2>
-       <p className="mt-1 text-sm text-muted-foreground">
-        Tell us who&rsquo;s coming and you&rsquo;re ready to pay.
-       </p>
-      </div>
-      <span className="inline-flex items-center gap-2 self-start rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground">
-       <span className="font-semibold">{ticketCount}</span>
-       <span className="text-muted-foreground">
-        {ticketCount === 1 ? "ticket" : "tickets"} · {formatLkr(total)}
-       </span>
-      </span>
+     <div>
+      <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
+       Billing Information
+      </h2>
      </div>
 
      {/* Attendee details */}
-     <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
-      <header className="flex items-start gap-3 border-b border-border px-5 py-4">
-       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-        1
-       </span>
-       <div className="min-w-0">
-        <h2 className="text-base font-semibold text-foreground">Your details</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-         The buyer&rsquo;s confirmation + receipt go here.
-        </p>
-       </div>
-      </header>
+     <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm shadow-xs">
       <div className="space-y-4 px-5 py-5">
-       {user ? (
-        <p className="text-sm text-muted-foreground">
-         Tickets will be sent to{" "}
-         <span className="font-medium text-foreground">{attendee.email || "—"}</span>
-        </p>
-       ) : (
+       {!user && (
         <p className="text-sm text-muted-foreground">
          Checking out as a guest.{" "}
          <Link
@@ -704,45 +837,127 @@ function CheckoutPageInner() {
         </p>
        )}
 
-       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FieldGroup id="att-name" label="Name">
-         <Input
-          id="att-name"
-          type="text"
-          value={attendee.name}
-          onChange={(e) => setAttendee({ ...attendee, name: e.target.value })}
-          autoComplete="name"
-          placeholder="Akila Perera"
-         />
-        </FieldGroup>
-        {!user && (
-         <FieldGroup id="att-email" label="Email" required>
-          <Input
-           id="att-email"
-           type="email"
-           value={attendee.email}
-           onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
-           autoComplete="email"
-           placeholder="you@example.com"
-           required
-          />
-         </FieldGroup>
-        )}
-        <FieldGroup id="att-phone" label="Phone" required>
+       {/* Placeholders double as the field titles — no separate labels. */}
+       <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
+        <Input
+         id="att-first"
+         type="text"
+         value={attendee.firstName}
+         onChange={(e) => setAttendee({ ...attendee, firstName: e.target.value })}
+         autoComplete="given-name"
+         placeholder="First Name"
+         aria-label="First Name"
+         required
+        />
+        <Input
+         id="att-last"
+         type="text"
+         value={attendee.lastName}
+         onChange={(e) => setAttendee({ ...attendee, lastName: e.target.value })}
+         autoComplete="family-name"
+         placeholder="Last Name"
+         aria-label="Last Name"
+        />
+        <Input
+         id="att-email"
+         type="email"
+         value={attendee.email}
+         onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
+         autoComplete="email"
+         placeholder="Email Address"
+         aria-label="Email Address"
+         // Logged-in buyers sign in with this email — it can't be changed
+         // here. Guests have no account, so theirs stays editable.
+         readOnly={!!user}
+         className={cn(user && "cursor-not-allowed bg-muted/50 text-muted-foreground")}
+         required
+        />
+        <div className="space-y-2">
          <Input
           id="att-phone"
           type="tel"
           value={attendee.phone}
-          onChange={(e) => setAttendee({ ...attendee, phone: e.target.value })}
+          onChange={(e) => {
+           setAttendee({ ...attendee, phone: e.target.value })
+           // Editing the number invalidates any in-flight code for the old one.
+           setPhoneOtpStep("idle")
+           setPhoneOtp("")
+          }}
           autoComplete="tel"
-          placeholder="+94 77 123 4567"
+          placeholder="Phone Number"
+          aria-label="Phone Number"
+          // Locked once verified — "Change number" below explicitly unlocks it.
+          readOnly={phoneIsVerified}
+          className={cn(phoneIsVerified && "cursor-not-allowed bg-muted/50 text-muted-foreground")}
           required
          />
-        </FieldGroup>
+         {user && attendee.phone.trim() && (
+          phoneIsVerified ? (
+           <span className="inline-flex items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+             <BadgeCheck className="h-3.5 w-3.5" /> Verified
+            </span>
+            <button
+             type="button"
+             onClick={() => setAttendee({ ...attendee, phone: "" })}
+             className="font-medium text-primary hover:underline"
+            >
+             Change number
+            </button>
+           </span>
+          ) : phoneOtpStep === "idle" ? (
+           <button
+            type="button"
+            onClick={requestPhoneOtp}
+            disabled={sendingPhoneOtp}
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-60"
+           >
+            {sendingPhoneOtp && <Loader className="h-3 w-3 animate-spin" />}
+            {sendingPhoneOtp ? "Sending code…" : "Verify this number"}
+           </button>
+          ) : (
+           <div className="flex flex-wrap items-center gap-2">
+            <input
+             type="text"
+             inputMode="numeric"
+             autoComplete="one-time-code"
+             value={phoneOtp}
+             onChange={(e) => setPhoneOtp(e.target.value.replace(/[^\d]/g, "").slice(0, 6))}
+             placeholder="6-digit code"
+             className="h-8 w-32 rounded-md border border-input bg-transparent px-2.5 text-sm tracking-widest text-foreground placeholder:tracking-normal placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none dark:bg-input/30"
+            />
+            <button
+             type="button"
+             onClick={verifyPhoneOtp}
+             disabled={verifyingPhoneOtp}
+             className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-60"
+            >
+             {verifyingPhoneOtp ? <Loader className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+             Verify
+            </button>
+            <span className="text-xs text-muted-foreground">
+             Sent to ****{phoneOtpSentTo}
+            </span>
+           </div>
+          )
+         )}
+        </div>
+        <div className="sm:col-span-2">
+         <Input
+          id="att-nic"
+          type="text"
+          value={attendee.nic}
+          onChange={(e) => setAttendee({ ...attendee, nic: e.target.value })}
+          autoComplete="off"
+          placeholder="NIC / Passport"
+          aria-label="NIC / Passport"
+          required
+         />
+        </div>
        </div>
 
        <p className="text-xs text-muted-foreground">
-        We&rsquo;ll text your ticket and event updates to this number.
+        We&rsquo;ll text your ticket and event updates to your phone number.
        </p>
       </div>
      </section>
@@ -751,20 +966,15 @@ function CheckoutPageInner() {
        forced through a "leave blank or fill?" prompt. Only meaningful
        when ticketCount > 1 (or 1 ticket bought for somebody else). */}
      {ticketCount > 0 && (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm shadow-xs">
        <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
-        <div className="flex items-start gap-3">
-         <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-          2
-         </span>
-         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-foreground">Send tickets to others?</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-           Buying for friends or family? Add their email so each person gets their own ticket.
-          </p>
-         </div>
+        <div className="min-w-0">
+         <h2 className="text-base font-semibold text-foreground">Send tickets to others?</h2>
+         <p className="mt-0.5 text-xs text-muted-foreground">
+          Buying for friends or family? Add their email so each person gets their own ticket.
+         </p>
         </div>
-        <label className="inline-flex shrink-0 items-center gap-2 self-center rounded-full border border-border bg-muted/30 px-3 py-1.5 text-xs">
+        <label className="inline-flex shrink-0 items-center gap-2 self-center rounded-full border border-border px-3 py-1.5 text-xs">
          <input
           type="checkbox"
           checked={giftMode}
@@ -779,7 +989,7 @@ function CheckoutPageInner() {
          {recipients.map((r, i) => (
           <div
            key={i}
-           className="grid grid-cols-1 gap-2 rounded-2xl border border-border bg-muted/30 p-3 sm:grid-cols-[1.5rem_1fr_1fr]"
+           className="grid grid-cols-1 gap-2 rounded-2xl border border-border p-3 sm:grid-cols-[1.5rem_1fr_1fr]"
           >
            <div className="hidden h-full items-center justify-center text-xs font-semibold text-muted-foreground sm:flex">
             #{i + 1}
@@ -824,8 +1034,38 @@ function CheckoutPageInner() {
     {/* Right: sticky order summary — explicit brighter shade in dark mode
         so seat labels, prices, and the total stay readable against the
         deep page background. Stays in the theme's purple-violet hue. */}
-    <aside className="lg:col-span-1">
-     <div className="sticky top-20 space-y-4 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs">
+    <aside className="lg:col-span-2">
+     <div className="sticky top-20 space-y-3 rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm p-5 shadow-xs">
+      {/* Event header — banner + name + date + venue, so the buyer keeps sight
+          of what they're paying for. */}
+      <div className="flex items-start gap-3">
+       {event.banner_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+         src={event.banner_url}
+         alt=""
+         className="h-14 w-14 shrink-0 rounded-lg object-cover"
+        />
+       ) : null}
+       <div className="min-w-0">
+        <p className="line-clamp-2 text-sm font-semibold text-foreground">{event.title}</p>
+        {(event.start_time || event.date) && (
+         <p className="mt-0.5 text-xs text-muted-foreground">
+          {new Date((event.start_time || event.date)!).toLocaleString("en-US", {
+           month: "short",
+           day: "numeric",
+           hour: "numeric",
+           minute: "2-digit",
+          })}
+         </p>
+        )}
+        {event.venue_name && (
+         <p className="truncate text-xs text-muted-foreground">{event.venue_name}</p>
+        )}
+       </div>
+      </div>
+      <div className="border-t border-border" />
+
       <h2 className="text-base font-semibold text-foreground">Order summary</h2>
 
       {nonReservedCount > 0 || isReserved ? (
@@ -948,17 +1188,23 @@ function CheckoutPageInner() {
         {subtotal > 0 && (
          <>
           <SummaryRow label="Sub Total" value={formatLkr(subtotalAfterDiscount)} />
-          <SummaryRow
-           label={`Convenience Fee (${(convenienceFeePct * 100).toFixed(convenienceFeePct * 100 % 1 === 0 ? 0 : 1)}%)`}
-           value={`+ ${formatLkr(convenienceFee)}`}
-          />
+          {/* Convenience fee is only surfaced on the Details & Pay step — the
+              ticket-choosing step shows the plain subtotal. */}
+          {step === 1 && (
+           <SummaryRow
+            label={`Convenience Fee (${(convenienceFeePct * 100).toFixed(convenienceFeePct * 100 % 1 === 0 ? 0 : 1)}%)`}
+            value={`+ ${formatLkr(convenienceFee)}`}
+           />
+          )}
          </>
         )}
 
         <div className="border-t border-border pt-3">
          <div className="flex items-baseline justify-between">
           <span className="text-sm text-muted-foreground">Total</span>
-          <span className="text-2xl font-bold text-foreground">{formatLkr(total)}</span>
+          <span className="text-2xl font-bold text-foreground">
+           {formatLkr(step === 1 ? total : subtotalAfterDiscount)}
+          </span>
          </div>
         </div>
        </>
@@ -966,6 +1212,72 @@ function CheckoutPageInner() {
        <p className="text-sm text-muted-foreground">
         {isReserved ? "Pick seats to see the total." : "Pick a ticket type to see the total."}
        </p>
+      )}
+
+      {/* Payment Method — shown on the pay step, right above the CTA so the
+          buyer picks how to pay and confirms in one place. */}
+      {step === 1 && (
+       <div className="space-y-2 border-t border-border pt-4">
+        <p className="text-sm font-semibold text-foreground">Payment Method</p>
+        <label className="flex cursor-pointer items-start gap-2.5 px-1 py-2">
+         <input
+          type="radio"
+          name="paymentMethod"
+          value="card"
+          checked={paymentMethod === "card"}
+          onChange={() => setPaymentMethod("card")}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+         />
+         <span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/Images/payment.jpeg" alt="Card, Wallets & Banking" className="h-6 w-auto rounded object-contain" />
+          <span className="mt-1 block text-xs text-muted-foreground">Visa, Mastercard </span>
+         </span>
+        </label>
+        {KOKO_ENABLED && (
+         <label className="flex cursor-pointer items-start gap-2.5 px-1 py-2">
+          <input
+           type="radio"
+           name="paymentMethod"
+           value="koko"
+           checked={paymentMethod === "koko"}
+           onChange={() => setPaymentMethod("koko")}
+           className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+          />
+          <span>
+           {/* eslint-disable-next-line @next/next/no-img-element */}
+           <img src="/Images/koko.png" alt="KOKO" className="h-5 w-auto object-contain" />
+           <span className="mt-1 block text-xs text-muted-foreground">Buy Now, Pay Later</span>
+          </span>
+         </label>
+        )}
+       </div>
+      )}
+
+      {/* Compulsory Terms & Conditions — right above the pay button, gating it.
+          On a blocked submit, the checkbox itself glows instead of showing a
+          generic error elsewhere on the page. */}
+      {step === 1 && (
+       <label className="flex cursor-pointer items-start gap-2.5 p-1 text-sm text-foreground">
+        <input
+         type="checkbox"
+         checked={acceptedTerms}
+         onChange={(e) => {
+          setAcceptedTerms(e.target.checked)
+          if (e.target.checked) setTermsError(false)
+         }}
+         className={cn(
+          "mt-0.5 h-4 w-4 shrink-0 rounded accent-primary transition-shadow",
+          termsError && "animate-pulse shadow-[0_0_10px_3px_var(--color-destructive)] ring-2 ring-destructive",
+         )}
+        />
+        <span>
+         I accept and agree to the{" "}
+         <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">
+          Terms and Conditions
+         </Link>
+        </span>
+       </label>
       )}
 
       {/* Step-aware primary action.
@@ -990,12 +1302,11 @@ function CheckoutPageInner() {
          className="hidden w-full lg:inline-flex"
          disabled={submitting || (isReserved ? ticketCount === 0 : nonReservedCount === 0)}
         >
-         <Lock />
          {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
         </Button>
         <button
          type="button"
-         onClick={() => setStep(0)}
+         onClick={() => window.history.back()}
          className="hidden w-full text-center text-sm text-muted-foreground hover:text-foreground lg:inline-block"
         >
          ← Back to seats
@@ -1025,12 +1336,11 @@ function CheckoutPageInner() {
           className="w-full"
           disabled={submitting || (isReserved ? ticketCount === 0 : nonReservedCount === 0)}
          >
-          <Lock />
           {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
          </Button>
          <button
           type="button"
-          onClick={() => setStep(0)}
+          onClick={() => window.history.back()}
           className="text-center text-sm text-muted-foreground hover:text-foreground"
          >
           ← Back to seats
@@ -1039,11 +1349,6 @@ function CheckoutPageInner() {
        )}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-       By completing your purchase you agree to MyScope&rsquo;s{" "}
-       <Link href="/terms" className="text-primary hover:underline">Terms</Link> and{" "}
-       <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
-      </p>
      </div>
     </aside>
    </form>
@@ -1093,7 +1398,7 @@ function TicketTypeOption({
         disabled at 0; plus is clamped to the tier's max (limit ∧ stock). */}
     <div className="shrink-0">
      {soldOut ? null : (
-      <div className="flex items-center rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm">
+      <div className="flex items-center rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm">
        <button
         type="button"
         onClick={() => onChange(Math.max(0, qty - 1))}
@@ -1123,31 +1428,6 @@ function TicketTypeOption({
  )
 }
 
-function FieldGroup({
- id,
- label,
- required,
- helper,
- children,
-}: {
- id?: string
- label: string
- required?: boolean
- helper?: string
- children: React.ReactNode
-}) {
- return (
-  <div className="space-y-1.5">
-   <label htmlFor={id} className="block text-sm font-medium text-foreground">
-    {label}
-    {required && <span className="ml-0.5 text-destructive">*</span>}
-   </label>
-   {children}
-   {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
-  </div>
- )
-}
-
 function SummaryRow({ label, value }: { label: React.ReactNode; value: string }) {
  return (
   <div className="flex items-baseline justify-between text-sm">
@@ -1159,7 +1439,7 @@ function SummaryRow({ label, value }: { label: React.ReactNode; value: string })
 
 // CheckoutSteps + CHECKOUT_STEPS moved to @/components/checkout/checkout-steps
 // so the same strip can render on the payment page (/bookings/event/[id])
-// with activeIndex={2}, keeping the flow visually continuous.
+// with activeIndex={1} (Details & Pay), keeping the flow visually continuous.
 
 // Inline zoomable view for the organizer-uploaded seating layout image.
 // Buyer can zoom in (+) / out (−) / reset (⤢) without leaving the page —
@@ -1176,7 +1456,7 @@ function LayoutImageZoom({ imageUrl }: { imageUrl: string }) {
  const reset = () => setZoom(LAYOUT_MIN_ZOOM)
  const btn = "inline-flex h-7 w-7 items-center justify-center rounded-md text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
  return (
-  <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
+  <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm shadow-xs">
    <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
     <h2 className="text-sm font-semibold text-foreground">Seating layout</h2>
     <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shadow-sm dark:bg-card/40">

@@ -21,8 +21,14 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { CheckoutSteps } from '@/components/checkout/checkout-steps';
 import { launchMpgsCheckout } from '@/lib/mpgsCheckout';
+import { launchKokoCheckout } from '@/lib/kokoCheckout';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+// Koko (BNPL) is opt-in: the payment-method chooser only appears once this is
+// set, so we don't show a broken option before the merchant's Koko creds are
+// live on the API. Card (MPGS) is always available.
+const KOKO_ENABLED = process.env.NEXT_PUBLIC_KOKO_ENABLED === 'true';
 
 interface Booking {
  id: string;
@@ -122,6 +128,8 @@ export default function EventBookingDetailPage() {
  const [paymentError, setPaymentError] = useState('');
  const [cancelling, setCancelling] = useState(false);
  const [paying, setPaying] = useState(false);
+ // 'card' → MPGS; 'koko' → Koko BNPL. Only user-selectable when KOKO_ENABLED.
+ const [paymentMethod, setPaymentMethod] = useState<'card' | 'koko'>('card');
  const [downloadingTicket, setDownloadingTicket] = useState(false);
  const [devMarkingPaid, setDevMarkingPaid] = useState(false);
  // Tiny convenience for local dev so we don't have to run ngrok to test the
@@ -511,8 +519,40 @@ export default function EventBookingDetailPage() {
   }
  };
 
+ const handlePayKoko = async () => {
+  if (!data?.booking) return;
+  setPaying(true);
+  setPaymentError('');
+  try {
+   const res = await fetch(`${API_URL}/api/payments/initialize-event-koko`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+     bookingId: data.booking.id,
+     ...(guestToken ? { guestToken } : {}),
+    }),
+   });
+   const body = await res.json();
+   if (!body?.success) {
+    setPaymentError(body?.message || 'Failed to start Koko payment.');
+    setPaying(false);
+    return;
+   }
+   // Full-page redirect to Koko's hosted page. The verdict comes back via
+   // Koko's signed server-to-server webhook (and orderView reconcile), then
+   // the browser lands on this page with ?payment=… — same as the card flow.
+   launchKokoCheckout({ actionUrl: body.data.actionUrl, fields: body.data.fields });
+  } catch (err) {
+   console.error('Koko checkout error:', err);
+   setPaymentError('Payment failed. Please try again.');
+   setPaying(false);
+  }
+ };
+
  const handlePay = async () => {
   if (!data?.booking) return;
+  if (KOKO_ENABLED && paymentMethod === 'koko') return handlePayKoko();
   setPaying(true);
   setPaymentError('');
   try {
@@ -597,7 +637,7 @@ export default function EventBookingDetailPage() {
       Steps 1 (Choose) and 2 (Details) happened on /events/[id]/checkout
       and render here as completed. Hidden once the booking is confirmed
       (paid + reconciled) since the strip is no longer informative. */}
-    {!isConfirmed && <CheckoutSteps activeIndex={2} />}
+    {!isConfirmed && <CheckoutSteps activeIndex={1} />}
 
     {/* Payment result banners (shown after MPGS redirect-back) */}
     {paymentResult === 'success' && !isConfirmed && (
@@ -611,6 +651,11 @@ export default function EventBookingDetailPage() {
     {paymentResult === 'cancelled' && (
      <div className="mb-4 p-3 text-sm font-inter border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400">
       Payment was cancelled. Your tickets are still reserved — you can try again below.
+     </div>
+    )}
+    {paymentResult === 'refund_pending' && (
+     <div className="mb-4 p-3 text-sm font-inter border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+      Your Koko payment went through, but these seats were just taken by another buyer, so we couldn&rsquo;t confirm this booking. A full refund has been initiated — our team will process it within 3 business days. We&rsquo;re sorry for the inconvenience.
      </div>
     )}
 
@@ -921,6 +966,37 @@ export default function EventBookingDetailPage() {
         {paymentError}
        </div>
       )}
+      {KOKO_ENABLED && (
+       <div className="rounded-lg border border-border p-3">
+        <p className="mb-2 text-sm font-inter font-semibold">Payment Method</p>
+        <div className="space-y-2">
+         <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 has-checked:border-primary has-checked:bg-primary/5">
+          <input
+           type="radio"
+           name="paymentMethod"
+           value="card"
+           checked={paymentMethod === 'card'}
+           onChange={() => setPaymentMethod('card')}
+           disabled={paying}
+          />
+          <span className="text-sm font-inter">Debit / Credit Card, Wallets &amp; Banking</span>
+         </label>
+         <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 has-checked:border-primary has-checked:bg-primary/5">
+          <input
+           type="radio"
+           name="paymentMethod"
+           value="koko"
+           checked={paymentMethod === 'koko'}
+           onChange={() => setPaymentMethod('koko')}
+           disabled={paying}
+          />
+          <span className="text-sm font-inter">
+           <span className="font-semibold">KOKO</span> — Pay in 3 interest-free instalments
+          </span>
+         </label>
+        </div>
+       </div>
+      )}
       <button
        type="button"
        onClick={handlePay}
@@ -928,7 +1004,11 @@ export default function EventBookingDetailPage() {
        className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 text-base font-inter font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-lg"
       >
        {paying && <Loader className="w-5 h-5 animate-spin" />}
-       {paying ? 'Redirecting to secure checkout…' : 'Confirm and Pay'}
+       {paying
+        ? 'Redirecting to secure checkout…'
+        : KOKO_ENABLED && paymentMethod === 'koko'
+         ? 'Continue with Koko'
+         : 'Confirm and Pay'}
       </button>
       <p className="text-center text-xs text-muted-foreground">
        You&rsquo;ll be redirected to our secure payment gateway to complete your payment.

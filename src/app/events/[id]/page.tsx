@@ -606,33 +606,6 @@ export default function EventDetailsPage() {
       )
      })()}
 
-     {/* Venue location */}
-     {(event.venue_address || event.venue_location_url) && (
-      <section>
-       <SectionHeading>Venue</SectionHeading>
-       <div className="mt-3 rounded-2xl border border-border bg-card/30 p-4 backdrop-blur-md">
-        {event.venue_name && (
-         <p className="font-semibold text-foreground">{event.venue_name}</p>
-        )}
-        {event.venue_address && (
-         <p className="mt-0.5 text-sm text-muted-foreground">{event.venue_address}</p>
-        )}
-        {event.venue_location_url && (
-         <a
-          href={event.venue_location_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-         >
-          <MapPin className="h-4 w-4 text-primary" />
-          Get directions
-          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-         </a>
-        )}
-       </div>
-      </section>
-     )}
-
      {/* Seating layout preview — for free / zoned events the organizer
        optionally uploads a reference floor plan. Surfaced here so buyers
        can see the venue before clicking through to checkout. Reserved

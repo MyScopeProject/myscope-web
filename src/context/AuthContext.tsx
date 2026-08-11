@@ -13,6 +13,7 @@ interface User {
   phone?: string;
   phone_verified?: boolean;
   city?: string;
+  nic?: string;
 }
 
 interface AuthResult {
@@ -57,6 +58,7 @@ type RawUser = {
   phone?: string;
   phone_verified?: boolean;
   city?: string;
+  nic?: string;
 };
 
 const mapUser = (raw: RawUser): User => ({
@@ -70,6 +72,7 @@ const mapUser = (raw: RawUser): User => ({
   phone: raw.phone,
   phone_verified: raw.phone_verified ?? false,
   city: raw.city,
+  nic: raw.nic,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {

@@ -2,18 +2,21 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * Small orientation strip for the multi-page event checkout flow:
- *   Step 1 — Choose (pick a ticket on /events/[id]/checkout)
- *   Step 2 — Details (attendee info on the same page)
- *   Step 3 — Pay     (payment screen on /bookings/event/[id])
+ * Small orientation strip for the event checkout flow:
+ *   Step 1 — Choose        (pick a ticket on /events/[id]/checkout)
+ *   Step 2 — Details & Pay (attendee info + payment method on the same page;
+ *                           the gateway launches from there, and the
+ *                           post-payment screen on /bookings/event/[id] stays
+ *                           on this step too)
  *
- * Static by design — driven by `activeIndex` from the caller, not scroll
- * position — because the steps live across two separate routes. Visual
- * states match the registration wizard on /become-organizer.
+ * Details and payment were merged onto one page, so this is now a two-step
+ * strip. Static by design — driven by `activeIndex` from the caller, not
+ * scroll position. Visual states match the registration wizard on
+ * /become-organizer.
  */
-export const CHECKOUT_STEPS = ["Choose", "Details", "Pay"] as const
+export const CHECKOUT_STEPS = ["Choose", "Details & Pay"] as const
 
-export type CheckoutStepIndex = 0 | 1 | 2
+export type CheckoutStepIndex = 0 | 1
 
 export function CheckoutSteps({ activeIndex }: { activeIndex: number }) {
   return (
