@@ -4,25 +4,27 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
+  AlertCircle,
   ArrowRight,
   Calendar,
-  Loader,
   Package,
   ShoppingBag,
   Truck,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+
+type OrderStatus = "Pending" | "Confirmed" | "Cancelled" | "Refunded"
+type FulfillmentStatus = "pending" | "preparing" | "shipped" | "delivered" | "picked_up" | "returned"
 
 interface Order {
   id: string
   order_reference: string
-  status: "Pending" | "Confirmed" | "Cancelled" | "Refunded"
+  status: OrderStatus
   payment_status: "Pending" | "Completed" | "Failed"
-  fulfillment_status: "pending" | "preparing" | "shipped" | "delivered" | "picked_up" | "returned"
+  fulfillment_status: FulfillmentStatus
   fulfillment_type: "shipping" | "pickup"
   subtotal: number | string
   total_amount: number | string
@@ -30,26 +32,36 @@ interface Order {
   created_at: string
 }
 
-const STATUS_META: Record<
-  Order["status"],
-  { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }
-> = {
+const STATUS_META: Record<OrderStatus, { label: string; variant: "success" | "warning" | "destructive" | "outline" }> = {
   Pending:   { label: "Awaiting payment", variant: "warning" },
   Confirmed: { label: "Paid",             variant: "success" },
-  Cancelled: { label: "Cancelled",        variant: "outline" },
+  Cancelled: { label: "Cancelled",        variant: "destructive" },
   Refunded:  { label: "Refunded",         variant: "destructive" },
 }
 
-const FULFILLMENT_META: Record<
-  Order["fulfillment_status"],
-  { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }
-> = {
+const FULFILLMENT_META: Record<FulfillmentStatus, { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }> = {
   pending:    { label: "Order received", variant: "outline" },
   preparing:  { label: "Preparing",      variant: "warning" },
   shipped:    { label: "Shipped",        variant: "success" },
   delivered:  { label: "Delivered",      variant: "success" },
   picked_up:  { label: "Picked up",      variant: "success" },
   returned:   { label: "Returned",       variant: "destructive" },
+}
+
+// Filter tabs mirror the "My Events" pattern (see booked-events-list.tsx):
+// Pending / Confirmed / Cancelled buckets with live counts. Orders whose
+// fulfillment has already completed (delivered / picked up) are archived
+// out of all tabs — the buyer already received the goods, same "no longer
+// actionable" rule My Events applies to fully-attended past bookings.
+const FILTERS = ["Confirmed", "Pending", "Cancelled"] as const
+type Filter = (typeof FILTERS)[number]
+
+const bucketOf = (o: Order): Filter | null => {
+  if (["delivered", "picked_up"].includes(o.fulfillment_status)) return null
+  if (o.status === "Confirmed") return "Confirmed"
+  if (o.status === "Pending") return "Pending"
+  if (o.status === "Cancelled" || o.status === "Refunded") return "Cancelled"
+  return null
 }
 
 function formatMoney(amount: number | string, currency = "LKR") {
@@ -60,7 +72,7 @@ function formatMoney(amount: number | string, currency = "LKR") {
 
 function formatDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   } catch {
     return iso
   }
@@ -72,6 +84,8 @@ export default function MyOrdersPage() {
   const [orders, setOrders] = React.useState<Order[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
+  const [filter, setFilter] = React.useState<Filter>("Confirmed")
+  const didInitFilter = React.useRef(false)
 
   React.useEffect(() => {
     if (authLoading) return
@@ -80,126 +94,210 @@ export default function MyOrdersPage() {
     }
   }, [authLoading, user, router])
 
-  React.useEffect(() => {
-    if (!user) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        setLoading(true)
-        const res = await fetch(`${API_URL}/api/shop/orders/mine`, { credentials: "include" })
-        const data = await res.json()
-        if (cancelled) return
-        if (data?.success) {
-          setOrders(data.data?.orders ?? [])
-        } else {
-          setError(data?.message || "Couldn't load orders.")
-        }
-      } catch {
-        if (!cancelled) setError("Network error.")
-      } finally {
-        if (!cancelled) setLoading(false)
+  const fetchOrders = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      setError("")
+      const res = await fetch(`${API_URL}/api/shop/orders/mine`, { credentials: "include" })
+      const data = await res.json()
+      if (data?.success) {
+        setOrders(data.data?.orders ?? [])
+      } else {
+        setError(data?.message || "Couldn't load orders.")
       }
-    })()
-    return () => { cancelled = true }
-  }, [user])
+    } catch {
+      setError("Network error.")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  // Hide orders whose fulfillment is finished — "received by customer" is the
-  // milestone the buyer cares about. delivered (shipping) and picked_up
-  // (pickup) are both terminal positive outcomes. Cancelled/refunded orders
-  // stay visible so the buyer can see what happened.
-  const visibleOrders = React.useMemo(
-    () => orders.filter((o) => !["delivered", "picked_up"].includes(o.fulfillment_status)),
-    [orders],
+  React.useEffect(() => {
+    if (user) fetchOrders()
+  }, [user, fetchOrders])
+
+  const counts = React.useMemo(() => {
+    const c: Record<Filter, number> = { Confirmed: 0, Pending: 0, Cancelled: 0 }
+    for (const o of orders) {
+      const k = bucketOf(o)
+      if (k) c[k]++
+    }
+    return c
+  }, [orders])
+
+  const visible = React.useMemo(
+    () => orders.filter((o) => bucketOf(o) === filter),
+    [orders, filter],
   )
+
+  // Land on the first tab that actually has orders, same as My Events.
+  React.useEffect(() => {
+    if (didInitFilter.current || loading || orders.length === 0) return
+    didInitFilter.current = true
+    const first = FILTERS.find((f) => counts[f] > 0)
+    if (first) setFilter(first)
+  }, [loading, orders, counts])
 
   if (authLoading || (!user && !error)) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="space-y-3">
+        {[1, 2].map((i) => (
+          <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-card" />
+        ))}
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          My Orders
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Track payment + fulfillment status across all your shop purchases.
-        </p>
-      </header>
+    <section>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">My Orders</h1>
+          <p className="text-sm text-muted-foreground">Track payment &amp; fulfillment for your shop purchases</p>
+        </div>
+        {orders.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {FILTERS.map((f) => {
+              const active = filter === f
+              const count = counts[f]
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  className={
+                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors " +
+                    (active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:bg-muted")
+                  }
+                >
+                  {f}
+                  <span className={active ? "text-primary" : "text-muted-foreground/70"}>{count}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {loading ? (
-        <div className="flex min-h-[30vh] items-center justify-center">
-          <Loader className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : error ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      ) : visibleOrders.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/40 p-10 text-center">
-          <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-3 text-lg font-semibold text-foreground">
-            {orders.length === 0 ? "No orders yet" : "You're all caught up"}
-          </h2>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            {orders.length === 0
-              ? "Browse the shop and order something to see it here."
-              : "Completed orders are archived once they've been delivered or picked up."}
-          </p>
-          <Button asChild className="mt-4">
-            <Link href="/?section=shop">Go to shop</Link>
-          </Button>
-        </div>
-      ) : (
         <div className="space-y-3">
-          {visibleOrders.map((o) => (
-            <Link
-              key={o.id}
-              href={`/shop/orders/${o.id}`}
-              className="group flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-4 transition-colors hover:border-primary/50"
-            >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                {o.fulfillment_type === "shipping" ? <Truck className="h-5 w-5" /> : <Package className="h-5 w-5" />}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-sm font-semibold text-foreground group-hover:text-primary">
-                    {o.order_reference}
-                  </span>
-                  <Badge variant={STATUS_META[o.status].variant}>
-                    {STATUS_META[o.status].label}
-                  </Badge>
-                  {o.status === "Confirmed" && (
-                    <Badge variant={FULFILLMENT_META[o.fulfillment_status].variant}>
-                      {FULFILLMENT_META[o.fulfillment_status].label}
-                    </Badge>
-                  )}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  <span>{formatDate(o.created_at)}</span>
-                  <span>·</span>
-                  <span className="capitalize">{o.fulfillment_type}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-foreground">
-                    {formatMoney(o.total_amount, o.currency)}
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
-              </div>
-            </Link>
+          {[1, 2].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-card" />
           ))}
         </div>
+      ) : error ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 py-12 text-center">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+          </span>
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <button
+            type="button"
+            onClick={fetchOrders}
+            className="rounded-lg border border-border px-4 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            Try again
+          </button>
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 py-12 text-center">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <ShoppingBag className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {orders.length === 0 ? "No orders yet" : `No ${filter.toLowerCase()} orders`}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {orders.length === 0
+                ? "Browse the shop and order something to see it here."
+                : "Try another tab above."}
+            </p>
+          </div>
+          {orders.length === 0 && (
+            <Link
+              href="/?section=shop"
+              className="rounded-lg border border-border px-4 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              Go to shop
+            </Link>
+          )}
+        </div>
+      ) : (
+        <ul className="space-y-4">
+          {visible.map((o) => (
+            <OrderCard key={o.id} order={o} />
+          ))}
+        </ul>
       )}
+    </section>
+  )
+}
+
+function OrderCard({ order }: { order: Order }) {
+  const meta = STATUS_META[order.status]
+
+  return (
+    <li className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
+      <Link href={`/shop/orders/${order.id}`} className="group flex">
+        {/* Thumbnail */}
+        <div className="hidden w-32 shrink-0 items-center justify-center bg-muted text-muted-foreground sm:flex">
+          {order.fulfillment_type === "shipping" ? <Truck className="h-8 w-8" /> : <Package className="h-8 w-8" />}
+        </div>
+
+        {/* Info */}
+        <div className="min-w-0 flex-1 p-4 sm:border-l sm:border-dashed sm:border-border">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant={meta.variant} className="text-xs">{meta.label}</Badge>
+            {order.status === "Confirmed" && (
+              <Badge variant={FULFILLMENT_META[order.fulfillment_status].variant} className="text-xs">
+                {FULFILLMENT_META[order.fulfillment_status].label}
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-xs capitalize">{order.fulfillment_type}</Badge>
+          </div>
+
+          <p className="mt-1.5 truncate font-mono text-base font-semibold text-foreground">
+            {order.order_reference}
+          </p>
+
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDate(order.created_at)}
+            </span>
+          </div>
+
+          {/* Order details */}
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-4">
+            <Detail label="Order ref" value={order.order_reference} mono />
+            <Detail label="Fulfillment" value={FULFILLMENT_META[order.fulfillment_status].label} />
+            <Detail label="Total" value={formatMoney(order.total_amount, order.currency)} />
+            <Detail label="Placed on" value={formatDate(order.created_at)} />
+          </div>
+
+          {/* Actions */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
+              View order <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+            {order.status === "Pending" && (
+              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Payment required</span>
+            )}
+          </div>
+        </div>
+      </Link>
+    </li>
+  )
+}
+
+function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={"truncate text-foreground " + (mono ? "font-mono" : "font-medium")}>{value}</div>
     </div>
   )
 }
