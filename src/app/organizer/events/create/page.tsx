@@ -667,7 +667,7 @@ function DetailsStep({
                 <span
                   className={cn(
                     "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors",
-                    selected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                    selected ? "bg-primary/10 text-primary" : "bg-transparent text-muted-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4" />
