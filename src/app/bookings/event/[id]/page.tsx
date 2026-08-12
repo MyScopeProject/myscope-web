@@ -577,74 +577,69 @@ export default function EventBookingDetailPage() {
       breakdown, attendee info and booking code all live in ONE cohesive
       card instead of separate stacked blocks. */}
     <div className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/40 dark:backdrop-blur-sm">
-     {/* Event banner — same field/pattern as the event detail page
-       (event.banner_images[0] falling back to event.banner_url). Blurred
-       cover backdrop fills the frame while the poster itself stays
-       object-contain so nothing gets cropped, matching the event detail
-       page's hero treatment. Only rendered when an image is available. */}
-     {eventBanner && (
-      <div className="relative h-56 w-full overflow-hidden sm:h-72">
-       {/* eslint-disable-next-line @next/next/no-img-element */}
-       <img
-        src={eventBanner}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl brightness-110 saturate-150"
-       />
-       <div className="absolute inset-0 bg-black/25" />
-       {/* eslint-disable-next-line @next/next/no-img-element */}
+     {/* Banner + status/details sit side by side on sm+ (banner as a fixed-
+       width poster panel), stacking vertically on mobile. Same
+       event.banner_images[0] / banner_url field the event detail page
+       reads. */}
+     <div className="flex flex-col sm:flex-row">
+      {eventBanner && (
+       // eslint-disable-next-line @next/next/no-img-element
        <img
         src={eventBanner}
         alt={event?.title ?? 'Event banner'}
-        className="relative h-full w-full object-contain"
+        className="h-56 w-full shrink-0 object-cover sm:h-auto sm:w-56"
         onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')}
        />
-      </div>
-     )}
-
-     <div className="p-6 space-y-4">
-      {/* Status hero — only for confirmed/cancelled. Pending no longer shows
-        a "Review your order" hero. */}
-      {(isConfirmed || isCancelled) && (
-       <div>
-        {isConfirmed && (
-         <StatusHero
-          tone="success"
-          icon={<CheckCircle className="w-6 h-6" />}
-          title="Booking confirmed"
-          body="Your e-tickets will be emailed to you shortly."
-         />
-        )}
-        {isCancelled && (
-         <StatusHero
-          tone="danger"
-          icon={<XCircle className="w-6 h-6" />}
-          title="Booking cancelled"
-          body="Inventory has been released. You can book again any time."
-         />
-        )}
-       </div>
       )}
 
-      {event && (
-       <div className={isConfirmed || isCancelled ? 'pt-4 border-t border-border' : ''}>
-        <h2 className="text-xl font-outfit font-bold text-foreground">{event.title}</h2>
-        <div className="text-sm text-muted-foreground mt-1 space-y-1">
-         {event.start_time && (
-          <div className="flex items-center gap-1.5">
-           <Calendar className="w-3.5 h-3.5" />
-           {new Date(event.start_time).toLocaleString()}
-          </div>
+      <div className="flex-1 p-6 space-y-4">
+       {/* Status hero — only for confirmed/cancelled. Pending no longer
+         shows a "Review your order" hero. */}
+       {(isConfirmed || isCancelled) && (
+        <div>
+         {isConfirmed && (
+          <StatusHero
+           tone="success"
+           icon={<CheckCircle className="w-6 h-6" />}
+           title="Booking confirmed"
+           body="Your e-tickets will be emailed to you shortly."
+          />
          )}
-         {event.venue_name && (
-          <div className="flex items-center gap-1.5">
-           <MapPin className="w-3.5 h-3.5" />
-           {event.venue_name}
-          </div>
+         {isCancelled && (
+          <StatusHero
+           tone="danger"
+           icon={<XCircle className="w-6 h-6" />}
+           title="Booking cancelled"
+           body="Inventory has been released. You can book again any time."
+          />
          )}
         </div>
-       </div>
-      )}
+       )}
+
+       {event && (
+        <div className={isConfirmed || isCancelled ? 'pt-4 border-t border-border' : ''}>
+         <h2 className="text-xl font-outfit font-bold text-foreground">{event.title}</h2>
+         <div className="text-sm text-muted-foreground mt-1 space-y-1">
+          {event.start_time && (
+           <div className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5" />
+            {new Date(event.start_time).toLocaleString()}
+           </div>
+          )}
+          {event.venue_name && (
+           <div className="flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5" />
+            {event.venue_name}
+           </div>
+          )}
+         </div>
+        </div>
+       )}
+      </div>
+     </div>
+
+     <div className="p-6 pt-0 space-y-4 sm:border-t sm:border-border sm:pt-6">
+
 
       {/* Per-seat line items — only present for reserved-mode bookings.
         Surfaces "which seats did I just get?" before payment, which the
