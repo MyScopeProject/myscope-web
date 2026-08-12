@@ -289,38 +289,6 @@ export default function EventBookingDetailPage() {
  }, [data?.booking?.status, seatTickets, seatTicketsError]); // eslint-disable-line react-hooks/exhaustive-deps
 
  const [transferringId, setTransferringId] = useState<string | null>(null);
- const [refundRequesting, setRefundRequesting] = useState(false);
- const [refundRequested, setRefundRequested] = useState(false);
- const handleRefund = async () => {
-  if (!data?.booking) return;
-  const reason = window.prompt(
-   'Request a refund?\n\nOptionally tell us why so we can improve things:',
-   '',
-  );
-  if (reason === null) return; // cancelled
-  setRefundRequesting(true);
-  try {
-   const res = await fetch(
-    `${API_URL}/api/checkout/${data.booking.id}/refund${tokenQS}`,
-    {
-     method: 'POST',
-     credentials: 'include',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ reason: reason.trim() || undefined }),
-    },
-   );
-   const body = await res.json();
-   if (!body?.success) {
-    setError(body?.message || 'Refund request failed.');
-    return;
-   }
-   setRefundRequested(true);
-  } catch {
-   setError('Network error requesting refund.');
-  } finally {
-   setRefundRequesting(false);
-  }
- };
 
  const handleTransferSeatTicket = async (ticket: SeatTicket) => {
   if (!data?.booking) return;
@@ -610,16 +578,28 @@ export default function EventBookingDetailPage() {
       card instead of separate stacked blocks. */}
     <div className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/40 dark:backdrop-blur-sm">
      {/* Event banner — same field/pattern as the event detail page
-       (event.banner_images[0] falling back to event.banner_url). Only
-       rendered when an image is actually available. */}
+       (event.banner_images[0] falling back to event.banner_url). Blurred
+       cover backdrop fills the frame while the poster itself stays
+       object-contain so nothing gets cropped, matching the event detail
+       page's hero treatment. Only rendered when an image is available. */}
      {eventBanner && (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-       src={eventBanner}
-       alt={event?.title ?? 'Event banner'}
-       className="h-48 w-full object-cover sm:h-64"
-       onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')}
-      />
+      <div className="relative h-56 w-full overflow-hidden sm:h-72">
+       {/* eslint-disable-next-line @next/next/no-img-element */}
+       <img
+        src={eventBanner}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl brightness-110 saturate-150"
+       />
+       <div className="absolute inset-0 bg-black/25" />
+       {/* eslint-disable-next-line @next/next/no-img-element */}
+       <img
+        src={eventBanner}
+        alt={event?.title ?? 'Event banner'}
+        className="relative h-full w-full object-contain"
+        onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')}
+       />
+      </div>
      )}
 
      <div className="p-6 space-y-4">
@@ -1007,17 +987,6 @@ export default function EventBookingDetailPage() {
         />
        </div>
       )}
-      <div className="mt-4 flex flex-col items-center gap-2">
-       <button
-        type="button"
-        onClick={handleRefund}
-        disabled={refundRequesting || refundRequested}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-60"
-       >
-        {refundRequesting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-        {refundRequested ? 'Refund requested' : refundRequesting ? 'Requesting…' : 'Request refund'}
-       </button>
-      </div>
      </div>
     )}
    </div>
