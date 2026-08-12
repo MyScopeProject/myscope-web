@@ -1258,35 +1258,26 @@ function CheckoutPageInner() {
           On a blocked submit, the checkbox itself glows instead of showing a
           generic error elsewhere on the page. */}
       {step === 1 && (
-       <div
-        className={cn(
-         "rounded-lg border p-1 transition-colors",
-         termsError ? "animate-pulse border-2 border-destructive bg-destructive/10" : "border-transparent",
-        )}
-       >
-        <label className="flex cursor-pointer items-start gap-2.5 p-1 text-sm text-foreground">
-         <input
-          type="checkbox"
-          checked={acceptedTerms}
-          onChange={(e) => {
-           setAcceptedTerms(e.target.checked)
-           if (e.target.checked) setTermsError(false)
-          }}
-          className="mt-0.5 h-4 w-4 shrink-0 rounded accent-primary"
-         />
-         <span>
-          I accept and agree to the{" "}
-          <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">
-           Terms and Conditions
-          </Link>
-         </span>
-        </label>
-        {termsError && (
-         <p className="pl-8 pb-1 text-xs font-medium text-destructive">
-          Please accept the Terms and Conditions to continue.
-         </p>
-        )}
-       </div>
+       <label className="flex cursor-pointer items-start gap-2.5 p-1 text-sm">
+        <input
+         type="checkbox"
+         checked={acceptedTerms}
+         onChange={(e) => {
+          setAcceptedTerms(e.target.checked)
+          if (e.target.checked) setTermsError(false)
+         }}
+         className={cn(
+          "mt-0.5 h-4 w-4 shrink-0 rounded accent-primary",
+          termsError && "bg-transparent",
+         )}
+        />
+        <span className={termsError ? "text-destructive" : "text-foreground"}>
+         I accept and agree to the{" "}
+         <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">
+          Terms and Conditions
+         </Link>
+        </span>
+       </label>
       )}
 
       {/* Step-aware primary action.
