@@ -1261,7 +1261,7 @@ function CheckoutPageInner() {
        <div
         className={cn(
          "rounded-lg border p-1 transition-colors",
-         termsError ? "border-destructive bg-destructive/5" : "border-transparent",
+         termsError ? "animate-pulse border-2 border-destructive bg-destructive/10" : "border-transparent",
         )}
        >
         <label className="flex cursor-pointer items-start gap-2.5 p-1 text-sm text-foreground">
@@ -1272,10 +1272,7 @@ function CheckoutPageInner() {
            setAcceptedTerms(e.target.checked)
            if (e.target.checked) setTermsError(false)
           }}
-          className={cn(
-           "mt-0.5 h-4 w-4 shrink-0 rounded accent-primary transition-shadow",
-           termsError && "outline outline-2 outline-offset-1 outline-destructive",
-          )}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded accent-primary"
          />
          <span>
           I accept and agree to the{" "}
