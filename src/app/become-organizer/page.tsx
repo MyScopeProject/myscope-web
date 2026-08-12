@@ -613,13 +613,15 @@ function StatusBanner({
   // signal is still immediately readable at a glance.
   const styles = {
     success: "border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm text-foreground",
-    warning: "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400",
+    warning: "border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm text-foreground",
     destructive: "border-destructive/30 bg-destructive/5 text-destructive",
   }[tone]
-  const iconStyles = tone === "success" ? "text-emerald-600 dark:text-emerald-400" : ""
+  const iconStyles =
+    tone === "success" ? "text-emerald-600 dark:text-emerald-400" :
+    tone === "warning" ? "text-amber-600 dark:text-amber-400" : ""
 
   return (
-    <div className={cn("mb-6 rounded-xl border p-5", styles)}>
+    <div className={cn("mb-6 rounded-2xl border p-5 shadow-xs", styles)}>
       <div className="flex items-start gap-3">
         <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", iconStyles)} />
         <div>
