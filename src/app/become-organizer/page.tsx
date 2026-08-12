@@ -613,7 +613,7 @@ function StatusBanner({
   // signal is still immediately readable at a glance.
   const styles = {
     success: "border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm text-foreground",
-    warning: "border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm text-foreground",
+    warning: "border-amber-500 bg-card dark:bg-card/60 dark:backdrop-blur-sm text-foreground",
     destructive: "border-destructive/30 bg-destructive/5 text-destructive",
   }[tone]
   const iconStyles =
