@@ -13,8 +13,6 @@ import {
  Mail,
  MapPin,
  RefreshCw,
- ShieldCheck,
- Smartphone,
  Ticket,
  XCircle,
 } from 'lucide-react';
@@ -51,6 +49,11 @@ interface EventSummary {
  start_time: string | null;
  venue_name: string | null;
  seating_mode?: string | null;
+ // Banner image(s) — same fields the event detail page uses. Populated from
+ // the /api/events/:id fetch below (the booking payload itself doesn't carry
+ // these), index 0 is the main banner.
+ banner_url?: string | null;
+ banner_images?: string[] | null;
 }
 
 interface TicketTypeSummary {
@@ -114,6 +117,10 @@ export default function EventBookingDetailPage() {
  const [paymentResult, setPaymentResult] = useState<string | null>(null);
  const [data, setData] = useState<BookingResponse | null>(null);
  const [seatingMode, setSeatingMode] = useState<string | null>(null);
+ // Event banner — same field the event detail page reads. Not present on the
+ // booking payload itself, so we pull it off the /api/events/:id fetch below
+ // (which this page already makes for seating_mode).
+ const [eventBanner, setEventBanner] = useState<string | null>(null);
  // Live clock for the seat-hold countdown. Ticks once a second only while
  // a reserved booking is sitting in Pending; otherwise the interval is idle.
  const [now, setNow] = useState<number>(() => Date.now());
@@ -232,7 +239,15 @@ export default function EventBookingDetailPage() {
      const evtRes = await fetch(`${API_URL}/api/events/${eventId}`);
      const evtBody = await evtRes.json();
      if (evtBody?.success) {
-      setSeatingMode(evtBody.data?.event?.seating_mode ?? null);
+      const evt = evtBody.data?.event;
+      setSeatingMode(evt?.seating_mode ?? null);
+      const banners: string[] =
+       evt?.banner_images && evt.banner_images.length > 0
+        ? evt.banner_images
+        : evt?.banner_url
+         ? [evt.banner_url]
+         : [];
+      setEventBanner(banners[0] ?? null);
      }
     } catch {
      /* non-fatal — UI just falls back to the legacy single-ticket flow */
@@ -272,78 +287,6 @@ export default function EventBookingDetailPage() {
    fetchSeatTickets();
   }
  }, [data?.booking?.status, seatTickets, seatTicketsError]); // eslint-disable-line react-hooks/exhaustive-deps
-
- // Phone verification (OTP). The booking already exists at this point, so we
- // verify the number on the booking via the checkout verify-phone endpoints.
- const [otp, setOtp] = useState('');
- const [otpSent, setOtpSent] = useState(false);
- const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
- const [otpBusy, setOtpBusy] = useState(false);
- const [otpError, setOtpError] = useState('');
- const [phoneVerified, setPhoneVerified] = useState(false);
- const [verifyUnavailable, setVerifyUnavailable] = useState(false);
-
- const requestOtp = async () => {
-  if (!data?.booking) return;
-  setOtpError('');
-  setOtpBusy(true);
-  try {
-   const res = await fetch(
-    `${API_URL}/api/checkout/${data.booking.id}/verify-phone/request${tokenQS}`,
-    { method: 'POST', credentials: 'include' },
-   );
-   const body = await res.json();
-   if (!body?.success) {
-    // 503 = phone verification channel turned off platform-wide; hide the card.
-    if (res.status === 503) setVerifyUnavailable(true);
-    setOtpError(body?.message || 'Could not send the code.');
-    return;
-   }
-   if (body.data?.phone_verified) {
-    setPhoneVerified(true);
-    return;
-   }
-   setOtpSent(true);
-   setOtpSentTo(body.data?.sent_to_last4 ?? null);
-  } catch {
-   setOtpError('Network error sending the code.');
-  } finally {
-   setOtpBusy(false);
-  }
- };
-
- const verifyOtp = async () => {
-  if (!data?.booking) return;
-  const code = otp.trim();
-  if (!code) {
-   setOtpError('Enter the code we sent you.');
-   return;
-  }
-  setOtpError('');
-  setOtpBusy(true);
-  try {
-   const res = await fetch(
-    `${API_URL}/api/checkout/${data.booking.id}/verify-phone${tokenQS}`,
-    {
-     method: 'POST',
-     credentials: 'include',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ otp: code }),
-    },
-   );
-   const body = await res.json();
-   if (!body?.success) {
-    setOtpError(body?.message || 'Incorrect code.');
-    return;
-   }
-   setPhoneVerified(true);
-   setOtp('');
-  } catch {
-   setOtpError('Network error verifying the code.');
-  } finally {
-   setOtpBusy(false);
-  }
- };
 
  const [transferringId, setTransferringId] = useState<string | null>(null);
  const [refundRequesting, setRefundRequesting] = useState(false);
@@ -625,11 +568,6 @@ export default function EventBookingDetailPage() {
  const isConfirmed = booking.status === 'Confirmed';
  const isReserved = (event?.seating_mode ?? seatingMode) === 'reserved';
 
- const bookingPhone = booking.attendee_info?.phone || booking.guest_phone || null;
- const isPhoneVerified = phoneVerified || !!booking.phone_verified;
- const showPhoneVerify =
-  !!bookingPhone && !isPhoneVerified && !verifyUnavailable && !isCancelled;
-
  return (
   <div className="min-h-screen px-4 py-12">
    <div className="max-w-2xl mx-auto">
@@ -667,236 +605,165 @@ export default function EventBookingDetailPage() {
      Back to events
     </Link>
 
-    {/* Status hero — only for confirmed/cancelled. Pending no longer shows
-      a "Review your order" hero. */}
-    {(isConfirmed || isCancelled) && (
-     <div className="p-6 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm mb-6 dark:bg-card/40">
-      {isConfirmed && (
-       <StatusHero
-        tone="success"
-        icon={<CheckCircle className="w-6 h-6" />}
-        title="Booking confirmed"
-        body="Your e-tickets will be emailed to you shortly."
-       />
-      )}
-      {isCancelled && (
-       <StatusHero
-        tone="danger"
-        icon={<XCircle className="w-6 h-6" />}
-        title="Booking cancelled"
-        body="Inventory has been released. You can book again any time."
-       />
-      )}
-     </div>
-    )}
+    {/* Unified confirmation card — banner, status, event details, ticket
+      breakdown, attendee info and booking code all live in ONE cohesive
+      card instead of separate stacked blocks. */}
+    <div className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/40 dark:backdrop-blur-sm">
+     {/* Event banner — same field/pattern as the event detail page
+       (event.banner_images[0] falling back to event.banner_url). Only
+       rendered when an image is actually available. */}
+     {eventBanner && (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+       src={eventBanner}
+       alt={event?.title ?? 'Event banner'}
+       className="h-48 w-full object-cover sm:h-64"
+       onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')}
+      />
+     )}
 
-    {/* Order summary */}
-    <div className="p-6 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm space-y-4 dark:bg-card/40">
-     {event && (
-      <div>
-       <h2 className="text-xl font-outfit font-bold text-foreground">{event.title}</h2>
-       <div className="text-sm text-muted-foreground mt-1 space-y-1">
-        {event.start_time && (
-         <div className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5" />
-          {new Date(event.start_time).toLocaleString()}
-         </div>
+     <div className="p-6 space-y-4">
+      {/* Status hero — only for confirmed/cancelled. Pending no longer shows
+        a "Review your order" hero. */}
+      {(isConfirmed || isCancelled) && (
+       <div>
+        {isConfirmed && (
+         <StatusHero
+          tone="success"
+          icon={<CheckCircle className="w-6 h-6" />}
+          title="Booking confirmed"
+          body="Your e-tickets will be emailed to you shortly."
+         />
         )}
-        {event.venue_name && (
-         <div className="flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5" />
-          {event.venue_name}
+        {isCancelled && (
+         <StatusHero
+          tone="danger"
+          icon={<XCircle className="w-6 h-6" />}
+          title="Booking cancelled"
+          body="Inventory has been released. You can book again any time."
+         />
+        )}
+       </div>
+      )}
+
+      {event && (
+       <div className={isConfirmed || isCancelled ? 'pt-4 border-t border-border' : ''}>
+        <h2 className="text-xl font-outfit font-bold text-foreground">{event.title}</h2>
+        <div className="text-sm text-muted-foreground mt-1 space-y-1">
+         {event.start_time && (
+          <div className="flex items-center gap-1.5">
+           <Calendar className="w-3.5 h-3.5" />
+           {new Date(event.start_time).toLocaleString()}
+          </div>
+         )}
+         {event.venue_name && (
+          <div className="flex items-center gap-1.5">
+           <MapPin className="w-3.5 h-3.5" />
+           {event.venue_name}
+          </div>
+         )}
+        </div>
+       </div>
+      )}
+
+      {/* Per-seat line items — only present for reserved-mode bookings.
+        Surfaces "which seats did I just get?" before payment, which the
+        previous summary (quantity + unit price only) didn't answer. */}
+      {isReserved && seats && seats.length > 0 && (
+       <div className="pt-4 border-t border-border">
+        <h3 className="text-sm font-inter font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+         Your seats ({seats.length})
+        </h3>
+        <ul className="space-y-1.5">
+         {seats.map(s => (
+          <li key={s.id} className="flex items-baseline justify-between gap-3 text-sm">
+           <div className="min-w-0">
+            <span className="font-mono font-semibold text-foreground">
+             Seat {s.seat_label ?? `${s.row_label}-${s.seat_number}`}
+            </span>
+            {s.section && (
+             <span className="ml-2 text-xs text-muted-foreground">{s.section}</span>
+            )}
+           </div>
+           <span className="shrink-0 text-muted-foreground">
+            LKR {Number(booking.ticket_price).toLocaleString()}
+           </span>
+          </li>
+         ))}
+        </ul>
+       </div>
+      )}
+
+      <div className="pt-4 border-t border-border space-y-2">
+       {line_items && line_items.length > 0 ? (
+        // Multi-category order: one row per tier ("Gold × 2 — LKR 5,000").
+        <>
+         {line_items.map((li) => (
+          <Row
+           key={li.ticket_type_id}
+           label={`${li.name} × ${li.quantity}`}
+           value={`LKR ${(Number(li.price) * li.quantity).toLocaleString()}`}
+          />
+         ))}
+         <Row label="Total tickets" value={String(booking.number_of_tickets)} />
+        </>
+       ) : (
+        <>
+         <Row label="Ticket type" value={ticket_type?.name ?? '—'} />
+         <Row
+          label={isReserved ? 'Seats' : 'Quantity'}
+          value={String(booking.number_of_tickets)}
+         />
+         <Row label="Unit price" value={`LKR ${Number(booking.ticket_price).toLocaleString()}`} />
+        </>
+       )}
+       <div className="flex items-baseline justify-between pt-2 border-t border-border">
+        <span className="text-muted-foreground font-plex-sans">Total</span>
+        <span className="text-2xl font-outfit font-bold text-foreground">
+         LKR {Number(booking.total_amount).toLocaleString()}
+        </span>
+       </div>
+      </div>
+
+      <div className="pt-4 border-t border-border">
+       <h3 className="text-sm font-inter font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+        Attendee
+       </h3>
+       {booking.attendee_info && (
+        <>
+         <div className="text-sm text-foreground">{booking.attendee_info.name || '—'}</div>
+         <div className="text-sm text-muted-foreground">{booking.attendee_info.email || '—'}</div>
+         {booking.attendee_info.phone && (
+          <div className="text-sm text-muted-foreground">{booking.attendee_info.phone}</div>
+         )}
+        </>
+       )}
+
+       {/* Booking code */}
+       <div className="mt-3 pt-3 border-t border-border">
+        {booking.short_code ? (
+         <div className="space-y-1">
+          <div className="flex items-baseline gap-2">
+           <span className="text-[10px] font-inter font-semibold text-muted-foreground uppercase tracking-wider">
+            Booking code
+           </span>
+           <span className="font-mono font-bold text-foreground tracking-[0.2em] text-lg">
+            {booking.short_code}
+           </span>
+          </div>
+          <div className="text-[11px] text-muted-foreground font-mono">
+           Support reference: {booking.booking_reference}
+          </div>
+         </div>
+        ) : (
+         <div className="text-xs text-muted-foreground font-mono">
+          Reference: {booking.booking_reference}
          </div>
         )}
        </div>
-      </div>
-     )}
-
-     {/* Per-seat line items — only present for reserved-mode bookings.
-       Surfaces "which seats did I just get?" before payment, which the
-       previous summary (quantity + unit price only) didn't answer. */}
-     {isReserved && seats && seats.length > 0 && (
-      <div className="pt-4 border-t border-border">
-       <h3 className="text-sm font-inter font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-        Your seats ({seats.length})
-       </h3>
-       <ul className="space-y-1.5">
-        {seats.map(s => (
-         <li key={s.id} className="flex items-baseline justify-between gap-3 text-sm">
-          <div className="min-w-0">
-           <span className="font-mono font-semibold text-foreground">
-            Seat {s.seat_label ?? `${s.row_label}-${s.seat_number}`}
-           </span>
-           {s.section && (
-            <span className="ml-2 text-xs text-muted-foreground">{s.section}</span>
-           )}
-          </div>
-          <span className="shrink-0 text-muted-foreground">
-           LKR {Number(booking.ticket_price).toLocaleString()}
-          </span>
-         </li>
-        ))}
-       </ul>
-      </div>
-     )}
-
-     <div className="pt-4 border-t border-border space-y-2">
-      {line_items && line_items.length > 0 ? (
-       // Multi-category order: one row per tier ("Gold × 2 — LKR 5,000").
-       <>
-        {line_items.map((li) => (
-         <Row
-          key={li.ticket_type_id}
-          label={`${li.name} × ${li.quantity}`}
-          value={`LKR ${(Number(li.price) * li.quantity).toLocaleString()}`}
-         />
-        ))}
-        <Row label="Total tickets" value={String(booking.number_of_tickets)} />
-       </>
-      ) : (
-       <>
-        <Row label="Ticket type" value={ticket_type?.name ?? '—'} />
-        <Row
-         label={isReserved ? 'Seats' : 'Quantity'}
-         value={String(booking.number_of_tickets)}
-        />
-        <Row label="Unit price" value={`LKR ${Number(booking.ticket_price).toLocaleString()}`} />
-       </>
-      )}
-      <div className="flex items-baseline justify-between pt-2 border-t border-border">
-       <span className="text-muted-foreground font-plex-sans">Total</span>
-       <span className="text-2xl font-outfit font-bold text-foreground">
-        LKR {Number(booking.total_amount).toLocaleString()}
-       </span>
-      </div>
-     </div>
-
-     <div className="pt-4 border-t border-border">
-      <h3 className="text-sm font-inter font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-       Attendee
-      </h3>
-      {booking.attendee_info && (
-       <>
-        <div className="text-sm text-foreground">{booking.attendee_info.name || '—'}</div>
-        <div className="text-sm text-muted-foreground">{booking.attendee_info.email || '—'}</div>
-        {booking.attendee_info.phone && (
-         <div className="text-sm text-muted-foreground">{booking.attendee_info.phone}</div>
-        )}
-       </>
-      )}
-
-      {/* Booking code */}
-      <div className="mt-3 pt-3 border-t border-border">
-       {booking.short_code ? (
-        <div className="space-y-1">
-         <div className="flex items-baseline gap-2">
-          <span className="text-[10px] font-inter font-semibold text-muted-foreground uppercase tracking-wider">
-           Booking code
-          </span>
-          <span className="font-mono font-bold text-foreground tracking-[0.2em] text-lg">
-           {booking.short_code}
-          </span>
-         </div>
-         <div className="text-[11px] text-muted-foreground font-mono">
-          Support reference: {booking.booking_reference}
-         </div>
-        </div>
-       ) : (
-        <div className="text-xs text-muted-foreground font-mono">
-         Reference: {booking.booking_reference}
-        </div>
-       )}
       </div>
      </div>
     </div>
-
-    {/* Phone verification — confirm the attendee's number is reachable so
-      SMS reminders / alerts actually land. Shown until verified. */}
-    {showPhoneVerify && (
-     <div className="mt-6 rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-5 dark:bg-card/40">
-      <div className="flex items-start gap-3">
-       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Smartphone className="h-5 w-5" />
-       </div>
-       <div className="min-w-0 flex-1">
-        <h3 className="font-outfit font-bold text-foreground">Verify your phone</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-         We&rsquo;ll text a 6-digit code to{' '}
-         <span className="font-medium text-foreground">{bookingPhone}</span> so your SMS
-         ticket alerts and reminders reach you.
-        </p>
-
-        {!otpSent ? (
-         <button
-          type="button"
-          onClick={requestOtp}
-          disabled={otpBusy}
-          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-inter font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-         >
-          {otpBusy ? <Loader className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
-          {otpBusy ? 'Sending…' : 'Send code'}
-         </button>
-        ) : (
-         <div className="mt-3 space-y-2">
-          {otpSentTo && (
-           <p className="text-xs text-muted-foreground">
-            Code sent to the number ending in{' '}
-            <span className="font-mono font-semibold">{otpSentTo}</span>.
-           </p>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-           <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="6-digit code"
-            aria-label="Verification code"
-            className="w-36 rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono tracking-[0.3em] text-foreground placeholder:tracking-normal focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
-           />
-           <button
-            type="button"
-            onClick={verifyOtp}
-            disabled={otpBusy || otp.length < 4}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-inter font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-           >
-            {otpBusy ? <Loader className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-            {otpBusy ? 'Verifying…' : 'Verify'}
-           </button>
-           <button
-            type="button"
-            onClick={requestOtp}
-            disabled={otpBusy}
-            className="text-xs font-medium text-primary hover:underline disabled:opacity-60"
-           >
-            Resend
-           </button>
-          </div>
-         </div>
-        )}
-
-        {otpError && <p className="mt-2 text-xs text-destructive">{otpError}</p>}
-       </div>
-      </div>
-     </div>
-    )}
-
-    {/* Verified confirmation — plain inline row, no card/border/background.
-      Text stays green (consistent with the checkmark meaning "verified"
-      elsewhere) but without a container it doesn't compete with the
-      "Payment received" success banner, which keeps the card treatment. */}
-    {!!bookingPhone && isPhoneVerified && !isCancelled && (
-     <div className="mt-6 flex items-start gap-2 font-inter">
-      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-      <div className="min-w-0">
-       <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Phone number verified</p>
-       <p className="mt-0.5 text-xs text-emerald-600/80 dark:text-emerald-400/80">
-        You&rsquo;ll receive SMS updates for this booking.
-       </p>
-      </div>
-     </div>
-    )}
 
     {/* Seat-hold countdown — only meaningful for reserved Pending bookings.
       Backend's hold_seats RPC locks seats for 10 min from checkout; we
@@ -1150,19 +1017,7 @@ export default function EventBookingDetailPage() {
         {refundRequesting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
         {refundRequested ? 'Refund requested' : refundRequesting ? 'Requesting…' : 'Request refund'}
        </button>
-       <Link href="/events" className="text-primary underline text-sm">
-        Browse more events →
-       </Link>
       </div>
-     </div>
-    )}
-
-
-    {isCancelled && (
-     <div className="mt-6 text-center">
-      <Link href="/events" className="text-primary underline text-sm">
-       Browse more events →
-      </Link>
      </div>
     )}
    </div>
