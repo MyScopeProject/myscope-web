@@ -189,7 +189,7 @@ export function ProductForm({
               disabled={lockType}
               value={values.event_id ?? ""}
               onChange={(e) => update("event_id", e.target.value || null)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
             >
               <option value="">Select an event...</option>
               {events.map((ev) => (
@@ -227,7 +227,7 @@ export function ProductForm({
             maxLength={5000}
             value={values.description}
             onChange={(e) => update("description", e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-input/30"
             placeholder="What's included, sizing, materials..."
           />
         </div>
@@ -280,7 +280,7 @@ export function ProductForm({
                     "flex-1 rounded-lg border px-3 py-2 text-xs font-medium capitalize transition-colors",
                     values.fulfillment === opt
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-background text-muted-foreground hover:bg-muted",
+                      : "border-border bg-transparent text-muted-foreground hover:bg-muted",
                   )}
                 >
                   {opt === "both" ? "Both" : opt}
@@ -358,7 +358,7 @@ export function ProductForm({
           ))}
 
           {values.images.length < 8 && (
-            <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border bg-background text-xs text-muted-foreground hover:bg-muted">
+            <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border bg-transparent text-xs text-muted-foreground hover:bg-muted">
               {uploading ? (
                 <Loader className="h-5 w-5 animate-spin" />
               ) : (
@@ -451,7 +451,7 @@ function TypeCard({
         "rounded-lg border p-4 text-left transition-colors",
         selected
           ? "border-primary bg-primary/10"
-          : "border-border bg-background hover:bg-muted",
+          : "border-border bg-transparent hover:bg-muted",
         disabled && "cursor-not-allowed opacity-60",
       )}
     >
