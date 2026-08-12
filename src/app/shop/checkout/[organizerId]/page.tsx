@@ -386,7 +386,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Promo code apply */}
-              <div className="rounded-lg border border-border bg-background p-3">
+              <div className="rounded-lg border border-border bg-transparent p-3">
                 {promo ? (
                   <div className="flex items-center justify-between text-sm">
                     <span className="inline-flex items-center gap-1.5 text-foreground">
@@ -495,7 +495,7 @@ function FulfillmentCard({
         "flex items-start gap-3 rounded-lg border p-4 text-left transition-colors",
         selected
           ? "border-primary bg-primary/10"
-          : "border-border bg-background hover:bg-muted",
+          : "border-border bg-transparent hover:bg-muted/50",
         disabled && "cursor-not-allowed opacity-40",
       )}
     >
