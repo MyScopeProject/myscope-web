@@ -18,7 +18,6 @@ import {
   ImageIcon,
   MapPin,
   Package,
-  ShieldCheck,
   Store,
   Truck,
 } from "lucide-react"
@@ -300,14 +299,15 @@ export function OrderSidebar({ order, organizer }: { order: OrderDetail; organiz
                 <span className="truncate text-sm font-semibold text-foreground">
                   {organizer.business_name || "Organizer"}
                 </span>
-                {organizer.verified && <ShieldCheck className="h-3 w-3 shrink-0 text-primary" />}
+                {organizer.verified && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src="/Images/verified badge.png"
+                    alt="Verified"
+                    className="h-3.5 w-3.5 shrink-0"
+                  />
+                )}
               </div>
-              <Link
-                href={`/shop?organizerId=${order.organizer_id}`}
-                className="text-xs text-primary hover:underline"
-              >
-                View storefront →
-              </Link>
             </div>
           </div>
         </section>
@@ -520,14 +520,15 @@ export function OrderInlineDetail({
                 <span className="truncate text-sm font-semibold text-foreground">
                   {organizer.business_name || "Organizer"}
                 </span>
-                {organizer.verified && <ShieldCheck className="h-3 w-3 shrink-0 text-primary" />}
+                {organizer.verified && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src="/Images/verified badge.png"
+                    alt="Verified"
+                    className="h-3.5 w-3.5 shrink-0"
+                  />
+                )}
               </div>
-              <Link
-                href={`/shop?organizerId=${order.organizer_id}`}
-                className="text-xs text-primary hover:underline"
-              >
-                View storefront →
-              </Link>
             </div>
           </div>
         </div>
