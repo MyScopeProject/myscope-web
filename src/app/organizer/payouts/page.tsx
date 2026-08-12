@@ -17,8 +17,6 @@ import {
   Loader,
   Loader2,
   MapPin,
-  Pencil,
-  Save,
   ShoppingBag,
   Trash2,
   Wallet,
@@ -149,19 +147,10 @@ export default function OrganizerPayoutsPage() {
   const [deleteTarget, setDeleteTarget] = React.useState<Payout | null>(null)
   const [deleting, setDeleting] = React.useState(false)
 
-  // Bank details — loaded from /api/organizers/me, edited inline.
+  // Bank details status — loaded from /api/organizers/me so payout cards
+  // know whether a payout can be requested. Editing lives on the Profile
+  // page now; this page only reads the status.
   const [bank, setBank] = React.useState<BankDetails | null>(null)
-  const [bankForm, setBankForm] = React.useState<BankDetails>({
-    bank_name: "",
-    bank_account_number: "",
-    bank_account_name: "",
-    branch_name: "",
-    bank_code: "",
-    branch_code: "",
-  })
-  const [bankEditing, setBankEditing] = React.useState(false)
-  const [bankSaving, setBankSaving] = React.useState(false)
-  const [bankError, setBankError] = React.useState("")
 
   const refetch = React.useCallback(async () => {
     try {
@@ -185,19 +174,14 @@ export default function OrganizerPayoutsPage() {
 
       const p = meRes?.data?.profile
       if (p) {
-        const initial: BankDetails = {
+        setBank({
           bank_name: p.bank_name ?? "",
           bank_account_number: p.bank_account_number ?? "",
           bank_account_name: p.bank_account_name ?? "",
           branch_name: p.branch_name ?? "",
           bank_code: p.bank_code ?? "",
           branch_code: p.branch_code ?? "",
-        }
-        setBank(initial)
-        setBankForm(initial)
-        if (!initial.bank_name && !initial.bank_account_number) {
-          setBankEditing(true)
-        }
+        })
       }
     } catch {
       setError("Network error.")
@@ -229,48 +213,6 @@ export default function OrganizerPayoutsPage() {
     }
   }, [user, refetch])
 
-  const handleSaveBank = async () => {
-    setBankError("")
-    if (
-      !bankForm.bank_name?.trim() ||
-      !bankForm.bank_account_number?.trim() ||
-      !bankForm.bank_account_name?.trim() ||
-      !bankForm.branch_name?.trim()
-    ) {
-      setBankError("Bank, branch, account holder name and account number are required.")
-      return
-    }
-    setBankSaving(true)
-    try {
-      const res = await fetch(`${API_URL}/api/organizers/me/bank`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bankForm),
-      })
-      const data = await res.json()
-      if (!data?.success) {
-        setBankError(data?.message || "Failed to save.")
-        return
-      }
-      const saved: BankDetails = {
-        bank_name: data.data.profile.bank_name ?? "",
-        bank_account_number: data.data.profile.bank_account_number ?? "",
-        bank_account_name: data.data.profile.bank_account_name ?? "",
-        branch_name: data.data.profile.branch_name ?? "",
-        bank_code: data.data.profile.bank_code ?? "",
-        branch_code: data.data.profile.branch_code ?? "",
-      }
-      setBank(saved)
-      setBankForm(saved)
-      setBankEditing(false)
-    } catch {
-      setBankError("Network error.")
-    } finally {
-      setBankSaving(false)
-    }
-  }
-
   // Only rows that haven't touched real money yet can be removed — still
   // awaiting review, or already declined. Approved/paid stay as a permanent
   // record (money moved / admin signed off).
@@ -298,12 +240,6 @@ export default function OrganizerPayoutsPage() {
   }
 
   const hasBank = !!bank?.bank_account_number
-  const maskedAccount = (n: string | null) => {
-    if (!n) return "—"
-    const trimmed = n.replace(/\s+/g, "")
-    if (trimmed.length <= 4) return trimmed
-    return `•••• ${trimmed.slice(-4)}`
-  }
 
   if (authLoading || loading) {
     return (
@@ -372,76 +308,6 @@ export default function OrganizerPayoutsPage() {
         )}
       </section>
 
-      {/* Bank details */}
-      <section className="rounded-xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">Bank details</h2>
-            <p className="text-xs text-muted-foreground">Where MyScope sends your payouts.</p>
-          </div>
-          {bank && !bankEditing && (bank.bank_name || bank.bank_account_number) && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setBankEditing(true)
-                setBankError("")
-              }}
-            >
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </Button>
-          )}
-        </div>
-
-        <div className="p-4">
-          {!bankEditing && bank && (bank.bank_name || bank.bank_account_number) && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <BankRow label="Bank" value={bank.bank_name || "—"} />
-              <BankRow label="Branch" value={bank.branch_name || "—"} />
-              <BankRow label="Account holder" value={bank.bank_account_name || "—"} />
-              <BankRow label="Account number" value={maskedAccount(bank.bank_account_number)} mono />
-              {bank.bank_code && <BankRow label="Bank code" value={bank.bank_code} mono />}
-              {bank.branch_code && <BankRow label="Branch code" value={bank.branch_code} mono />}
-            </div>
-          )}
-
-          {bankEditing && (
-            <div className="space-y-4">
-              {bankError && (
-                <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{bankError}</span>
-                </div>
-              )}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <BankField id="bank-name" label="Bank" placeholder="Bank of Ceylon" value={bankForm.bank_name ?? ""} onChange={(v) => setBankForm((f) => ({ ...f, bank_name: v }))} />
-                <BankField id="bank-branch" label="Branch" placeholder="Colombo Fort" value={bankForm.branch_name ?? ""} onChange={(v) => setBankForm((f) => ({ ...f, branch_name: v }))} />
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <BankField id="bank-acct-name" label="Account holder name" placeholder="Acme Events Pvt Ltd" value={bankForm.bank_account_name ?? ""} onChange={(v) => setBankForm((f) => ({ ...f, bank_account_name: v }))} />
-                <BankField id="bank-acct-num" label="Account number" placeholder="1234567890" value={bankForm.bank_account_number ?? ""} onChange={(v) => setBankForm((f) => ({ ...f, bank_account_number: v }))} />
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <BankField id="bank-code" label="Bank code" placeholder="7056" optional value={bankForm.bank_code ?? ""} onChange={(v) => setBankForm((f) => ({ ...f, bank_code: v }))} />
-                <BankField id="branch-code" label="Branch code" placeholder="001" optional value={bankForm.branch_code ?? ""} onChange={(v) => setBankForm((f) => ({ ...f, branch_code: v }))} />
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-1">
-                {bank && (bank.bank_name || bank.bank_account_number) && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setBankForm(bank); setBankEditing(false); setBankError("") }}>
-                    Cancel
-                  </Button>
-                )}
-                <Button type="button" size="sm" onClick={handleSaveBank} disabled={bankSaving}>
-                  {bankSaving ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  {bankSaving ? "Saving…" : "Save bank details"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Per-event payout cards — surfaced first because events are the
           primary revenue source for most organizers and they want to see
           live-event balances before scrolling to shop. */}
@@ -453,7 +319,7 @@ export default function OrganizerPayoutsPage() {
             <Calendar className="mx-auto h-10 w-10 text-muted-foreground" />
             <h3 className="mt-3 text-base font-semibold text-foreground">No active events</h3>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-              Approved events appear here once they're live or until 3 days after they end. Get an event approved to start tracking payouts.
+              Approved events appear here once they&apos;re live or until 3 days after they end. Get an event approved to start tracking payouts.
             </p>
             <Button asChild className="mt-4" size="sm" variant="outline">
               <Link href="/organizer/events">Go to events</Link>
@@ -728,7 +594,7 @@ function EventPayoutCard({
           ) : hasOpenRequest ? (
             <span className="font-medium text-amber-600 dark:text-amber-400">Request pending review</span>
           ) : !hasBank ? (
-            <span className="text-muted-foreground">Add bank details above to request</span>
+            <span className="text-muted-foreground">Add bank details in profile to request payout</span>
           ) : balance.pending <= 0 ? (
             <span className="text-muted-foreground">No balance to request</span>
           ) : null}
@@ -1000,7 +866,7 @@ function ProductPayoutCard({
           ) : hasOpenRequest ? (
             <span className="font-medium text-amber-600 dark:text-amber-400">Request pending review</span>
           ) : !hasBank ? (
-            <span className="text-muted-foreground">Add bank details above to request</span>
+            <span className="text-muted-foreground">Add bank details in profile to request payout</span>
           ) : balance.pending <= 0 ? (
             <span className="text-muted-foreground">No balance to request</span>
           ) : null}
@@ -1184,47 +1050,6 @@ function BalanceLine({
       <div className={cn("mt-0.5 text-sm font-semibold", highlight ? "text-primary" : "text-foreground")}>
         {value}
       </div>
-    </div>
-  )
-}
-
-function BankRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div>
-      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-sm font-semibold text-foreground", mono && "font-mono")}>{value}</div>
-    </div>
-  )
-}
-
-function BankField({
-  id, label, value, placeholder, onChange, optional = false,
-}: {
-  id: string
-  label: string
-  value: string
-  placeholder?: string
-  onChange: (v: string) => void
-  optional?: boolean
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-foreground">
-        {label}
-        {optional ? (
-          <span className="ml-1.5 text-xs font-normal text-muted-foreground">Optional</span>
-        ) : (
-          <span className="ml-0.5 text-destructive">*</span>
-        )}
-      </label>
-      <input
-        id={id}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-      />
     </div>
   )
 }
