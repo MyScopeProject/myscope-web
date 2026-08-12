@@ -20,8 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import {
   formatDate,
   formatMoney,
-  OrderMainDetails,
-  OrderSidebar,
+  OrderInlineDetail,
   STATUS_META,
   type FulfillmentStatus,
   type OrderDetail,
@@ -414,14 +413,7 @@ function OrderCard({ order }: { order: Order }) {
                   )}
                 </button>
               )}
-              <OrderMainDetails order={detail.order} items={detail.items} />
-              <OrderSidebar order={detail.order} organizer={detail.organizer} />
-              <Link
-                href={`/shop/orders/${order.id}`}
-                className="inline-block text-xs text-primary hover:underline"
-              >
-                Open as full page →
-              </Link>
+              <OrderInlineDetail order={detail.order} items={detail.items} organizer={detail.organizer} />
             </div>
           ) : null}
         </div>
