@@ -1259,18 +1259,25 @@ function CheckoutPageInner() {
           generic error elsewhere on the page. */}
       {step === 1 && (
        <label className="flex cursor-pointer items-start gap-2.5 p-1 text-sm">
-        <input
-         type="checkbox"
-         checked={acceptedTerms}
-         onChange={(e) => {
-          setAcceptedTerms(e.target.checked)
-          if (e.target.checked) setTermsError(false)
-         }}
-         className={cn(
-          "mt-0.5 h-4 w-4 shrink-0 rounded accent-primary",
-          termsError && "bg-transparent",
-         )}
-        />
+        <span className="relative mt-0.5 inline-flex h-4 w-4 shrink-0">
+         {/* Custom-drawn checkbox (appearance-none) — a native checkbox's
+             OS-drawn chrome ignores border/box-shadow in Safari, so the
+             error state couldn't render reliably on top of it. Fully
+             owning the paint lets the red border actually blink. */}
+         <input
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={(e) => {
+           setAcceptedTerms(e.target.checked)
+           if (e.target.checked) setTermsError(false)
+          }}
+          className={cn(
+           "peer h-4 w-4 shrink-0 appearance-none rounded border-2 bg-transparent transition-colors checked:bg-primary",
+           termsError ? "animate-pulse border-destructive" : "border-input checked:border-primary",
+          )}
+         />
+         <Check className="pointer-events-none absolute inset-0 h-4 w-4 p-0.5 text-primary-foreground opacity-0 peer-checked:opacity-100" />
+        </span>
         <span className={termsError ? "text-destructive" : "text-foreground"}>
          I accept and agree to the{" "}
          <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">
