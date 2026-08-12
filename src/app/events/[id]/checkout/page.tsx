@@ -1258,26 +1258,38 @@ function CheckoutPageInner() {
           On a blocked submit, the checkbox itself glows instead of showing a
           generic error elsewhere on the page. */}
       {step === 1 && (
-       <label className="flex cursor-pointer items-start gap-2.5 p-1 text-sm text-foreground">
-        <input
-         type="checkbox"
-         checked={acceptedTerms}
-         onChange={(e) => {
-          setAcceptedTerms(e.target.checked)
-          if (e.target.checked) setTermsError(false)
-         }}
-         className={cn(
-          "mt-0.5 h-4 w-4 shrink-0 rounded accent-primary transition-shadow",
-          termsError && "animate-pulse shadow-[0_0_10px_3px_var(--color-destructive)] ring-2 ring-destructive",
-         )}
-        />
-        <span>
-         I accept and agree to the{" "}
-         <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">
-          Terms and Conditions
-         </Link>
-        </span>
-       </label>
+       <div
+        className={cn(
+         "rounded-lg border p-1 transition-colors",
+         termsError ? "border-destructive bg-destructive/5" : "border-transparent",
+        )}
+       >
+        <label className="flex cursor-pointer items-start gap-2.5 p-1 text-sm text-foreground">
+         <input
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={(e) => {
+           setAcceptedTerms(e.target.checked)
+           if (e.target.checked) setTermsError(false)
+          }}
+          className={cn(
+           "mt-0.5 h-4 w-4 shrink-0 rounded accent-primary transition-shadow",
+           termsError && "outline outline-2 outline-offset-1 outline-destructive",
+          )}
+         />
+         <span>
+          I accept and agree to the{" "}
+          <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">
+           Terms and Conditions
+          </Link>
+         </span>
+        </label>
+        {termsError && (
+         <p className="pl-8 pb-1 text-xs font-medium text-destructive">
+          Please accept the Terms and Conditions to continue.
+         </p>
+        )}
+       </div>
       )}
 
       {/* Step-aware primary action.
