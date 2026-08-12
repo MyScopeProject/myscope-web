@@ -35,7 +35,6 @@ export default function NewProductPage() {
         description:         values.description || null,
         category:            values.category || null,
         price:               Number(values.price),
-        currency:            values.currency || "LKR",
         stock_quantity:      Number(values.stock_quantity),
         fulfillment:         values.fulfillment,
         pickup_location:     needsPickup ? (values.pickup_location || null) : null,

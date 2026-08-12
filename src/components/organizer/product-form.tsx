@@ -15,7 +15,6 @@ export type ProductFormValues = {
   description: string
   category: string
   price: string  // string in form, parsed at submit
-  currency: string
   stock_quantity: string
   fulfillment: "shipping" | "pickup" | "both"
   pickup_location: string
@@ -53,7 +52,6 @@ const defaults: ProductFormValues = {
   description:         "",
   category:            "",
   price:               "",
-  currency:            "LKR",
   stock_quantity:      "1",
   fulfillment:         "shipping",
   pickup_location:     "",
@@ -234,7 +232,7 @@ export function ProductForm({
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Category</label>
             <Input
@@ -242,15 +240,6 @@ export function ProductForm({
               value={values.category}
               onChange={(e) => update("category", e.target.value)}
               placeholder="Apparel, Posters..."
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Currency</label>
-            <Input
-              maxLength={3}
-              value={values.currency}
-              onChange={(e) => update("currency", e.target.value.toUpperCase())}
-              placeholder="LKR"
             />
           </div>
           <div className="space-y-1.5">

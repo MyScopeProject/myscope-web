@@ -37,12 +37,15 @@ interface ShippingAddress {
   line2: string
   city: string
   postal_code: string
-  country: string
   notes: string
 }
 
+// MyScope only operates in Sri Lanka — country isn't collected from the
+// user, but the backend/email templates still accept it for display.
+const SHIPPING_COUNTRY = "Sri Lanka"
+
 const emptyAddress: ShippingAddress = {
-  name: "", phone: "", line1: "", line2: "", city: "", postal_code: "", country: "LK", notes: "",
+  name: "", phone: "", line1: "", line2: "", city: "", postal_code: "", notes: "",
 }
 
 function formatMoney(amount: number, currency = "LKR") {
@@ -200,7 +203,7 @@ export default function CheckoutPage() {
           fulfillment_type:  fulfillmentType,
           items:             cart.map(c => ({ product_id: c.product_id, quantity: c.quantity })),
           promo_code:        promo?.code ?? null,
-          shipping_address:  fulfillmentType === "shipping" ? address : null,
+          shipping_address:  fulfillmentType === "shipping" ? { ...address, country: SHIPPING_COUNTRY } : null,
           pickup_note:       fulfillmentType === "pickup" ? pickupNote.trim() : null,
           buyer_email:       user?.email ?? null,
           buyer_phone:       fulfillmentType === "shipping" ? address.phone : phone,
@@ -329,10 +332,9 @@ export default function CheckoutPage() {
                 </div>
                 <FieldText label="Address line 1" value={address.line1} onChange={(v) => setAddress((a) => ({ ...a, line1: v }))} />
                 <FieldText label="Address line 2 (optional)" value={address.line2} onChange={(v) => setAddress((a) => ({ ...a, line2: v }))} />
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <FieldText label="City"        value={address.city}        onChange={(v) => setAddress((a) => ({ ...a, city: v }))} />
                   <FieldText label="Postal code" value={address.postal_code} onChange={(v) => setAddress((a) => ({ ...a, postal_code: v }))} />
-                  <FieldText label="Country"     value={address.country}     onChange={(v) => setAddress((a) => ({ ...a, country: v }))} />
                 </div>
                 <FieldText label="Delivery notes (optional)" value={address.notes} onChange={(v) => setAddress((a) => ({ ...a, notes: v }))} />
               </section>
