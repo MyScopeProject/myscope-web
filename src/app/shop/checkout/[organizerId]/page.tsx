@@ -73,12 +73,34 @@ export default function CheckoutPage() {
   const [phone, setPhone] = React.useState("")
 
   const [promoInput, setPromoInput] = React.useState("")
-  const [promo, setPromo] = React.useState<{ code: string; type: "percentage" | "fixed"; amount: number } | null>(null)
+  const [promo, setPromo] = React.useState<{ code: string; type: "percentage" | "fixed"; amount: number; product_id: string | null } | null>(null)
   const [promoChecking, setPromoChecking] = React.useState(false)
   const [promoError, setPromoError] = React.useState("")
 
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState("")
+
+  // Customer-visible convenience fee %. Same public endpoint the event
+  // checkout page reads from — fetched once so an admin rate change
+  // propagates without a redeploy. Default to 0.02 (2%) so we don't render a
+  // zero fee before the call resolves. The backend recomputes the real fee
+  // (and which products it applies to) at order-create time — this is a
+  // display estimate only.
+  const [convenienceFeePct, setConvenienceFeePct] = React.useState(0.02)
+  React.useEffect(() => {
+    let cancelled = false
+    fetch(`${API_URL}/api/settings/fees`)
+      .then((r) => r.json())
+      .then((body) => {
+        if (cancelled) return
+        const pct = Number(body?.data?.convenience_fee_pct)
+        if (Number.isFinite(pct) && pct >= 0) setConvenienceFeePct(pct)
+      })
+      .catch(() => {
+        // soft-fail: keep the 0.02 default
+      })
+    return () => { cancelled = true }
+  }, [])
 
   // Whether the cart's fulfillment mix actually supports each option.
   const supportsShipping = cart.every(c => c.fulfillment === "shipping" || c.fulfillment === "both")
@@ -129,7 +151,33 @@ export default function CheckoutPage() {
   }, [fulfillmentType, supportsShipping, supportsPickup])
 
   const discountAmount = React.useMemo(() => promo?.amount ?? 0, [promo])
-  const total = Math.max(0, subtotal - discountAmount)
+
+  // Convenience fee — mirrors the mixed-cart math in
+  // myscope-api routes/shopCheckout.js exactly: only fee-enabled line items
+  // contribute to the fee base, and the discount is attributed to the
+  // fee-eligible portion the same way it was actually applied (product-
+  // scoped promo hits one line; storefront-wide promo prorates across the
+  // whole cart). This is a display estimate — the server recomputes and is
+  // authoritative for what's actually charged.
+  const feeEligibleSubtotal = React.useMemo(
+    () => cart
+      .filter((c) => c.convenience_fee_enabled !== false)
+      .reduce((sum, c) => sum + c.unit_price * c.quantity, 0),
+    [cart],
+  )
+  const feeEligibleDiscount = React.useMemo(() => {
+    if (discountAmount <= 0) return 0
+    if (promo?.product_id) {
+      const line = cart.find((c) => c.product_id === promo.product_id)
+      return line && line.convenience_fee_enabled !== false ? discountAmount : 0
+    }
+    if (subtotal <= 0) return 0
+    return +(discountAmount * (feeEligibleSubtotal / subtotal)).toFixed(2)
+  }, [cart, discountAmount, feeEligibleSubtotal, promo, subtotal])
+  const feeBase = Math.max(0, feeEligibleSubtotal - feeEligibleDiscount)
+  const convenienceFee = +(feeBase * convenienceFeePct).toFixed(2)
+
+  const total = Math.max(0, subtotal - discountAmount) + convenienceFee
 
   const applyPromo = async () => {
     const code = promoInput.trim().toUpperCase()
@@ -150,6 +198,7 @@ export default function CheckoutPage() {
           code: data.data.promo_code.code,
           type: data.data.promo_code.discount_type,
           amount,
+          product_id: data.data.promo_code.product_id ?? null,
         })
       } else {
         setPromo(null)
@@ -380,6 +429,12 @@ export default function CheckoutPage() {
                     }
                     value={`-${formatMoney(discountAmount, currency)}`}
                     valueClass="text-success"
+                  />
+                )}
+                {convenienceFee > 0 && (
+                  <Row
+                    label={`Convenience Fee (${(convenienceFeePct * 100).toFixed(convenienceFeePct * 100 % 1 === 0 ? 0 : 1)}%)`}
+                    value={`+ ${formatMoney(convenienceFee, currency)}`}
                   />
                 )}
                 <Row label={<span className="font-semibold">Total</span>} value={<span className="font-semibold">{formatMoney(total, currency)}</span>} />

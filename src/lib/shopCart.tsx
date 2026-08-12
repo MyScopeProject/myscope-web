@@ -27,6 +27,12 @@ export interface CartItem {
   fulfillment: "shipping" | "pickup" | "both"
   // Whether this item can ship — set from product.fulfillment so the cart
   // page can warn before checkout when mixing pickup-only + shipping items.
+  // Snapshot of the admin-controlled convenience-fee toggle at add-time —
+  // purely for the checkout summary's fee estimate. The server is
+  // authoritative: it re-reads the product's live flag at order-create time,
+  // so a stale snapshot here (admin flips it after the item was added) never
+  // affects what's actually charged, only the pre-payment preview.
+  convenience_fee_enabled: boolean
   added_at: number
 }
 

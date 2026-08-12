@@ -58,6 +58,11 @@ interface Product {
   images: string[]
   category: string | null
   status: "draft" | "published" | "sold_out" | "archived"
+  // Admin-controlled per-product toggle for the 2% convenience fee. Absent
+  // on API responses from before the migration landed, so default to true
+  // (fee-enabled) to match the DB column's default and the event-ticket
+  // behavior — see myscope-api services/platformFees.js.
+  convenience_fee_enabled?: boolean
   organizer: Organizer | null
   event: ProductEvent | null
 }
@@ -330,6 +335,7 @@ export default function ProductDetailPage() {
                           currency:     product.currency,
                           quantity:     qty,
                           fulfillment:  product.fulfillment,
+                          convenience_fee_enabled: product.convenience_fee_enabled !== false,
                         })
                         setJustAdded(true)
                         setTimeout(() => setJustAdded(false), 1500)
