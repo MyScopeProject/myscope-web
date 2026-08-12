@@ -5,14 +5,12 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import toast from "react-hot-toast"
 import {
-  AlertCircle,
   ArrowLeft,
   Calendar,
   CheckCircle2,
   ImageIcon,
   Loader,
   Mail,
-  MapPin,
   Package,
   Phone,
   Receipt,
@@ -22,6 +20,16 @@ import {
 import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -116,6 +124,7 @@ export default function OrganizerOrderDetailPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
   const [updating, setUpdating] = React.useState(false)
+  const [pendingStatus, setPendingStatus] = React.useState<FulfillmentStatus | null>(null)
 
   const load = React.useCallback(async () => {
     if (!id) return
@@ -160,6 +169,13 @@ export default function OrganizerOrderDetailPage() {
     } finally {
       setUpdating(false)
     }
+  }
+
+  const confirmFulfillment = async () => {
+    const next = pendingStatus
+    setPendingStatus(null)
+    if (!next) return
+    await updateFulfillment(next)
   }
 
   if (authLoading || loading) {
@@ -244,7 +260,7 @@ export default function OrganizerOrderDetailPage() {
                         size="sm"
                         variant={next === "returned" ? "outline" : "default"}
                         disabled={updating}
-                        onClick={() => updateFulfillment(next)}
+                        onClick={() => setPendingStatus(next)}
                       >
                         {FULFILLMENT_LABEL[next]}
                       </Button>
@@ -256,6 +272,25 @@ export default function OrganizerOrderDetailPage() {
               )}
             </section>
           )}
+
+          <AlertDialog open={pendingStatus !== null} onOpenChange={(open) => { if (!open) setPendingStatus(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Update fulfillment status?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pendingStatus
+                    ? `This will mark the order as "${FULFILLMENT_LABEL[pendingStatus]}". The buyer may be notified.`
+                    : null}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setPendingStatus(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction disabled={updating} onClick={confirmFulfillment}>
+                  Confirm
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Items */}
           <section className="rounded-xl border border-border bg-card p-5">
@@ -322,7 +357,7 @@ export default function OrganizerOrderDetailPage() {
                 Pickup
               </h2>
               {order.pickup_note ? (
-                <p className="mt-2 text-sm text-foreground">Buyer's note: {order.pickup_note}</p>
+                <p className="mt-2 text-sm text-foreground">Buyer&apos;s note: {order.pickup_note}</p>
               ) : (
                 <p className="mt-2 text-sm text-muted-foreground">No pickup note.</p>
               )}

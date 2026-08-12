@@ -5,93 +5,61 @@ import Link from "next/link"
 import {
   ArrowLeft,
   ArrowRight,
-  Calendar,
+  ImageIcon,
   Loader,
-  Package,
   Receipt,
-  Truck,
-  User,
 } from "lucide-react"
 import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-type OrderStatus = "Pending" | "Confirmed" | "Cancelled" | "Refunded"
-type FulfillmentStatus = "pending" | "preparing" | "shipped" | "delivered" | "picked_up" | "returned"
+type ProductStatus = "draft" | "pending_review" | "published" | "sold_out" | "rejected" | "archived"
+type ProductType = "event_product" | "shop_product"
 
-interface Order {
+interface ProductOrderSummary {
   id: string
-  order_reference: string
-  status: OrderStatus
-  fulfillment_status: FulfillmentStatus
-  fulfillment_type: "shipping" | "pickup"
-  total_amount: number | string
-  currency: string
-  buyer_email: string | null
-  shipping_address: { name?: string } | null
-  created_at: string
+  title: string
+  product_type: ProductType
+  image: string | null
+  status: ProductStatus
+  order_count: number
+  revenue: number
 }
 
-const STATUS_META: Record<OrderStatus, { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }> = {
-  Pending:   { label: "Awaiting payment", variant: "warning" },
-  Confirmed: { label: "Paid",             variant: "success" },
-  Cancelled: { label: "Cancelled",        variant: "outline" },
-  Refunded:  { label: "Refunded",         variant: "destructive" },
+const STATUS_META: Record<
+  ProductStatus,
+  { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }
+> = {
+  draft:          { label: "Draft",     variant: "outline" },
+  pending_review: { label: "In review", variant: "warning" },
+  published:      { label: "Live",      variant: "success" },
+  sold_out:       { label: "Sold out",  variant: "warning" },
+  rejected:       { label: "Rejected",  variant: "destructive" },
+  archived:       { label: "Archived",  variant: "destructive" },
 }
 
-const FULFILLMENT_META: Record<FulfillmentStatus, { label: string; variant: "default" | "warning" | "success" | "destructive" | "outline" }> = {
-  pending:    { label: "New",             variant: "warning" },
-  preparing:  { label: "Preparing",       variant: "warning" },
-  shipped:    { label: "Shipped",         variant: "success" },
-  delivered:  { label: "Delivered",       variant: "success" },
-  picked_up:  { label: "Picked up",       variant: "success" },
-  returned:   { label: "Returned",        variant: "destructive" },
+function formatMoney(amount: number, currency = "LKR") {
+  if (!Number.isFinite(amount)) return `${currency} —`
+  return `${currency} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-type Filter = "all" | "open" | OrderStatus
-
-const FILTERS: Array<{ value: Filter; label: string }> = [
-  { value: "all",       label: "All" },
-  { value: "open",      label: "Open" },
-  { value: "Confirmed", label: "Paid" },
-  { value: "Pending",   label: "Awaiting payment" },
-  { value: "Cancelled", label: "Cancelled" },
-]
-
-function formatMoney(amount: number | string, currency = "LKR") {
-  const n = typeof amount === "number" ? amount : Number(amount)
-  if (!Number.isFinite(n)) return `${currency} —`
-  return `${currency} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatDate(iso: string) {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
-  } catch {
-    return iso
-  }
-}
-
-export default function OrganizerOrdersPage() {
+export default function OrganizerOrdersByProductPage() {
   const { user, loading: authLoading } = useOrganizerGuard("/organizer/shop/orders")
-  const [orders, setOrders] = React.useState<Order[]>([])
+  const [products, setProducts] = React.useState<ProductOrderSummary[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState("")
-  const [filter, setFilter] = React.useState<Filter>("open")
   const [search, setSearch] = React.useState("")
 
-  const fetchOrders = React.useCallback(async () => {
+  const fetchProducts = React.useCallback(async () => {
     try {
       setLoading(true)
       setError("")
-      const res = await fetch(`${API_URL}/api/organizer/shop/orders`, { credentials: "include" })
+      const res = await fetch(`${API_URL}/api/organizer/shop/orders/by-product`, { credentials: "include" })
       const data = await res.json()
       if (data?.success) {
-        setOrders(data.data?.orders ?? [])
+        setProducts(data.data?.products ?? [])
       } else {
         setError(data?.message || "Couldn't load orders.")
       }
@@ -104,41 +72,15 @@ export default function OrganizerOrdersPage() {
 
   React.useEffect(() => {
     if (user && ["organizer", "superadmin"].includes(user.role || "")) {
-      fetchOrders()
+      fetchProducts()
     }
-  }, [user, fetchOrders])
+  }, [user, fetchProducts])
 
   const filtered = React.useMemo(() => {
-    let result = orders
-    if (filter === "open") {
-      result = result.filter(o =>
-        o.status === "Confirmed" && !["delivered", "picked_up"].includes(o.fulfillment_status)
-      )
-    } else if (filter !== "all") {
-      result = result.filter(o => o.status === filter)
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      result = result.filter(o =>
-        o.order_reference.toLowerCase().includes(q) ||
-        o.buyer_email?.toLowerCase().includes(q) ||
-        o.shipping_address?.name?.toLowerCase().includes(q),
-      )
-    }
-    return result
-  }, [orders, filter, search])
-
-  const counts = React.useMemo(() => {
-    const c: Record<Filter, number> = {
-      all: orders.length,
-      open: orders.filter(o => o.status === "Confirmed" && !["delivered", "picked_up"].includes(o.fulfillment_status)).length,
-      Pending: orders.filter(o => o.status === "Pending").length,
-      Confirmed: orders.filter(o => o.status === "Confirmed").length,
-      Cancelled: orders.filter(o => o.status === "Cancelled").length,
-      Refunded: orders.filter(o => o.status === "Refunded").length,
-    }
-    return c
-  }, [orders])
+    if (!search.trim()) return products
+    const q = search.trim().toLowerCase()
+    return products.filter((p) => p.title.toLowerCase().includes(q))
+  }, [products, search])
 
   if (authLoading || loading) {
     return (
@@ -164,7 +106,7 @@ export default function OrganizerOrdersPage() {
           Orders
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage incoming shop orders. Update fulfillment status as you prepare and ship.
+          Pick a product to see its orders and current revenue.
         </p>
       </header>
 
@@ -174,79 +116,57 @@ export default function OrganizerOrdersPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="max-w-sm flex-1">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by order, buyer name or email..."
-          />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setFilter(f.value)}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                filter === f.value
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {f.label}
-              <span className="ml-1.5 text-[10px] text-muted-foreground">({counts[f.value]})</span>
-            </button>
-          ))}
-        </div>
+      <div className="max-w-sm">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search products..."
+        />
       </div>
 
       {filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card/40 p-10 text-center">
           <Receipt className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-3 text-lg font-semibold text-foreground">
-            {orders.length === 0 ? "No orders yet" : "Nothing matches that filter"}
+            {products.length === 0 ? "No products yet" : "Nothing matches that search"}
           </h2>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+            {products.length === 0
+              ? "Once you list a product, its orders and revenue will show up here."
+              : "Try a different search."}
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((o) => (
+          {filtered.map((p) => (
             <Link
-              key={o.id}
-              href={`/organizer/shop/orders/${o.id}`}
+              key={p.id}
+              href={`/organizer/shop/${p.id}/orders`}
               className="group flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                {o.fulfillment_type === "shipping" ? <Truck className="h-4 w-4" /> : <Package className="h-4 w-4" />}
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                {p.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <ImageIcon className="h-full w-full p-3 text-muted-foreground" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-sm font-semibold text-foreground group-hover:text-primary">
-                    {o.order_reference}
+                  <span className="font-semibold text-foreground group-hover:text-primary">
+                    {p.title}
                   </span>
-                  <Badge variant={STATUS_META[o.status].variant}>{STATUS_META[o.status].label}</Badge>
-                  {o.status === "Confirmed" && (
-                    <Badge variant={FULFILLMENT_META[o.fulfillment_status].variant}>
-                      {FULFILLMENT_META[o.fulfillment_status].label}
-                    </Badge>
-                  )}
+                  <Badge variant={STATUS_META[p.status].variant}>{STATUS_META[p.status].label}</Badge>
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  <span>{formatDate(o.created_at)}</span>
-                  {o.shipping_address?.name && (
-                    <>
-                      <span>·</span>
-                      <User className="h-3 w-3" />
-                      <span>{o.shipping_address.name}</span>
-                    </>
-                  )}
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {p.order_count} {p.order_count === 1 ? "order" : "orders"}
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="text-sm font-semibold text-foreground">
-                  {formatMoney(o.total_amount, o.currency)}
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Revenue</div>
+                  <div className="text-sm font-semibold text-foreground">{formatMoney(p.revenue)}</div>
                 </div>
                 <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
               </div>

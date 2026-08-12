@@ -17,6 +17,7 @@ import {
   Loader,
   Loader2,
   Package,
+  Receipt,
   Send,
   Trash2,
 } from "lucide-react"
@@ -257,17 +258,25 @@ export default function EditProductPage() {
           </div>
           <p className="mt-1 text-sm text-muted-foreground">Edit product details and manage status.</p>
         </div>
-        {product.status === "published" && (
+        <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm">
-            <Link
-              href={`/shop/${product.id}`}
-              target="_blank"
-              className="inline-flex items-center gap-1"
-            >
-              View public <ExternalLink className="h-3.5 w-3.5" />
+            <Link href={`/organizer/shop/${product.id}/orders`} className="inline-flex items-center gap-1">
+              <Receipt className="h-3.5 w-3.5" />
+              Orders
             </Link>
           </Button>
-        )}
+          {product.status === "published" && (
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/shop/${product.id}`}
+                target="_blank"
+                className="inline-flex items-center gap-1"
+              >
+                View public <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          )}
+        </div>
       </header>
 
       {/* Review-status banners */}
