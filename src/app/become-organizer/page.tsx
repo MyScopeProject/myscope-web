@@ -300,9 +300,9 @@ export default function BecomeOrganizerPage() {
       {showForm && (
         <div className="rounded-2xl border border-border bg-card dark:bg-card/60 dark:backdrop-blur-sm p-6 shadow-xs sm:p-8">
           {error && (
-            <div className="mb-5 flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <div className="mb-5 flex items-start gap-3 p-4">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm font-bold text-destructive">{error}</p>
             </div>
           )}
 
