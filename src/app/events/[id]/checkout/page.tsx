@@ -735,7 +735,7 @@ function CheckoutPageInner() {
     {/* Left: step 0 = ticket / seat selection · step 1 = attendee form.
       Wider than the sidebar (4/7 vs 3/7, was an even 3/5 split) so the
       seat map gets more room to render at a readable size. */}
-    <div className="space-y-6 lg:col-span-4">
+    <div className="space-y-6 lg:col-span-5">
      {/* ---- Step 0: Choose ----
        Rendered always (just hidden on step 1) so the SeatMapPicker stays
        mounted across the wizard. Unmounting it would fire the picker's
@@ -1078,7 +1078,7 @@ function CheckoutPageInner() {
     {/* Right: sticky order summary — explicit brighter shade in dark mode
         so seat labels, prices, and the total stay readable against the
         deep page background. Stays in the theme's purple-violet hue. */}
-    <aside className="lg:col-span-3">
+    <aside className="lg:col-span-2">
      <div className="sticky top-20 space-y-3 rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm p-5 shadow-xs">
       {/* Event header — banner + name + date + venue, so the buyer keeps sight
           of what they're paying for. */}

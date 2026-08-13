@@ -369,7 +369,16 @@ export function SeatMapPicker({
       el.removeEventListener("touchmove", onTouchMove)
       el.removeEventListener("touchend", onTouchEnd)
     }
-  }, [zoom, applyZoomAt, clampZoom])
+    // `layout` is included so this effect re-runs once the canvas <div ref=
+    // scrollRef> actually mounts. On first load `scrollRef.current` is null
+    // here (the canvas is gated behind `isVisual && layout`, which is only
+    // true after the async seat-map fetch resolves) — without `layout` in
+    // the deps, this effect's `if (!el) return` fires once on mount and
+    // never re-runs (refs don't themselves trigger effects), so pinch/wheel
+    // zoom silently does nothing until some OTHER dependency changes zoom
+    // (e.g. clicking a zoom button), which was the actual bug reported:
+    // "first pinch/wheel does nothing, works after using the buttons."
+  }, [zoom, applyZoomAt, clampZoom, layout])
   const [lastRefreshAt, setLastRefreshAt] = React.useState<number>(Date.now())
   // Seats with an in-flight hold or release call. Used to (a) disable double
   // clicks while a request is pending and (b) skip server-state reconciliation
