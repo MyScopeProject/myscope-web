@@ -41,6 +41,11 @@ interface EventCardProps {
 
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
+// Koko (BNPL) is opt-in via the same global flag the checkout page reads.
+// When on, priced cards surface a "pay in 3 installments" cue next to the
+// price so buyers see the option before they even open the event.
+const KOKO_ENABLED = process.env.NEXT_PUBLIC_KOKO_ENABLED === "true"
+
 function formatPrice(n: number) {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -221,13 +226,24 @@ export function EventCard({ event, className }: EventCardProps) {
               )}
               <div>
                 {hasPrice && priceNum! > 0 ? (
-                  <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">LKR</div>
-                    <div className="truncate font-heading text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
-                      {formatPrice(priceNum!)}
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[10px]">LKR</div>
+                      <div className="truncate font-heading text-base font-bold leading-tight tracking-tight text-foreground sm:text-xl">
+                        {formatPrice(priceNum!)}
+                      </div>
+                      {event.has_multiple_tiers && (
+                        <div className="text-[10px] font-medium text-muted-foreground sm:text-xs">Upwards</div>
+                      )}
                     </div>
-                    {event.has_multiple_tiers && (
-                      <div className="text-[10px] font-medium text-muted-foreground sm:text-xs">Upwards</div>
+                    {/* Koko BNPL cue — logo + "pay in 3 installments" subtitle,
+                        right of the price. Shown only when Koko is enabled. */}
+                    {KOKO_ENABLED && (
+                      <div className="flex shrink-0 flex-col items-end gap-0.5 pb-0.5 text-right">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/Images/koko.png" alt="KOKO" className="h-6 w-auto object-contain sm:h-7" />
+                        <span className="text-[8px] leading-tight text-muted-foreground sm:text-[9px]">pay in 3 installments</span>
+                      </div>
                     )}
                   </div>
                 ) : hasPrice && priceNum === 0 ? (
