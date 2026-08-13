@@ -1207,6 +1207,27 @@ function CheckoutPageInner() {
           </span>
          </div>
         </div>
+
+        {/* Koko installment breakdown — surfaces once the buyer picks Koko on
+            the Details & Pay step, so the summary reflects how the same total
+            is split into 3 interest-free payments. Display estimate; Koko's
+            hosted page is authoritative for the exact schedule. */}
+        {step === 1 && KOKO_ENABLED && paymentMethod === "koko" && total > 0 && (
+         <div className="mt-3 space-y-1.5 rounded-lg border border-border bg-muted/30 p-3">
+          <div className="flex items-center gap-1.5">
+           {/* eslint-disable-next-line @next/next/no-img-element */}
+           <img src="/Images/koko.png" alt="KOKO" className="h-5 w-auto object-contain" />
+           <span className="text-xs font-semibold text-foreground">Pay in 3 installments</span>
+          </div>
+          <div className="flex items-baseline justify-between text-sm">
+           <span className="text-muted-foreground">3 payments of</span>
+           <span className="font-semibold text-foreground">{formatLkr(total / 3)}</span>
+          </div>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+           Interest-free. Pay the first installment today and the rest over the coming months.
+          </p>
+         </div>
+        )}
        </>
       ) : (
        <p className="text-sm text-muted-foreground">
