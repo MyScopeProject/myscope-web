@@ -731,9 +731,11 @@ function CheckoutPageInner() {
      screen at /bookings/event/[id]. */}
    <CheckoutSteps activeIndex={step === 0 ? 0 : 1} />
 
-   <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-    {/* Left: step 0 = ticket / seat selection · step 1 = attendee form */}
-    <div className="space-y-6 lg:col-span-3">
+   <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-6 lg:grid-cols-7">
+    {/* Left: step 0 = ticket / seat selection · step 1 = attendee form.
+      Wider than the sidebar (4/7 vs 3/7, was an even 3/5 split) so the
+      seat map gets more room to render at a readable size. */}
+    <div className="space-y-6 lg:col-span-4">
      {/* ---- Step 0: Choose ----
        Rendered always (just hidden on step 1) so the SeatMapPicker stays
        mounted across the wizard. Unmounting it would fire the picker's
@@ -743,51 +745,25 @@ function CheckoutPageInner() {
      <div className="space-y-6">
      {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
      {isReserved ? (
-      <section className="rounded-2xl border border-border p-5">
+      <section>
        <header className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
          <h2 className="text-base font-semibold text-foreground sm:text-lg">Pick your seats</h2>
-         <p className="mt-0.5 text-xs text-muted-foreground">
-          Tap a seat to add it. Pinch / Ctrl+scroll to zoom.
-         </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-         <div className="flex items-center gap-1">
-          <button
-           type="button"
-           onClick={() => setSeatRefreshTrigger((t) => t + 1)}
-           className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-           aria-label="Refresh seat availability"
-          >
-           <RefreshCw className="h-3 w-3" />
-           <span>Refresh</span>
-          </button>
-          {seatLastRefreshedAt != null && (
-           <span className="text-[11px] text-muted-foreground/70">
-            updated {formatRelative(Math.max(0, nowTick - seatLastRefreshedAt))} ago
-           </span>
-          )}
-         </div>
-         <ZoomControls
-          zoom={seatZoom}
-          min={SEATMAP_MIN_ZOOM}
-          max={SEATMAP_MAX_ZOOM}
-          onIn={zoomIn} onOut={zoomOut} onReset={zoomReset}
-         />
-         {(() => {
-           const freeCount = freeSeating.reduce((s, f) => s + f.quantity, 0)
-           const total = selectedSeats.length + freeCount
-           return (
-             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium dark:bg-card/40">
-               <span className="font-semibold text-foreground">{total}</span>
-               <span className="text-muted-foreground">
-                 {total === 1 ? "ticket" : "tickets"} selected
-               </span>
-             </span>
-           )
-         })()}
-        </div>
+        <ZoomControls
+         zoom={seatZoom}
+         min={SEATMAP_MIN_ZOOM}
+         max={SEATMAP_MAX_ZOOM}
+         onIn={zoomIn} onOut={zoomOut} onReset={zoomReset}
+        />
        </header>
+       {/* Tier-color legend on mobile — the sidebar (where the desktop copy
+           lives, above Order summary) stacks BELOW the seat map on narrow
+           screens, too far from what it's explaining. Hidden on lg+ where
+           the sidebar copy takes over. */}
+       <div className="mb-3 lg:hidden">
+        <SeatTierLegend tiers={seatTiers} />
+       </div>
        <SeatMapPicker
         eventId={event.id}
         maxPerOrder={8}
@@ -802,6 +778,23 @@ function CheckoutPageInner() {
         }}
         onTiersResolved={setSeatTiers}
        />
+       {/* Refresh + "updated Xs ago" — under the map rather than the header. */}
+       <div className="mt-3 flex items-center justify-center gap-1">
+        <button
+         type="button"
+         onClick={() => setSeatRefreshTrigger((t) => t + 1)}
+         className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+         aria-label="Refresh seat availability"
+        >
+         <RefreshCw className="h-3 w-3" />
+         <span>Refresh</span>
+        </button>
+        {seatLastRefreshedAt != null && (
+         <span className="text-[11px] text-muted-foreground/70">
+          updated {formatRelative(Math.max(0, nowTick - seatLastRefreshedAt))} ago
+         </span>
+        )}
+       </div>
       </section>
      ) : (
      /* Ticket type selection (with quantity in footer) */
@@ -1085,7 +1078,7 @@ function CheckoutPageInner() {
     {/* Right: sticky order summary — explicit brighter shade in dark mode
         so seat labels, prices, and the total stay readable against the
         deep page background. Stays in the theme's purple-violet hue. */}
-    <aside className="lg:col-span-2">
+    <aside className="lg:col-span-3">
      <div className="sticky top-20 space-y-3 rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm p-5 shadow-xs">
       {/* Event header — banner + name + date + venue, so the buyer keeps sight
           of what they're paying for. */}
@@ -1124,39 +1117,16 @@ function CheckoutPageInner() {
           The Sold/Selected status legend sits alongside it (same swatch
           size/shape/spacing) — those two colors are static (they mirror the
           picker's own booked-seat fill and selected-seat ring), so they're
-          hardcoded here rather than reported via a callback. */}
+          hardcoded here rather than reported via a callback.
+          Hidden on mobile — there it renders above the seat map itself (see
+          the `lg:hidden` copy near <SeatMapPicker>) since the sidebar stacks
+          below the map on narrow screens, too far from what it's explaining. */}
       {isReserved && (
        <>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
-         {seatTiers.map((t) => (
-          <span key={t.id} className="inline-flex items-center gap-1.5">
-           <span
-            aria-hidden="true"
-            className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
-            style={{ backgroundColor: t.color }}
-           />
-           <span className="font-medium text-foreground">{t.name}</span>
-           <span>· LKR {t.price.toLocaleString()}</span>
-          </span>
-         ))}
-         <span className="inline-flex items-center gap-1.5">
-          <span
-           aria-hidden="true"
-           className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
-           style={{ backgroundColor: "#DC2626" }}
-          />
-          <span className="font-medium text-foreground">Sold</span>
-         </span>
-         <span className="inline-flex items-center gap-1.5">
-          <span
-           aria-hidden="true"
-           className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
-           style={{ backgroundColor: "#111827" }}
-          />
-          <span className="font-medium text-foreground">Selected</span>
-         </span>
+        <div className="hidden lg:block">
+         <SeatTierLegend tiers={seatTiers} />
         </div>
-        <div className="border-t border-border" />
+        <div className="hidden border-t border-border lg:block" />
        </>
       )}
 
@@ -1542,6 +1512,43 @@ function TicketTypeOption({
     </div>
    </div>
   </li>
+ )
+}
+
+// Tier-color legend + static Sold/Selected swatches — shared between the
+// desktop sidebar (above Order summary) and the mobile copy (above the seat
+// map itself, since the sidebar stacks below the map on narrow screens).
+function SeatTierLegend({ tiers }: { tiers: SeatMapTier[] }) {
+ return (
+  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
+   {tiers.map((t) => (
+    <span key={t.id} className="inline-flex items-center gap-1.5">
+     <span
+      aria-hidden="true"
+      className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
+      style={{ backgroundColor: t.color }}
+     />
+     <span className="font-medium text-foreground">{t.name}</span>
+     <span>· LKR {t.price.toLocaleString()}</span>
+    </span>
+   ))}
+   <span className="inline-flex items-center gap-1.5">
+    <span
+     aria-hidden="true"
+     className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
+     style={{ backgroundColor: "#DC2626" }}
+    />
+    <span className="font-medium text-foreground">Sold</span>
+   </span>
+   <span className="inline-flex items-center gap-1.5">
+    <span
+     aria-hidden="true"
+     className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
+     style={{ backgroundColor: "#111827" }}
+    />
+    <span className="font-medium text-foreground">Selected</span>
+   </span>
+  </div>
  )
 }
 
