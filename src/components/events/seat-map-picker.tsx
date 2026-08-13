@@ -116,6 +116,18 @@ export interface SelectedSeat {
   price: number
 }
 
+// One entry per ticket tier present on the map, in first-seen order, with
+// its resolved swatch color (admin override from the builder, or the
+// palette-by-index fallback). Reported via `onTiersResolved` so a parent
+// (e.g. the checkout page's sidebar) can render its own tier-color legend
+// without duplicating the color-resolution logic.
+export interface SeatMapTier {
+  id: string
+  name: string
+  price: number
+  color: string
+}
+
 interface SeatMapResponse {
   success: boolean
   data?: {
@@ -146,6 +158,11 @@ interface Props {
   // toolbar above the seatmap.
   zoom?: number
   onZoomChange?: (z: number) => void
+  // Reports the resolved tier-color list whenever it changes (map load,
+  // layout refetch). Lets the checkout page render a tier-color legend in
+  // its own sidebar using colors computed here (the only place with access
+  // to layout.decor's admin color overrides).
+  onTiersResolved?: (tiers: SeatMapTier[]) => void
 }
 
 export const SEATMAP_MIN_ZOOM = 0.5
@@ -161,6 +178,7 @@ export function SeatMapPicker({
   onSelectionChange,
   zoom: zoomProp,
   onZoomChange,
+  onTiersResolved,
 }: Props) {
   const [sections, setSections] = React.useState<Record<string, Record<string, SeatMapSeat[]>>>({})
   const [layout, setLayout] = React.useState<LayoutMeta | null>(null)
@@ -196,6 +214,17 @@ export function SeatMapPicker({
   const MAX_ZOOM = SEATMAP_MAX_ZOOM
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const pinchStartRef = React.useRef<{ dist: number; zoom: number } | null>(null)
+  // Guards against a pinch-zoom's finger-lift being read as a seat tap. A
+  // second finger landing/lifting fires pointerdown/up on whatever seat is
+  // underneath it — without this, ending a pinch gesture over a seat pops
+  // its preview card or selects it, which reads as "seats are selecting
+  // themselves" while the user was only trying to zoom. Set true the moment
+  // a SECOND touch point appears (so it also covers pinches that never
+  // moved enough to register as a zoom) and cleared shortly after the last
+  // finger lifts — the delay (rather than clearing immediately in
+  // touchend) matters because that finger's own pointerup/click can fire
+  // a tick after touchend, and would otherwise slip through the guard.
+  const multiTouchRecentRef = React.useRef(false)
   const clampZoom = React.useCallback(
     (v: number) => clampSeatmapZoom(v),
     [],
@@ -203,6 +232,69 @@ export function SeatMapPicker({
   const zoomIn   = () => setZoom(z => clampZoom(z * 1.2))
   const zoomOut  = () => setZoom(z => clampZoom(z / 1.2))
   const zoomReset = () => setZoom(1)
+
+  // ---- Zoom-to-point -------------------------------------------------
+  // The canvas is sized via `style={{ width: zoom*100% }}` on a div inside
+  // this overflow-auto scrollRef container (see the visual-mode render
+  // below). Changing only `width` always grows the content from its
+  // top-left corner — left unaddressed, zooming in on a seat at the
+  // bottom-right of the venue makes the view jump away from it. To zoom
+  // "into" the cursor / pinch-midpoint / dblclick point instead (like
+  // Google Maps / Figma), we:
+  //   1. Before changing zoom, record the pointer's position relative to
+  //      the scrollable *content* — `scrollLeft + offsetX` — where
+  //      offsetX is the pointer's position relative to the scrollRef
+  //      element's own viewport rect (that rect's size doesn't change
+  //      with zoom, only its child's width/scrollWidth does).
+  //   2. Change zoom.
+  //   3. After the DOM re-renders with the new width (a layout effect
+  //      keyed on `zoom`, so it runs before paint — no visible jump),
+  //      convert that same content position back into a scroll offset
+  //      using the NEW zoom, and write it to scrollLeft/scrollTop.
+  // The conversion is the standard zoom-to-point formula:
+  //   newScroll = contentPos * (newZoom / oldZoom) - pointerViewportOffset
+  // Concretely: content point at x=1000 sitting 50px into the viewport
+  // (scrollLeft=950) doubling from 1x to 2x — contentPos=1000 scales to
+  // 2000, minus the same 50px pointer offset gives newScrollLeft=1950,
+  // so the same content pixel (now at 2000 in content space) still sits
+  // exactly 50px into the viewport, i.e. under the pointer.
+  const zoomAnchorRef = React.useRef<{
+    contentX: number
+    contentY: number
+    offsetX: number
+    offsetY: number
+    oldZoom: number
+  } | null>(null)
+
+  const applyZoomAt = React.useCallback(
+    (offsetX: number, offsetY: number, next: number | ((z: number) => number)) => {
+      const el = scrollRef.current
+      if (!el) { setZoom(next); return }
+      zoomAnchorRef.current = {
+        contentX: el.scrollLeft + offsetX,
+        contentY: el.scrollTop + offsetY,
+        offsetX,
+        offsetY,
+        oldZoom: zoom,
+      }
+      setZoom(next)
+    },
+    [zoom, setZoom],
+  )
+
+  // Runs after `zoom` state changes and React has re-rendered the wider/
+  // narrower canvas (useLayoutEffect = before the browser paints, so
+  // there's no flash of the old scroll position).
+  React.useLayoutEffect(() => {
+    const anchor = zoomAnchorRef.current
+    const el = scrollRef.current
+    if (!anchor || !el) return
+    zoomAnchorRef.current = null
+    if (anchor.oldZoom === zoom) return // clamped to the same value — no-op
+    const ratio = zoom / anchor.oldZoom
+    el.scrollLeft = anchor.contentX * ratio - anchor.offsetX
+    el.scrollTop = anchor.contentY * ratio - anchor.offsetY
+  }, [zoom])
 
   React.useEffect(() => {
     const el = scrollRef.current
@@ -214,10 +306,16 @@ export function SeatMapPicker({
       // trackpad gestures also surface as ctrl+wheel in browsers).
       if (!(e.ctrlKey || e.metaKey)) return
       e.preventDefault()
-      setZoom(z => clamp(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1)))
+      const rect = el.getBoundingClientRect()
+      applyZoomAt(
+        e.clientX - rect.left,
+        e.clientY - rect.top,
+        z => clamp(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1)),
+      )
     }
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 2) return
+      multiTouchRecentRef.current = true
       const dx = e.touches[1].clientX - e.touches[0].clientX
       const dy = e.touches[1].clientY - e.touches[0].clientY
       pinchStartRef.current = { dist: Math.hypot(dx, dy), zoom }
@@ -225,13 +323,30 @@ export function SeatMapPicker({
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 2 || !pinchStartRef.current) return
       e.preventDefault()
-      const dx = e.touches[1].clientX - e.touches[0].clientX
-      const dy = e.touches[1].clientY - e.touches[0].clientY
+      const t0 = e.touches[0]
+      const t1 = e.touches[1]
+      const dx = t1.clientX - t0.clientX
+      const dy = t1.clientY - t0.clientY
       const dist = Math.hypot(dx, dy)
       const factor = dist / pinchStartRef.current.dist
-      setZoom(clamp(pinchStartRef.current.zoom * factor))
+      const rect = el.getBoundingClientRect()
+      const midX = (t0.clientX + t1.clientX) / 2
+      const midY = (t0.clientY + t1.clientY) / 2
+      applyZoomAt(
+        midX - rect.left,
+        midY - rect.top,
+        clamp(pinchStartRef.current.zoom * factor),
+      )
     }
-    const onTouchEnd = () => { pinchStartRef.current = null }
+    const onTouchEnd = (e: TouchEvent) => {
+      pinchStartRef.current = null
+      if (e.touches.length === 0) {
+        // Clear on a short delay, not immediately — the lifting finger's own
+        // pointerup (which seat interaction listens on) can fire a tick
+        // after this touchend, and needs to still see the guard as active.
+        setTimeout(() => { multiTouchRecentRef.current = false }, 300)
+      }
+    }
 
     el.addEventListener("wheel", onWheel, { passive: false })
     el.addEventListener("touchstart", onTouchStart, { passive: true })
@@ -243,7 +358,7 @@ export function SeatMapPicker({
       el.removeEventListener("touchmove", onTouchMove)
       el.removeEventListener("touchend", onTouchEnd)
     }
-  }, [zoom])
+  }, [zoom, applyZoomAt, clampZoom])
   const [lastRefreshAt, setLastRefreshAt] = React.useState<number>(Date.now())
   // Seats with an in-flight hold or release call. Used to (a) disable double
   // clicks while a request is pending and (b) skip server-state reconciliation
@@ -270,6 +385,51 @@ export function SeatMapPicker({
     }
     return out
   }, [sections])
+
+  // Unique tier list (first-seen order) — drives the legend swatches (both
+  // the picker's own status legend and, via onTiersResolved below, the
+  // checkout page's sidebar legend). Colors are matched to the admin
+  // builder's palette via the tier's index in this list. These are hooks
+  // (not plain computation) so they can sit above the loading/error early
+  // returns further down — required to keep hook order stable, and so the
+  // onTiersResolved effect below can depend on them.
+  const tierList = React.useMemo(() => {
+    const byId = new Map<string, SeatTicketType>()
+    for (const s of allSeats) {
+      if (s.ticket_type && !byId.has(s.ticket_type.id)) byId.set(s.ticket_type.id, s.ticket_type)
+    }
+    return Array.from(byId.values())
+  }, [allSeats])
+  const tierIndex = React.useMemo(() => {
+    const m = new Map<string, number>()
+    tierList.forEach((t, i) => m.set(t.id, i))
+    return m
+  }, [tierList])
+  // Admin-chosen per-tier color override (from the builder), keyed by
+  // ticket_type_id. Falls back to the palette-by-index color when absent.
+  const tierColorOverrides = React.useMemo(() => extractTierColors(layout?.decor), [layout])
+  const resolveTierColor = React.useCallback(
+    (id: string, idx: number) => tierColorOverrides[id] || tierColorByIndex(idx),
+    [tierColorOverrides],
+  )
+
+  // Keep the latest onTiersResolved in a ref (same pattern as
+  // onSelectionChangeRef below) so the notify effect doesn't retrigger just
+  // because a parent passed a fresh inline arrow function.
+  const onTiersResolvedRef = React.useRef(onTiersResolved)
+  React.useEffect(() => {
+    onTiersResolvedRef.current = onTiersResolved
+  })
+  React.useEffect(() => {
+    onTiersResolvedRef.current?.(
+      tierList.map((t, i) => ({
+        id: t.id,
+        name: t.name,
+        price: t.price,
+        color: resolveTierColor(t.id, i),
+      })),
+    )
+  }, [tierList, resolveTierColor])
 
   // Tier mixing is allowed — buyers commonly want a couple of premium seats
   // plus several regular ones in one order. The cart total + the parent
@@ -559,6 +719,9 @@ export function SeatMapPicker({
       toggleSeat(seat)
       return
     }
+    // A pinch-zoom's finger lift also fires this — swallow it so pinching
+    // near/over a seat can't pop its preview card or select it.
+    if (multiTouchRecentRef.current) return
     if (previewSeatId !== seat.id) {
       setPreviewSeatId(seat.id)
       setHoveredSeat(seat)
@@ -661,24 +824,6 @@ export function SeatMapPicker({
     allSeats.length > 0 &&
     allSeats.every(s => s.x != null && s.y != null)
 
-  // Unique tier list (first-seen order) — drives the legend swatches.
-  // Colors are matched to the admin builder's palette via the tier's index
-  // in this list. Plain computation (not useMemo) so the hooks above the
-  // early-return gates aren't reordered when data finishes loading.
-  const tierList = (() => {
-    const byId = new Map<string, SeatTicketType>()
-    for (const s of allSeats) {
-      if (s.ticket_type && !byId.has(s.ticket_type.id)) byId.set(s.ticket_type.id, s.ticket_type)
-    }
-    return Array.from(byId.values())
-  })()
-  const tierIndex = new Map<string, number>()
-  tierList.forEach((t, i) => tierIndex.set(t.id, i))
-  // Admin-chosen per-tier color override (from the builder), keyed by
-  // ticket_type_id. Falls back to the palette-by-index color when absent.
-  const tierColorOverrides = extractTierColors(layout?.decor)
-  const resolveTierColor = (id: string, idx: number) => tierColorOverrides[id] || tierColorByIndex(idx)
-
   // Selected total — drives the "N seats selected · LKR X" footer.
   // Per-seat picks contribute their ticket_type.price; free-seating tiers
   // contribute price × quantity. Free seats are skipped in the per-seat
@@ -757,7 +902,14 @@ export function SeatMapPicker({
           // toggleSeat (select-then-deselect) as a side effect.
           onDoubleClick={(e) => {
             if ((e.target as Element).closest('[data-seat="true"]')) return
-            setZoom(z => clampZoom(z > 2 ? 1 : z * 1.6))
+            const el = scrollRef.current
+            if (!el) return
+            const rect = el.getBoundingClientRect()
+            applyZoomAt(
+              e.clientX - rect.left,
+              e.clientY - rect.top,
+              z => clampZoom(z > 2 ? 1 : z * 1.6),
+            )
           }}
         >
           <div
@@ -950,20 +1102,12 @@ export function SeatMapPicker({
         </div>
       )}
 
-      {/* Legend — ticket categories with their tier colors + price, plus
-          "Sold" (any unavailable seat) and "Selected" so the buyer can read
-          the canvas at a glance. Matches the reference theatre layout. */}
+      {/* Status legend — "Sold" (any unavailable seat) and "Selected" so the
+          buyer can read the canvas at a glance. The tier-color / price
+          legend itself now renders in the checkout page's sidebar (above
+          "Order summary") via onTiersResolved — keeping both here as well
+          would duplicate the same swatches right next to each other. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
-        {tierList.map((t, i) => (
-          <span key={t.id} className="inline-flex items-center gap-1.5">
-            <TierDot color={resolveTierColor(t.id, i)} />
-            <span className="font-medium text-foreground">{t.name}</span>
-            <span>· LKR {t.price.toLocaleString()}</span>
-          </span>
-        ))}
-        {tierList.length > 0 && (
-          <span className="h-3 w-px bg-border" aria-hidden="true" />
-        )}
         <span className="inline-flex items-center gap-1.5">
           <TierDot color="#DC2626" />
           <span>Sold</span>

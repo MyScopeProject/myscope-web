@@ -29,6 +29,7 @@ import {
   clampSeatmapZoom,
   type SelectedSeat,
   type SelectedFreeSeating,
+  type SeatMapTier,
 } from "@/components/events/seat-map-picker"
 import { pickBestOffer, type EventOffer } from "@/lib/offers"
 import { launchMpgsCheckout } from "@/lib/mpgsCheckout"
@@ -222,6 +223,11 @@ function CheckoutPageInner() {
 
  // Reserved-mode state — seat picker manages its own list, parent just holds the result.
  const [selectedSeats, setSelectedSeats] = React.useState<SelectedSeat[]>([])
+ // Tier-color legend data, reported by the picker (it's the only place with
+ // access to layout.decor's admin color overrides). Rendered in the sidebar
+ // above "Order summary" instead of inline in the picker, so it sits with
+ // the rest of the order info rather than inside the seat-map's own flow.
+ const [seatTiers, setSeatTiers] = React.useState<SeatMapTier[]>([])
  // Free-seating (GA) tier quantities — populated by the picker for events
  // that mix reserved sections with general-admission zones. Empty for the
  // common all-reserved case.
@@ -759,6 +765,7 @@ function CheckoutPageInner() {
          setFreeSeating(free)
          setSeatTotal(total)
         }}
+        onTiersResolved={setSeatTiers}
        />
       </section>
      ) : (
@@ -1074,6 +1081,29 @@ function CheckoutPageInner() {
        </div>
       </div>
       <div className="border-t border-border" />
+
+      {/* Tier-color legend — reported by the seat picker (it resolves each
+          tier's swatch color, including admin overrides from the builder).
+          Lives here instead of inline in the picker so it reads as part of
+          the order info, right above the line-item breakdown it explains. */}
+      {isReserved && seatTiers.length > 0 && (
+       <>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
+         {seatTiers.map((t) => (
+          <span key={t.id} className="inline-flex items-center gap-1.5">
+           <span
+            aria-hidden="true"
+            className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
+            style={{ backgroundColor: t.color }}
+           />
+           <span className="font-medium text-foreground">{t.name}</span>
+           <span>· LKR {t.price.toLocaleString()}</span>
+          </span>
+         ))}
+        </div>
+        <div className="border-t border-border" />
+       </>
+      )}
 
       <h2 className="text-base font-semibold text-foreground">Order summary</h2>
 
