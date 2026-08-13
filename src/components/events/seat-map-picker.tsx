@@ -163,6 +163,15 @@ interface Props {
   // its own sidebar using colors computed here (the only place with access
   // to layout.decor's admin color overrides).
   onTiersResolved?: (tiers: SeatMapTier[]) => void
+  // Controlled refresh — same pattern as `zoom`/`onZoomChange`. Reports the
+  // timestamp of every successful/attempted seat fetch so a parent can render
+  // its own "updated Xs ago" timer (e.g. in the checkout page's header)
+  // instead of duplicating this internal state.
+  onRefreshedAtChange?: (ts: number) => void
+  // Bump this (e.g. a counter the parent increments) to trigger a manual
+  // refetch from outside — lets the parent render its own refresh button
+  // wired to the picker's fetchSeats() without exposing it directly.
+  refreshTrigger?: number
 }
 
 export const SEATMAP_MIN_ZOOM = 0.5
@@ -179,6 +188,8 @@ export function SeatMapPicker({
   zoom: zoomProp,
   onZoomChange,
   onTiersResolved,
+  onRefreshedAtChange,
+  refreshTrigger,
 }: Props) {
   const [sections, setSections] = React.useState<Record<string, Record<string, SeatMapSeat[]>>>({})
   const [layout, setLayout] = React.useState<LayoutMeta | null>(null)
@@ -492,6 +503,32 @@ export function SeatMapPicker({
     const t = setInterval(fetchSeats, REFRESH_MS)
     return () => clearInterval(t)
   }, [fetchSeats])
+
+  // Manual refresh — controlled pattern mirroring `zoom`/`onZoomChange`. The
+  // parent (checkout page) owns a counter it bumps from its own header
+  // button; we watch it and refetch, skipping the very first render so
+  // mounting with refreshTrigger=0 doesn't fire a redundant extra fetch
+  // (the mount effect above already covers the initial load).
+  const isFirstRefreshTriggerRef = React.useRef(true)
+  React.useEffect(() => {
+    if (refreshTrigger === undefined) return
+    if (isFirstRefreshTriggerRef.current) {
+      isFirstRefreshTriggerRef.current = false
+      return
+    }
+    fetchSeats()
+  }, [refreshTrigger, fetchSeats])
+
+  // Report the last-refreshed timestamp up to the parent (same ref pattern as
+  // onTiersResolvedRef below) so it can render its own "updated Xs ago" timer
+  // instead of duplicating this internal state.
+  const onRefreshedAtChangeRef = React.useRef(onRefreshedAtChange)
+  React.useEffect(() => {
+    onRefreshedAtChangeRef.current = onRefreshedAtChange
+  })
+  React.useEffect(() => {
+    onRefreshedAtChangeRef.current?.(lastRefreshAt)
+  }, [lastRefreshAt])
 
   // Reconcile selection with server truth on every fetch:
   // - Any seat with held_by_me:true is added to selectedIds (covers refresh
@@ -1102,35 +1139,11 @@ export function SeatMapPicker({
         </div>
       )}
 
-      {/* Status legend — "Sold" (any unavailable seat) and "Selected" so the
-          buyer can read the canvas at a glance. The tier-color / price
-          legend itself now renders in the checkout page's sidebar (above
-          "Order summary") via onTiersResolved — keeping both here as well
-          would duplicate the same swatches right next to each other. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <TierDot color="#DC2626" />
-          <span>Sold</span>
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm ring-2 ring-foreground" aria-hidden="true" />
-          <span>Selected</span>
-        </span>
-        <span className="ml-auto inline-flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => { setLoading(true); fetchSeats() }}
-            className="inline-flex items-center gap-1 rounded px-2 py-0.5 hover:bg-muted"
-            aria-label="Refresh seat availability"
-          >
-            <RefreshCw className="h-3 w-3" />
-            <span>Refresh</span>
-          </button>
-          <span className="text-muted-foreground/70">
-            updated {formatRelative(Date.now() - lastRefreshAt)} ago
-          </span>
-        </span>
-      </div>
+      {/* Status legend ("Sold"/"Selected") and the refresh + "updated Xs ago"
+          timer both now render in the checkout page instead of here — the
+          tier-color legend moved there first (via onTiersResolved), and
+          Status legend / refresh follow the same controlled pattern
+          (onRefreshedAtChange / refreshTrigger) so nothing is duplicated. */}
     </div>
   )
 }
@@ -1622,7 +1635,9 @@ function SeatHoverCard({
   )
 }
 
-function formatRelative(ms: number): string {
+// Exported so the checkout page's header can render the same "updated Xs
+// ago" format for the controlled refresh timer (see onRefreshedAtChange).
+export function formatRelative(ms: number): string {
   const seconds = Math.floor(ms / 1000)
   if (seconds < 60) return `${seconds}s`
   const minutes = Math.floor(seconds / 60)

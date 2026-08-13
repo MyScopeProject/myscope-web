@@ -14,6 +14,7 @@ import {
  Maximize2,
  Minus,
  Plus,
+ RefreshCw,
 } from "lucide-react"
 import toast from "react-hot-toast"
 import { useAuth } from "@/context/AuthContext"
@@ -27,6 +28,7 @@ import {
   SEATMAP_MIN_ZOOM,
   SEATMAP_MAX_ZOOM,
   clampSeatmapZoom,
+  formatRelative,
   type SelectedSeat,
   type SelectedFreeSeating,
   type SeatMapTier,
@@ -242,6 +244,21 @@ function CheckoutPageInner() {
  const zoomIn    = () => setSeatZoom(z => clampSeatmapZoom(z * 1.2))
  const zoomOut   = () => setSeatZoom(z => clampSeatmapZoom(z / 1.2))
  const zoomReset = () => setSeatZoom(1)
+
+ // Seat-map refresh — same lifted pattern as zoom above. The picker reports
+ // its last-fetch timestamp here (onRefreshedAtChange) so we can render a
+ // refresh button + "updated Xs ago" timer in the section header instead of
+ // the picker's own (now removed) inline copy. Bumping seatRefreshTrigger
+ // asks the picker to refetch (it watches the prop via useEffect).
+ const [seatLastRefreshedAt, setSeatLastRefreshedAt] = React.useState<number | null>(null)
+ const [seatRefreshTrigger, setSeatRefreshTrigger] = React.useState(0)
+ // Ticks every second so the "updated Xs ago" label stays live without the
+ // buyer needing to trigger some other re-render.
+ const [nowTick, setNowTick] = React.useState(() => Date.now())
+ React.useEffect(() => {
+  const t = setInterval(() => setNowTick(Date.now()), 1000)
+  return () => clearInterval(t)
+ }, [])
 
  // Customer-visible platform fee %. Fetched once on mount; default to 0.02
  // (2%) so we don't render a zero fee on first paint when the public settings
@@ -726,7 +743,7 @@ function CheckoutPageInner() {
      <div className="space-y-6">
      {/* Reserved-seating: seat map. Other modes: ticket-type list. */}
      {isReserved ? (
-      <section className="overflow-hidden rounded-2xl border border-border bg-card dark:bg-card/80 dark:backdrop-blur-sm p-5 shadow-xs">
+      <section className="rounded-2xl border border-border p-5">
        <header className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
          <h2 className="text-base font-semibold text-foreground sm:text-lg">Pick your seats</h2>
@@ -734,7 +751,23 @@ function CheckoutPageInner() {
           Tap a seat to add it. Pinch / Ctrl+scroll to zoom.
          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+         <div className="flex items-center gap-1">
+          <button
+           type="button"
+           onClick={() => setSeatRefreshTrigger((t) => t + 1)}
+           className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+           aria-label="Refresh seat availability"
+          >
+           <RefreshCw className="h-3 w-3" />
+           <span>Refresh</span>
+          </button>
+          {seatLastRefreshedAt != null && (
+           <span className="text-[11px] text-muted-foreground/70">
+            updated {formatRelative(Math.max(0, nowTick - seatLastRefreshedAt))} ago
+           </span>
+          )}
+         </div>
          <ZoomControls
           zoom={seatZoom}
           min={SEATMAP_MIN_ZOOM}
@@ -760,6 +793,8 @@ function CheckoutPageInner() {
         maxPerOrder={8}
         zoom={seatZoom}
         onZoomChange={setSeatZoom}
+        refreshTrigger={seatRefreshTrigger}
+        onRefreshedAtChange={setSeatLastRefreshedAt}
         onSelectionChange={(seats, total, free) => {
          setSelectedSeats(seats)
          setFreeSeating(free)
@@ -1085,8 +1120,12 @@ function CheckoutPageInner() {
       {/* Tier-color legend — reported by the seat picker (it resolves each
           tier's swatch color, including admin overrides from the builder).
           Lives here instead of inline in the picker so it reads as part of
-          the order info, right above the line-item breakdown it explains. */}
-      {isReserved && seatTiers.length > 0 && (
+          the order info, right above the line-item breakdown it explains.
+          The Sold/Selected status legend sits alongside it (same swatch
+          size/shape/spacing) — those two colors are static (they mirror the
+          picker's own booked-seat fill and selected-seat ring), so they're
+          hardcoded here rather than reported via a callback. */}
+      {isReserved && (
        <>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
          {seatTiers.map((t) => (
@@ -1100,6 +1139,22 @@ function CheckoutPageInner() {
            <span>· LKR {t.price.toLocaleString()}</span>
           </span>
          ))}
+         <span className="inline-flex items-center gap-1.5">
+          <span
+           aria-hidden="true"
+           className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
+           style={{ backgroundColor: "#DC2626" }}
+          />
+          <span className="font-medium text-foreground">Sold</span>
+         </span>
+         <span className="inline-flex items-center gap-1.5">
+          <span
+           aria-hidden="true"
+           className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10 dark:ring-white/10"
+           style={{ backgroundColor: "#111827" }}
+          />
+          <span className="font-medium text-foreground">Selected</span>
+         </span>
         </div>
         <div className="border-t border-border" />
        </>
