@@ -424,7 +424,16 @@ function CheckoutPageInner() {
  // a deploy. Default to 2% so the UI never renders a zero fee if the public
  // settings call hasn't returned yet — the backend is authoritative anyway.
  const convenienceFee = +(subtotalAfterDiscount * convenienceFeePct).toFixed(2)
- const total = subtotalAfterDiscount + convenienceFee
+ // Koko re-prices the order: paying with Koko drops the 2% convenience fee and
+ // adds a 20% surcharge on the subtotal instead (kept in sync with the
+ // backend's KOKO_SURCHARGE_PCT / computeKokoAmounts). The buyer's total is
+ // then split by Koko into 3 equal installments. Card keeps the 2% fee.
+ const KOKO_SURCHARGE_PCT = 0.2
+ const isKoko = step === 1 && paymentMethod === "koko"
+ const kokoSurcharge = +(subtotalAfterDiscount * KOKO_SURCHARGE_PCT).toFixed(2)
+ const total = isKoko
+   ? subtotalAfterDiscount + kokoSurcharge
+   : subtotalAfterDiscount + convenienceFee
 
  // Any change to the subtotal invalidates a previously-applied code (the
  // backend will re-validate at checkout, but we should not show a stale
@@ -1188,9 +1197,10 @@ function CheckoutPageInner() {
         {subtotal > 0 && (
          <>
           <SummaryRow label="Sub Total" value={formatLkr(subtotalAfterDiscount)} />
-          {/* Convenience fee is only surfaced on the Details & Pay step — the
-              ticket-choosing step shows the plain subtotal. */}
-          {step === 1 && (
+          {/* Convenience fee is surfaced only for CARD on the Details & Pay
+              step. Koko hides it (and the Total) — the summary shows just the
+              Koko 1st installment below instead. */}
+          {step === 1 && !isKoko && (
            <SummaryRow
             label={`Convenience Fee (${(convenienceFeePct * 100).toFixed(convenienceFeePct * 100 % 1 === 0 ? 0 : 1)}%)`}
             value={`+ ${formatLkr(convenienceFee)}`}
@@ -1199,33 +1209,27 @@ function CheckoutPageInner() {
          </>
         )}
 
-        <div className="border-t border-border pt-3">
-         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-muted-foreground">Total</span>
-          <span className="text-2xl font-bold text-foreground">
-           {formatLkr(step === 1 ? total : subtotalAfterDiscount)}
-          </span>
+        {/* Koko: show ONLY the first installment (with logo) — no surcharge
+            line, no Total. Card/other: show the usual Total. */}
+        {isKoko ? (
+         <div className="border-t border-border pt-3">
+          <div className="flex items-center justify-between gap-2">
+           <div className="flex items-center gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/Images/koko.png" alt="KOKO" className="h-5 w-auto object-contain" />
+            <span className="text-sm text-muted-foreground">1st installment</span>
+           </div>
+           <span className="text-2xl font-bold text-foreground">{formatLkr(total / 3)}</span>
+          </div>
          </div>
-        </div>
-
-        {/* Koko installment breakdown — surfaces once the buyer picks Koko on
-            the Details & Pay step, so the summary reflects how the same total
-            is split into 3 interest-free payments. Display estimate; Koko's
-            hosted page is authoritative for the exact schedule. */}
-        {step === 1 && KOKO_ENABLED && paymentMethod === "koko" && total > 0 && (
-         <div className="mt-3 space-y-1.5 rounded-lg border border-border bg-muted/30 p-3">
-          <div className="flex items-center gap-1.5">
-           {/* eslint-disable-next-line @next/next/no-img-element */}
-           <img src="/Images/koko.png" alt="KOKO" className="h-5 w-auto object-contain" />
-           <span className="text-xs font-semibold text-foreground">Pay in 3 installments</span>
+        ) : (
+         <div className="border-t border-border pt-3">
+          <div className="flex items-baseline justify-between">
+           <span className="text-sm text-muted-foreground">Total</span>
+           <span className="text-2xl font-bold text-foreground">
+            {formatLkr(step === 1 ? total : subtotalAfterDiscount)}
+           </span>
           </div>
-          <div className="flex items-baseline justify-between text-sm">
-           <span className="text-muted-foreground">3 payments of</span>
-           <span className="font-semibold text-foreground">{formatLkr(total / 3)}</span>
-          </div>
-          <p className="text-[11px] leading-snug text-muted-foreground">
-           Interest-free. Pay the first installment today and the rest over the coming months.
-          </p>
          </div>
         )}
        </>
