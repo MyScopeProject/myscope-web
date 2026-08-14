@@ -20,8 +20,12 @@ import { useShopCart } from "@/lib/shopCart"
 import { useAuth } from "@/context/AuthContext"
 import { cn } from "@/lib/utils"
 import { launchMpgsCheckout } from "@/lib/mpgsCheckout"
+import { launchKokoCheckout } from "@/lib/kokoCheckout"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+// Same flag the event checkout page gates Koko behind — one env var controls
+// Koko availability across both checkout flows.
+const KOKO_ENABLED = process.env.NEXT_PUBLIC_KOKO_ENABLED === "true"
 
 interface OrganizerInfo {
   id: string
@@ -79,6 +83,9 @@ export default function CheckoutPage() {
 
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState("")
+
+  // 'card' → MPGS; 'koko' → Koko BNPL (only user-selectable when KOKO_ENABLED).
+  const [paymentMethod, setPaymentMethod] = React.useState<"card" | "koko">("card")
 
   // Customer-visible convenience fee %. Same public endpoint the event
   // checkout page reads from — fetched once so an admin rate change
@@ -177,7 +184,18 @@ export default function CheckoutPage() {
   const feeBase = Math.max(0, feeEligibleSubtotal - feeEligibleDiscount)
   const convenienceFee = +(feeBase * convenienceFeePct).toFixed(2)
 
-  const total = Math.max(0, subtotal - discountAmount) + convenienceFee
+  const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount)
+
+  // Koko re-prices the order: paying with Koko drops the convenience fee and
+  // adds a 20% surcharge on the (post-discount) subtotal instead (kept in
+  // sync with the backend's KOKO_SURCHARGE_PCT / computeKokoAmounts). The
+  // buyer's total is then split by Koko into 3 equal installments.
+  const KOKO_SURCHARGE_PCT = 0.2
+  const isKoko = KOKO_ENABLED && paymentMethod === "koko"
+  const kokoSurcharge = +(subtotalAfterDiscount * KOKO_SURCHARGE_PCT).toFixed(2)
+  const total = isKoko
+    ? subtotalAfterDiscount + kokoSurcharge
+    : subtotalAfterDiscount + convenienceFee
 
   const applyPromo = async () => {
     const code = promoInput.trim().toUpperCase()
@@ -267,7 +285,31 @@ export default function CheckoutPage() {
 
       const order = orderData.data.order
 
-      // 2) Initialize the MPGS payment for this order.
+      // 2) Initialize payment for this order with the chosen gateway.
+      if (isKoko) {
+        const kokoRes = await fetch(`${API_URL}/api/payments/initialize-shop-koko`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ orderId: order.id }),
+        })
+        const kokoData = await kokoRes.json()
+        if (!kokoData?.success) {
+          setError(kokoData?.message || "Couldn't initialize payment.")
+          setSubmitting(false)
+          return
+        }
+        // Clear local cart now so the user doesn't see stale items on
+        // return. Server already holds the stock; even if the buyer aborts
+        // on Koko's page the order stays Pending and the stale-order sweep
+        // releases it.
+        clear()
+        // Full-page form POST to Koko; the verdict returns via the signed
+        // webhook, never from this redirect.
+        launchKokoCheckout({ actionUrl: kokoData.data.actionUrl, fields: kokoData.data.fields })
+        return
+      }
+
       const payRes = await fetch(`${API_URL}/api/payments/initialize-shop`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -431,13 +473,70 @@ export default function CheckoutPage() {
                     valueClass="text-success"
                   />
                 )}
-                {convenienceFee > 0 && (
+                {/* Convenience fee is surfaced only for CARD. Koko hides it
+                    (and the Total) — the summary shows just the Koko 1st
+                    installment below instead. */}
+                {!isKoko && convenienceFee > 0 && (
                   <Row
                     label={`Convenience Fee (${(convenienceFeePct * 100).toFixed(convenienceFeePct * 100 % 1 === 0 ? 0 : 1)}%)`}
                     value={`+ ${formatMoney(convenienceFee, currency)}`}
                   />
                 )}
-                <Row label={<span className="font-semibold">Total</span>} value={<span className="font-semibold">{formatMoney(total, currency)}</span>} />
+                {!isKoko && (
+                  <Row label={<span className="font-semibold">Total</span>} value={<span className="font-semibold">{formatMoney(total, currency)}</span>} />
+                )}
+              </div>
+
+              {/* Koko: show ONLY the first installment (with logo) — no
+                  surcharge line, no Total. */}
+              {isKoko && (
+                <div className="border-t border-border pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/Images/koko.png" alt="KOKO" className="h-5 w-auto object-contain" />
+                      <span className="text-sm text-muted-foreground">1st installment</span>
+                    </div>
+                    <span className="text-2xl font-bold text-foreground">{formatMoney(total / 3, currency)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Method */}
+              <div className="space-y-2 border-t border-border pt-4">
+                <p className="text-sm font-semibold text-foreground">Payment Method</p>
+                <label className="flex cursor-pointer items-start gap-2.5 px-1 py-2">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={paymentMethod === "card"}
+                    onChange={() => setPaymentMethod("card")}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                  />
+                  <span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/Images/payment.jpeg" alt="Card, Wallets & Banking" className="h-6 w-auto rounded object-contain" />
+                    <span className="mt-1 block text-xs text-muted-foreground">Visa, Mastercard </span>
+                  </span>
+                </label>
+                {KOKO_ENABLED && (
+                  <label className="flex cursor-pointer items-start gap-2.5 px-1 py-2">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="koko"
+                      checked={paymentMethod === "koko"}
+                      onChange={() => setPaymentMethod("koko")}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                    />
+                    <span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/Images/koko.png" alt="KOKO" className="h-5 w-auto object-contain" />
+                      <span className="mt-1 block text-xs text-muted-foreground">Buy Now, Pay Later</span>
+                    </span>
+                  </label>
+                )}
               </div>
 
               {/* Promo code apply */}
@@ -499,7 +598,7 @@ export default function CheckoutPage() {
 
               <p className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
                 <Lock className="h-2.5 w-2.5" />
-                Secure payment via Seylan MPGS
+                {isKoko ? "Buy Now, Pay Later via KOKO" : "Secure payment via Seylan MPGS"}
               </p>
             </div>
           </aside>
