@@ -78,6 +78,9 @@ interface EventDetail {
  // Admin-controlled per-event Koko override, on top of NEXT_PUBLIC_KOKO_ENABLED.
  // Absent on pre-migration rows, so only treat === false as "off".
  koko_enabled?: boolean
+ // Admin-controlled per-event convenience-fee PERCENTAGE override (fraction,
+ // e.g. 0.035 = 3.5%). null/absent = use the platform-wide default.
+ convenience_fee_pct?: number | null
 }
 
 const formatLkr = (n: number) =>
@@ -284,6 +287,14 @@ function CheckoutPageInner() {
    cancelled = true
   }
  }, [])
+
+ // Admin per-event override (see PATCH /admin/events/:id/convenience-fee-pct)
+ // takes priority over the platform-wide default fetched above — same rule
+ // the backend applies at booking-create time (services/platformFees.js), so
+ // this preview never disagrees with what's actually charged.
+ const effectiveFeePct = event?.convenience_fee_pct != null
+  ? Number(event.convenience_fee_pct)
+  : convenienceFeePct
 
  // Per-attendee gift recipients. Opt-in: buyer toggles "Send each ticket to a
  // different person" to reveal N name+email inputs. Stored as a sparse array
