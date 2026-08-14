@@ -75,6 +75,9 @@ interface EventDetail {
  // server already runs the same evaluator at POST /checkout — we mirror
  // it client-side so the cart shows a preview before the buyer commits.
  offers?: EventOffer[]
+ // Admin-controlled per-event Koko override, on top of NEXT_PUBLIC_KOKO_ENABLED.
+ // Absent on pre-migration rows, so only treat === false as "off".
+ koko_enabled?: boolean
 }
 
 const formatLkr = (n: number) =>
@@ -452,7 +455,11 @@ function CheckoutPageInner() {
  // backend's KOKO_SURCHARGE_PCT / computeKokoAmounts). The buyer's total is
  // then split by Koko into 3 equal installments. Card keeps the 2% fee.
  const KOKO_SURCHARGE_PCT = 0.2
- const isKoko = step === 1 && paymentMethod === "koko"
+ // Global feature flag AND the admin's per-event override — both must allow
+ // Koko for this event to offer it. Server-side (initializeEventPaymentKoko)
+ // re-checks the same event.koko_enabled column, so this is UI-only.
+ const kokoAvailable = KOKO_ENABLED && event?.koko_enabled !== false
+ const isKoko = step === 1 && kokoAvailable && paymentMethod === "koko"
  const kokoSurcharge = +(subtotalAfterDiscount * KOKO_SURCHARGE_PCT).toFixed(2)
  const total = isKoko
    ? subtotalAfterDiscount + kokoSurcharge
@@ -623,7 +630,7 @@ function CheckoutPageInner() {
    // retry — the booking (Pending) is never lost.
    const initBody = JSON.stringify({ bookingId, ...(guestToken ? { guestToken } : {}) })
    try {
-    if (KOKO_ENABLED && paymentMethod === "koko") {
+    if (kokoAvailable && paymentMethod === "koko") {
      const kres = await fetch(`${API_URL}/api/payments/initialize-event-koko`, {
       method: "POST",
       credentials: "include",
@@ -1314,7 +1321,7 @@ function CheckoutPageInner() {
           <span className="mt-1 block text-xs text-muted-foreground">Visa, Mastercard </span>
          </span>
         </label>
-        {KOKO_ENABLED && (
+        {kokoAvailable && (
          <label className="flex cursor-pointer items-start gap-2.5 px-1 py-2">
           <input
            type="radio"

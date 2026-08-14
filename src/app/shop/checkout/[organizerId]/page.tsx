@@ -191,7 +191,12 @@ export default function CheckoutPage() {
   // sync with the backend's KOKO_SURCHARGE_PCT / computeKokoAmounts). The
   // buyer's total is then split by Koko into 3 equal installments.
   const KOKO_SURCHARGE_PCT = 0.2
-  const isKoko = KOKO_ENABLED && paymentMethod === "koko"
+  // Global feature flag AND every cart item's admin-controlled per-product
+  // override — a cart with even one koko_enabled=false item can't use Koko
+  // at all (server-side initializeShopOrderKoko re-checks the live flags on
+  // ALL items and blocks the whole order the same way).
+  const kokoAvailable = KOKO_ENABLED && cart.every((c) => c.koko_enabled !== false)
+  const isKoko = kokoAvailable && paymentMethod === "koko"
   const kokoSurcharge = +(subtotalAfterDiscount * KOKO_SURCHARGE_PCT).toFixed(2)
   const total = isKoko
     ? subtotalAfterDiscount + kokoSurcharge
@@ -520,7 +525,7 @@ export default function CheckoutPage() {
                     <span className="mt-1 block text-xs text-muted-foreground">Visa, Mastercard </span>
                   </span>
                 </label>
-                {KOKO_ENABLED && (
+                {kokoAvailable && (
                   <label className="flex cursor-pointer items-start gap-2.5 px-1 py-2">
                     <input
                       type="radio"

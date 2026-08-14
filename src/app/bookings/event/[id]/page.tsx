@@ -54,6 +54,9 @@ interface EventSummary {
  // these), index 0 is the main banner.
  banner_url?: string | null;
  banner_images?: string[] | null;
+ // Admin-controlled per-event Koko override, on top of NEXT_PUBLIC_KOKO_ENABLED.
+ // Absent on pre-migration rows, so only treat === false as "off".
+ koko_enabled?: boolean;
 }
 
 interface TicketTypeSummary {
@@ -135,8 +138,12 @@ export default function EventBookingDetailPage() {
  const [paymentError, setPaymentError] = useState('');
  const [cancelling, setCancelling] = useState(false);
  const [paying, setPaying] = useState(false);
- // 'card' → MPGS; 'koko' → Koko BNPL. Only user-selectable when KOKO_ENABLED.
+ // 'card' → MPGS; 'koko' → Koko BNPL. Only user-selectable when kokoAvailable.
  const [paymentMethod, setPaymentMethod] = useState<'card' | 'koko'>('card');
+ // Global feature flag AND the admin's per-event override — both must allow
+ // Koko for this event to offer it. Server-side (initializeEventPaymentKoko)
+ // re-checks the same event.koko_enabled column, so this is UI-only.
+ const kokoAvailable = KOKO_ENABLED && data?.event?.koko_enabled !== false;
  const [downloadingTicket, setDownloadingTicket] = useState(false);
  const [devMarkingPaid, setDevMarkingPaid] = useState(false);
  // Tiny convenience for local dev so we don't have to run ngrok to test the
@@ -463,7 +470,7 @@ export default function EventBookingDetailPage() {
 
  const handlePay = async () => {
   if (!data?.booking) return;
-  if (KOKO_ENABLED && paymentMethod === 'koko') return handlePayKoko();
+  if (kokoAvailable && paymentMethod === 'koko') return handlePayKoko();
   setPaying(true);
   setPaymentError('');
   try {
@@ -808,7 +815,7 @@ export default function EventBookingDetailPage() {
         {paymentError}
        </div>
       )}
-      {KOKO_ENABLED && (
+      {kokoAvailable && (
        <div className="rounded-lg border border-border p-3">
         <p className="mb-2 text-sm font-inter font-semibold">Payment Method</p>
         <div className="space-y-2">
@@ -848,7 +855,7 @@ export default function EventBookingDetailPage() {
        {paying && <Loader className="w-5 h-5 animate-spin" />}
        {paying
         ? 'Redirecting to secure checkout…'
-        : KOKO_ENABLED && paymentMethod === 'koko'
+        : kokoAvailable && paymentMethod === 'koko'
          ? 'Continue with Koko'
          : 'Confirm and Pay'}
       </button>

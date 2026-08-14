@@ -33,6 +33,10 @@ export interface CartItem {
   // so a stale snapshot here (admin flips it after the item was added) never
   // affects what's actually charged, only the pre-payment preview.
   convenience_fee_enabled: boolean
+  // Snapshot of the admin-controlled Koko (BNPL) toggle at add-time, same
+  // caveats as convenience_fee_enabled above — UI-only, server re-reads the
+  // live flag (across ALL items) at Koko payment-initialize time.
+  koko_enabled: boolean
   added_at: number
 }
 

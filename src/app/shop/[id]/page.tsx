@@ -63,6 +63,10 @@ interface Product {
   // (fee-enabled) to match the DB column's default and the event-ticket
   // behavior — see myscope-api services/platformFees.js.
   convenience_fee_enabled?: boolean
+  // Admin-controlled per-product toggle for the Koko BNPL payment option, on
+  // top of the global NEXT_PUBLIC_KOKO_ENABLED flag. Same absent-means-true
+  // default as above.
+  koko_enabled?: boolean
   organizer: Organizer | null
   event: ProductEvent | null
 }
@@ -336,6 +340,7 @@ export default function ProductDetailPage() {
                           quantity:     qty,
                           fulfillment:  product.fulfillment,
                           convenience_fee_enabled: product.convenience_fee_enabled !== false,
+                          koko_enabled: product.koko_enabled !== false,
                         })
                         setJustAdded(true)
                         setTimeout(() => setJustAdded(false), 1500)

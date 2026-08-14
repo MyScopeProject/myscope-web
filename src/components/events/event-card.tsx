@@ -32,6 +32,9 @@ export interface EventCardData {
   // while postponed is governed by sales_paused.
   postponed?: boolean
   postponed_to?: string | null
+  // Admin-controlled per-event Koko override, on top of NEXT_PUBLIC_KOKO_ENABLED.
+  // Absent on pre-migration rows, so only treat === false as "off".
+  koko_enabled?: boolean
 }
 
 interface EventCardProps {
@@ -238,7 +241,7 @@ export function EventCard({ event, className }: EventCardProps) {
                     </div>
                     {/* Koko BNPL cue — logo + "pay in 3 installments" subtitle,
                         right of the price. Shown only when Koko is enabled. */}
-                    {KOKO_ENABLED && (
+                    {KOKO_ENABLED && event.koko_enabled !== false && (
                       <div className="flex shrink-0 flex-col items-end gap-0.5 pb-0.5 text-right">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="/Images/koko.png" alt="KOKO" className="h-6 w-auto object-contain sm:h-7" />

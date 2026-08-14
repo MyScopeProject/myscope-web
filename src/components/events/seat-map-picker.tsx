@@ -240,8 +240,8 @@ export function SeatMapPicker({
     (v: number) => clampSeatmapZoom(v),
     [],
   )
-  const zoomIn   = () => setZoom(z => clampZoom(z * 1.1))
-  const zoomOut  = () => setZoom(z => clampZoom(z / 1.1))
+  const zoomIn   = () => setZoom(z => clampZoom(z * 1.06))
+  const zoomOut  = () => setZoom(z => clampZoom(z / 1.06))
   const zoomReset = () => setZoom(1)
 
   // ---- Zoom-to-point -------------------------------------------------
@@ -321,7 +321,7 @@ export function SeatMapPicker({
       applyZoomAt(
         e.clientX - rect.left,
         e.clientY - rect.top,
-        z => clamp(z * (e.deltaY < 0 ? 1.05 : 1 / 1.05)),
+        z => clamp(z * (e.deltaY < 0 ? 1.03 : 1 / 1.03)),
       )
     }
     const onTouchStart = (e: TouchEvent) => {
@@ -340,11 +340,11 @@ export function SeatMapPicker({
       const dy = t1.clientY - t0.clientY
       const dist = Math.hypot(dx, dy)
       const rawFactor = dist / pinchStartRef.current.dist
-      // Damped to 60% of raw finger-distance change — 1:1 pinch reads as
+      // Damped to 40% of raw finger-distance change — 1:1 pinch reads as
       // too twitchy/fast on a seat map (small hand tremor = big zoom jump);
       // this keeps it responsive without overshooting past the seat you
       // meant to zoom in on.
-      const factor = 1 + (rawFactor - 1) * 0.6
+      const factor = 1 + (rawFactor - 1) * 0.4
       const rect = el.getBoundingClientRect()
       const midX = (t0.clientX + t1.clientX) / 2
       const midY = (t0.clientY + t1.clientY) / 2
