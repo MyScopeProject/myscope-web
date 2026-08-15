@@ -1407,7 +1407,7 @@ function CheckoutPageInner() {
          className="hidden w-full lg:inline-flex"
          disabled={submitting || (isReserved ? ticketCount === 0 : nonReservedCount === 0)}
         >
-         {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
+         {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(isKoko ? total / 3 : total)}`}
         </Button>
         <button
          type="button"
@@ -1441,7 +1441,7 @@ function CheckoutPageInner() {
           className="w-full"
           disabled={submitting || (isReserved ? ticketCount === 0 : nonReservedCount === 0)}
          >
-          {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(total)}`}
+          {submitting ? "Processing…" : total === 0 ? "Reserve" : `Pay ${formatLkr(isKoko ? total / 3 : total)}`}
          </Button>
          <button
           type="button"

@@ -597,7 +597,7 @@ export default function CheckoutPage() {
                 {submitting ? (
                   <><Loader className="mr-2 h-4 w-4 animate-spin" /> Redirecting...</>
                 ) : (
-                  <><CreditCard className="mr-2 h-4 w-4" /> Pay {formatMoney(total, currency)}</>
+                  <><CreditCard className="mr-2 h-4 w-4" /> Pay {formatMoney(isKoko ? total / 3 : total, currency)}</>
                 )}
               </Button>
 

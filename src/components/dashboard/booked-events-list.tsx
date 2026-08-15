@@ -378,33 +378,52 @@ function BookingCard({ booking }: { booking: BookingRow }) {
 
         {/* Info — dashed divider off the thumbnail, like a torn ticket stub */}
         <div className="min-w-0 flex-1 p-4 sm:border-l sm:border-dashed sm:border-border">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant={meta.variant} className="text-xs">{meta.label}</Badge>
-            {postponed && <Badge variant="warning" className="text-xs">Postponed</Badge>}
-            {past && <Badge variant="outline" className="text-xs">Ended</Badge>}
-            {ev?.category && <Badge variant="outline" className="text-xs">{ev.category}</Badge>}
-            {booking.checked_in_at && (
-              <Badge variant="success" className="text-xs">
-                <CheckCircle2 className="mr-1 h-3 w-3" /> Checked in
-              </Badge>
-            )}
-          </div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant={meta.variant} className="text-xs">{meta.label}</Badge>
+                {postponed && <Badge variant="warning" className="text-xs">Postponed</Badge>}
+                {past && <Badge variant="outline" className="text-xs">Ended</Badge>}
+                {ev?.category && <Badge variant="outline" className="text-xs">{ev.category}</Badge>}
+                {booking.checked_in_at && (
+                  <Badge variant="success" className="text-xs">
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> Checked in
+                  </Badge>
+                )}
+              </div>
 
-          <p className="mt-1.5 truncate text-base font-semibold text-foreground">
-            {ev?.title ?? "Event no longer available"}
-          </p>
+              <p className="mt-1.5 truncate text-base font-semibold text-foreground">
+                {ev?.title ?? "Event no longer available"}
+              </p>
 
-          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            {dateLabel && (
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {dateLabel}
-              </span>
-            )}
-            {venue && (
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3 w-3" /> {venue}
-              </span>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                {dateLabel && (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {dateLabel}
+                  </span>
+                )}
+                {venue && (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {venue}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Small mobile-only banner — sm+ already gets the full thumbnail
+                on the left, so this just fills the free space beside the
+                title/badges on mobile without growing the card. */}
+            {banner && (
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted sm:hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={banner}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                />
+              </div>
             )}
           </div>
 
