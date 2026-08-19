@@ -7,16 +7,20 @@ import { AlertCircle, Loader } from "lucide-react"
 import { useGoogleLogin } from "@react-oauth/google"
 import { useAuth } from "@/context/AuthContext"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { ORGANIZER_ROLES } from "@/hooks/useOrganizerGuard"
 
 // Served at organizer.myscope.lk/login (middleware.ts rewrites it here) — the
 // dedicated entry point so organizers never need to visit the main site.
 // Deliberately a sibling of /organizer, not nested under it, so it isn't
 // wrapped in OrganizerShell's dashboard chrome.
 //
-// Same Google OAuth mechanism as /auth/login — no new auth flow. Always
-// pushes to /organizer on success; if the account isn't an approved
-// organizer, useOrganizerGuard (which runs once /organizer mounts) sends
-// them to the main site's /become-organizer.
+// Same Google OAuth mechanism as /auth/login — no new auth flow. The role
+// is checked here, before any navigation, so a non-organizer account never
+// reaches the dashboard shell: they're sent straight to /become-organizer
+// instead (staying signed in — it's a valid account, just not an organizer
+// yet, and forcing a second login would be pointless). useOrganizerGuard
+// still exists as a belt-and-suspenders check on /organizer/* itself, e.g.
+// if someone's organizer access is revoked mid-session.
 
 function GoogleIcon() {
   return (
@@ -41,12 +45,28 @@ export default function OrganizerLoginPage() {
       setError("")
       setLoading(true)
       const result = await googleLoginWithAccessToken(access_token)
-      if (result.success) {
-        router.push("/organizer")
-      } else {
+      if (!result.success) {
         setError(result.error || "Google sign-in failed.")
         setLoading(false)
+        return
       }
+
+      if (!ORGANIZER_ROLES.includes(result.user?.role || "")) {
+        // Not an approved organizer — off to the application page before
+        // /organizer (and its dashboard chrome) ever mounts. Cross-host when
+        // we're on the organizer subdomain, since /become-organizer only
+        // exists on the main site.
+        const isOrganizerHost =
+          typeof window !== "undefined" && window.location.hostname.startsWith("organizer.")
+        if (isOrganizerHost) {
+          window.location.href = "https://www.myscope.lk/become-organizer"
+        } else {
+          router.push("/become-organizer")
+        }
+        return
+      }
+
+      router.push("/organizer")
     },
     onError: () => {
       setError("Google sign-in was cancelled or failed. Try again.")

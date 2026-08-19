@@ -37,7 +37,7 @@ interface AuthContextType {
   checkAuth: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   googleLogin: (credential: string) => Promise<{ success: boolean; error?: string }>;
-  googleLoginWithAccessToken: (accessToken: string) => Promise<{ success: boolean; error?: string }>;
+  googleLoginWithAccessToken: (accessToken: string) => Promise<{ success: boolean; error?: string; user?: User }>;
   verifyEmail: (email: string, otp: string) => Promise<AuthResult>;
   resendVerification: (email: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -249,9 +249,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await response.json();
       if (data.success) {
-        setUser(mapUser(data.data.user));
+        const mappedUser = mapUser(data.data.user);
+        setUser(mappedUser);
         setToken(COOKIE_SENTINEL);
-        return { success: true };
+        // Callers that need to gate on role (e.g. organizer login) can't rely
+        // on the `user` state above being committed by the time this promise
+        // resolves, so hand it back directly.
+        return { success: true, user: mappedUser };
       }
       return { success: false, error: data.message || 'Google login failed' };
     } catch {

@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 
-const ORGANIZER_ROLES = ["organizer", "superadmin"]
+export const ORGANIZER_ROLES = ["organizer", "superadmin"]
 
 /**
  * Auth + role guard for every page under /organizer. Centralizes what used
