@@ -430,6 +430,14 @@ function BookingCard({ booking }: { booking: BookingRow }) {
           {/* Booking details */}
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-4">
             <Detail label="Booking code" value={booking.short_code || booking.booking_reference} mono />
+            {/* Full reference too — support asks for this specifically when
+                quoting a booking, and it's the same id shown in the admin
+                Refunds queue and on the gateway's own dashboard. Skipped when
+                there's no short_code (legacy bookings), since then it's the
+                same value as "Booking code" above. */}
+            {booking.short_code && (
+              <Detail label="Reference" value={booking.booking_reference} mono />
+            )}
             {tierLabel && <Detail label="Ticket tier" value={tierLabel} />}
             <Detail label="Tickets" value={String(booking.number_of_tickets)} />
             <Detail label="Total paid" value={lkr(booking.total_amount)} />
