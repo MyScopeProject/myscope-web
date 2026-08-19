@@ -18,6 +18,7 @@ import {
   Search,
   Send,
   Ticket,
+  Trash2,
   XCircle,
 } from "lucide-react"
 import { useOrganizerGuard } from "@/hooks/useOrganizerGuard"
@@ -25,6 +26,16 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ContactCollaborate } from "@/components/organizer/contact-collaborate"
 import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -91,6 +102,11 @@ export default function OrganizerEventsPage() {
   // Background count of past events so the "Past" tab has a number badge even
   // before the user clicks it. Fetched on mount alongside the upcoming list.
   const [pastCount, setPastCount] = React.useState<number | null>(null)
+  // Delete-confirmation state — only ever set for cancelled events (see
+  // OrganizerEventRow, which only renders the Delete button then).
+  const [deleteTarget, setDeleteTarget] = React.useState<EventRow | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
+  const [deleteError, setDeleteError] = React.useState("")
 
   const fetchEvents = React.useCallback(async (when: ViewMode) => {
     try {
@@ -149,6 +165,30 @@ export default function OrganizerEventsPage() {
       }
     } finally {
       setSubmittingId(null)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError("")
+    try {
+      const res = await fetch(`${API_URL}/api/organizer/events/${deleteTarget.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      const data = await res.json()
+      if (data?.success) {
+        setDeleteTarget(null)
+        toast.success("Event deleted.")
+        await fetchEvents(viewMode)
+      } else {
+        setDeleteError(data?.message || "Failed to delete event.")
+      }
+    } catch {
+      setDeleteError("Network error.")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -323,10 +363,48 @@ export default function OrganizerEventsPage() {
               event={event}
               submitting={submittingId === event.id}
               onSubmit={() => handleSubmit(event.id)}
+              onDelete={() => {
+                setDeleteError("")
+                setDeleteTarget(event)
+              }}
             />
           ))}
         </ul>
       )}
+
+      {/* Delete-cancelled-event confirmation */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && (
+                <>
+                  You&rsquo;re about to permanently delete <span className="font-medium text-foreground">&ldquo;{deleteTarget.title}&rdquo;</span>.
+                  This can&rsquo;t be undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{deleteError}</span>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={(e) => { e.preventDefault(); handleDelete() }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Delete event
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -335,10 +413,12 @@ function OrganizerEventRow({
   event,
   onSubmit,
   submitting,
+  onDelete,
 }: {
   event: EventRow
   onSubmit: () => void
   submitting: boolean
+  onDelete: () => void
 }) {
   const meta = STATUS_META[event.approval_status] ?? STATUS_META.draft
   const Icon = meta.icon
@@ -454,6 +534,16 @@ function OrganizerEventRow({
               <Button size="sm" onClick={onSubmit} disabled={submitting}>
                 {submitting ? <Loader className="animate-spin" /> : <Send />}
                 Submit for review
+              </Button>
+            )}
+            {event.approval_status === "cancelled" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onDelete}
+                className="hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 /> Delete
               </Button>
             )}
           </div>
