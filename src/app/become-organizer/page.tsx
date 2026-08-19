@@ -329,7 +329,7 @@ export default function BecomeOrganizerPage() {
                           ? "border-primary bg-primary text-primary-foreground"
                           : step > s.n
                             ? "border-emerald-500 bg-emerald-500 text-white"
-                            : "border-border bg-muted text-muted-foreground",
+                            : "border-border bg-muted/40 text-muted-foreground",
                       )}
                     >
                       {step > s.n ? <Check className="h-3.5 w-3.5" /> : s.n}
@@ -353,7 +353,7 @@ export default function BecomeOrganizerPage() {
                     Profile image
                   </label>
                   <div className="flex items-center gap-4">
-                    <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-muted-foreground">
+                    <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted/40 text-muted-foreground">
                       {form.profile_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
